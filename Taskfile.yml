@@ -76,6 +76,14 @@ tasks:
       - cd {{.BACKEND}} && mkdir -p bin && go build -o bin/ ./cmd/...
       - pnpm -r build
 
+  test:live:
+    desc: Read-only checks of the Go store against the laamo Eurobase project (needs EUROBASE_PRIVATE_KEY)
+    dir: backend
+    env:
+      LAAMO_EUROBASE_LIVE: "1"
+    cmds:
+      - go test -count=1 -run TestLiveReadOnly -v ./internal/store/eurobase/
+
   migrate:
     desc: Apply pending migrations and sync cron jobs (migrations/cron.json) on the laamo Eurobase project
     cmds:
