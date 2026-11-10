@@ -4,7 +4,9 @@ RUN corepack enable
 WORKDIR /src
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
-RUN pnpm install --frozen-lockfile --filter @laamo/web
+COPY packages/catalog/package.json packages/catalog/
+RUN pnpm install --frozen-lockfile --filter @laamo/web...
+COPY packages/catalog/ packages/catalog/
 COPY apps/web/ apps/web/
 RUN pnpm --filter @laamo/web build
 
