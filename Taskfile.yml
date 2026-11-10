@@ -19,14 +19,20 @@ tasks:
       - cd {{.BACKEND}} && go mod download
 
   dev:
-    desc: Run api and web together (web on :5173, api on :8787)
-    deps: [dev:api, dev:web]
+    desc: Run api, worker and web together (web on :5173, api on :8787)
+    deps: [dev:api, dev:worker, dev:web]
 
   dev:api:
     desc: Run the Go api
     dir: '{{.BACKEND}}'
     cmds:
       - go run ./cmd/api
+
+  dev:worker:
+    desc: Run the Go worker against the laamo Eurobase project (needs EUROBASE_PRIVATE_KEY)
+    dir: '{{.BACKEND}}'
+    cmds:
+      - go run ./cmd/worker
 
   dev:web:
     desc: Run the SvelteKit dev server
@@ -77,12 +83,12 @@ tasks:
       - pnpm -r build
 
   test:live:
-    desc: Read-only checks of the Go store against the laamo Eurobase project (needs EUROBASE_PRIVATE_KEY)
+    desc: Live checks against the laamo Eurobase project (store reads only; queue round trip with one ping job it deletes)
     dir: backend
     env:
       LAAMO_EUROBASE_LIVE: "1"
     cmds:
-      - go test -count=1 -run TestLiveReadOnly -v ./internal/store/eurobase/
+      - go test -count=1 -run TestLive -v ./internal/store/eurobase/ ./internal/queue/eurobase/
 
   migrate:
     desc: Apply pending migrations and sync cron jobs (migrations/cron.json) on the laamo Eurobase project

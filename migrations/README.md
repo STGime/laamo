@@ -38,12 +38,16 @@ created or updated by `scripts/sync-cron.sh` (part of `task migrate`). Removing 
 
 - `enqueue-due-triggers`: every minute, calls `enqueue_due_triggers()` as the service role.
 
-## Queue functions (0005, fixes in 0006)
+## Queue functions (0005, fixes in 0006, worker side in 0007)
+
+REST PATCH updates a row by id only, so anything that must check "do I still hold this job" is an RPC.
 
 | Function | Called by | Returns |
 | --- | --- | --- |
 | `claim_jobs(worker, n)` | worker, ~1/s when idle | jsonb array of claimed jobs (SKIP LOCKED, 5 min lease, reclaims expired leases, fails jobs with no attempts left, never claims past `max_attempts`) |
 | `insert_cards(rows)` | worker, per brick | `[{id, card_id}]`; one transaction per call, keep under 1 MB |
+| `extend_lease(job_id, worker, attempt, seconds)` | worker, every ~100s while a job runs | `{applied, lease_until}`; only while the worker still holds the job (0007) |
+| `finish_job(job_id, worker, attempt, outcome, error, retry_in)` | worker, when a job ends | `{applied, status}`; outcome `done`, `retry` (queued after `retry_in` s, or `failed` when out of attempts) or `failed`. Refused for a worker that lost the lease (0007) |
 | `enqueue_due_triggers()` | cron, every minute | `{enqueued, skipped, errored, errors}`; queues `run` jobs and advances `next_run_at`. A trigger whose config or workspace timezone fails is switched off (`next_run_at = NULL`) and listed in `errors`, so it can't block the others |
 | `next_schedule_time(config, tz, from_ts)` | API when saving a trigger, and the scheduler | next run strictly after `from_ts`, or NULL |
 

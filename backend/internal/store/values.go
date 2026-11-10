@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 	"time"
 )
@@ -81,9 +82,7 @@ func ApplyPatch[T any](row T, patch any) (T, error) {
 	if err != nil {
 		return out, err
 	}
-	for k, v := range changes {
-		base[k] = v
-	}
+	maps.Copy(base, changes)
 	b, err := json.Marshal(base)
 	if err != nil {
 		return out, err
