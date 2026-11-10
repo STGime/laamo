@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://laamo.app/schemas/template.schema.json",
+  "title": "Laamo Shelf template",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "slug", "name", "promise", "category", "avatar", "setup_questions", "stack", "required"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema": { "const": 1 },
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "name": { "$ref": "bricks.schema.json#/$defs/text" },
+    "promise": { "$ref": "bricks.schema.json#/$defs/text" },
+    "category": {
+      "description": "The S3 need chips",
+      "enum": ["find_customers", "stay_up_to_date", "sort_emails", "book_meetings", "watch_competitors", "plan_events", "post_social"]
+    },
+    "avatar": { "type": "string", "minLength": 1, "maxLength": 8 },
+    "sort_order": { "type": "integer" },
+    "notice": { "description": "Shown before setup, e.g. the B2B cold-email notice", "$ref": "bricks.schema.json#/$defs/text" },
+    "setup_questions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "oneOf": [
+          {
+            "description": "Ask once: stores an About me fact (skipped when the profile has it). The stack uses {my <profile>}.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["profile"],
+            "properties": { "profile": { "$ref": "bricks.schema.json#/$defs/key" } }
+          },
+          {
+            "description": "Fills brick settings for this helper.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "type", "question", "fills"],
+            "properties": {
+              "key": { "$ref": "bricks.schema.json#/$defs/key" },
+              "type": { "enum": ["text", "select", "place", "list", "time"] },
+              "question": { "$ref": "bricks.schema.json#/$defs/text" },
+              "placeholder": { "$ref": "bricks.schema.json#/$defs/text" },
+              "fills": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["brick", "setting"],
+                  "properties": { "brick": { "type": "string" }, "setting": { "$ref": "bricks.schema.json#/$defs/key" } }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "stack": { "$ref": "#/$defs/stack" },
+    "required": {
+      "description": "What the helper needs before it can run; must match what the stack requires (checked in tests).",
+      "$ref": "bricks.schema.json#/$defs/requires"
+    }
+  },
+  "$defs": {
+    "stack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "bricks"],
+      "properties": {
+        "schema": { "const": 1 },
+        "bricks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "type", "config"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^b[0-9]+$" },
+              "type": { "$ref": "bricks.schema.json#/$defs/brickId" },
+              "config": { "type": "object" }
+            }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_cards": { "type": "integer", "minimum": 1, "maximum": 500 },
+            "max_external_emails": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "max_cost_eur": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 }
+          }
+        }
+      }
+    }
+  }
+}

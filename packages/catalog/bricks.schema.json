@@ -1,0 +1,663 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://laamo.app/schemas/bricks.schema.json",
+  "title": "Laamo brick catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "groups",
+    "profile",
+    "fields",
+    "fixes",
+    "bricks"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema": {
+      "const": 1
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "color",
+          "title",
+          "question"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "when",
+              "look",
+              "think",
+              "do",
+              "ask"
+            ]
+          },
+          "color": {
+            "enum": [
+              "yellow",
+              "blue",
+              "purple",
+              "green",
+              "red"
+            ]
+          },
+          "title": {
+            "$ref": "#/$defs/text"
+          },
+          "question": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "profile": {
+      "description": "About me facts: {my <key>} pills, asked once (S15).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label",
+          "question"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "label": {
+            "$ref": "#/$defs/text"
+          },
+          "question": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "fields": {
+      "description": "Known card fields. pick = offered as a chip in Pull out details.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "label"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/key"
+          },
+          "label": {
+            "$ref": "#/$defs/text"
+          },
+          "pick": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "fixes": {
+      "description": "Missing field → the brick to insert before (one-tap fix). Key 'check' = the Check first fix.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "brick"
+        ],
+        "properties": {
+          "brick": {
+            "$ref": "#/$defs/brickId"
+          },
+          "config": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "bricks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/brick"
+      }
+    }
+  },
+  "$defs": {
+    "text": {
+      "description": "Localized text",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "en",
+        "de"
+      ],
+      "properties": {
+        "en": {
+          "type": "string",
+          "minLength": 1
+        },
+        "de": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "brickId": {
+      "type": "string",
+      "pattern": "^(when|look|think|do|ask)\\.[a-z][a-z0-9_]*$"
+    },
+    "contextKey": {
+      "type": "string",
+      "pattern": "^(answer|trigger\\.[a-z][a-z0-9_]*)$"
+    },
+    "scalar": {
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ]
+    },
+    "condition": {
+      "description": "All keys must match: a list of allowed values, or \"set\" for a non-empty value.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "const": "set"
+          },
+          {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/scalar"
+            }
+          }
+        ]
+      }
+    },
+    "fieldList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/key"
+      },
+      "uniqueItems": true
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "brain": {
+          "type": "boolean"
+        },
+        "places": {
+          "description": "Any one of these place types",
+          "type": "array",
+          "items": {
+            "enum": [
+              "discord",
+              "slack",
+              "teams",
+              "telegram",
+              "email",
+              "posta"
+            ]
+          }
+        },
+        "plan": {
+          "enum": [
+            "paid"
+          ]
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "label"
+      ],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/scalar"
+        },
+        "label": {
+          "$ref": "#/$defs/text"
+        },
+        "status": {
+          "enum": [
+            "mvp",
+            "later"
+          ]
+        }
+      }
+    },
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "type",
+        "label"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "type": {
+          "enum": [
+            "text",
+            "longtext",
+            "url",
+            "email",
+            "select",
+            "days",
+            "time",
+            "number",
+            "slider",
+            "toggle",
+            "tags",
+            "fields",
+            "place",
+            "list"
+          ]
+        },
+        "label": {
+          "$ref": "#/$defs/text"
+        },
+        "help": {
+          "$ref": "#/$defs/text"
+        },
+        "placeholder": {
+          "$ref": "#/$defs/text"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "advanced": {
+          "description": "Behind \"More\"",
+          "type": "boolean"
+        },
+        "default": {},
+        "show_if": {
+          "$ref": "#/$defs/condition"
+        },
+        "pills": {
+          "description": "Text may contain {field}, {my …}, {answer} pills",
+          "type": "boolean"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/option"
+          }
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_length": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ends": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/text"
+          }
+        },
+        "place_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "discord",
+              "slack",
+              "teams",
+              "telegram",
+              "email",
+              "posta"
+            ]
+          }
+        },
+        "create": {
+          "description": "list: may create a new list",
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "select"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "options"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "place"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "place_types"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "slider"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "min",
+              "max",
+              "ends"
+            ]
+          }
+        }
+      ]
+    },
+    "brick": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "group",
+        "shape",
+        "status",
+        "title",
+        "does",
+        "sentence",
+        "settings"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/brickId"
+        },
+        "group": {
+          "enum": [
+            "when",
+            "look",
+            "think",
+            "do",
+            "ask"
+          ]
+        },
+        "shape": {
+          "enum": [
+            "start",
+            "expand",
+            "enrich",
+            "filter",
+            "combine",
+            "act"
+          ]
+        },
+        "shape_if": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "if",
+              "shape"
+            ],
+            "properties": {
+              "if": {
+                "$ref": "#/$defs/condition"
+              },
+              "shape": {
+                "enum": [
+                  "start",
+                  "expand",
+                  "enrich",
+                  "filter",
+                  "combine",
+                  "act"
+                ]
+              }
+            }
+          }
+        },
+        "status": {
+          "description": "later = shown as coming soon, not usable yet",
+          "enum": [
+            "mvp",
+            "later"
+          ]
+        },
+        "trigger": {
+          "enum": [
+            "schedule",
+            "manual",
+            "email",
+            "watch",
+            "webhook"
+          ]
+        },
+        "title": {
+          "$ref": "#/$defs/text"
+        },
+        "does": {
+          "$ref": "#/$defs/text"
+        },
+        "sentence": {
+          "description": "First matching entry wins; [key] is replaced by the setting's display value.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "text"
+            ],
+            "properties": {
+              "if": {
+                "$ref": "#/$defs/condition"
+              },
+              "text": {
+                "$ref": "#/$defs/text"
+              }
+            }
+          }
+        },
+        "settings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/setting"
+          }
+        },
+        "card_kind": {
+          "enum": [
+            "web_result",
+            "business",
+            "page",
+            "email",
+            "row",
+            "summary",
+            "draft",
+            "event"
+          ]
+        },
+        "needs": {
+          "$ref": "#/$defs/fieldList"
+        },
+        "needs_if": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "if"
+            ],
+            "properties": {
+              "if": {
+                "$ref": "#/$defs/condition"
+              },
+              "fields": {
+                "$ref": "#/$defs/fieldList"
+              },
+              "context": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/contextKey"
+                }
+              }
+            }
+          }
+        },
+        "adds": {
+          "$ref": "#/$defs/fieldList"
+        },
+        "adds_if": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "if"
+            ],
+            "properties": {
+              "if": {
+                "$ref": "#/$defs/condition"
+              },
+              "fields": {
+                "$ref": "#/$defs/fieldList"
+              },
+              "open": {
+                "description": "Unknown fields (e.g. a List's columns): later needs can't be checked",
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "adds_from": {
+          "description": "A setting whose value lists the added fields",
+          "$ref": "#/$defs/key"
+        },
+        "provides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contextKey"
+          }
+        },
+        "provides_if": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "if",
+              "keys"
+            ],
+            "properties": {
+              "if": {
+                "$ref": "#/$defs/condition"
+              },
+              "keys": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/contextKey"
+                }
+              }
+            }
+          }
+        },
+        "requires": {
+          "$ref": "#/$defs/requires"
+        },
+        "requires_if": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "if"
+            ],
+            "properties": {
+              "if": {
+                "$ref": "#/$defs/condition"
+              },
+              "brain": {
+                "type": "boolean"
+              },
+              "places": {
+                "description": "Any one of these place types",
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "discord",
+                    "slack",
+                    "teams",
+                    "telegram",
+                    "email",
+                    "posta"
+                  ]
+                }
+              },
+              "plan": {
+                "enum": [
+                  "paid"
+                ]
+              }
+            }
+          }
+        },
+        "check": {
+          "description": "Check first: added by default, and/or mandatory under a condition",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "default": {
+              "type": "boolean"
+            },
+            "required_if": {
+              "$ref": "#/$defs/condition"
+            }
+          }
+        }
+      }
+    }
+  }
+}

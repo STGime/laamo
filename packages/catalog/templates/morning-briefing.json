@@ -1,0 +1,34 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "morning-briefing",
+  "name": { "en": "Morning Briefing", "de": "Morgen-Briefing" },
+  "promise": {
+    "en": "Every weekday at 7:30, the 5 most important news for your business in your chat.",
+    "de": "Jeden Werktag um 7:30 die 5 wichtigsten Neuigkeiten für dein Geschäft in deinem Chat."
+  },
+  "category": "stay_up_to_date",
+  "avatar": "📰",
+  "sort_order": 10,
+  "setup_questions": [
+    { "profile": "business" },
+    {
+      "key": "chat",
+      "type": "place",
+      "question": { "en": "Where should I tell you?", "de": "Wo soll ich dir Bescheid geben?" },
+      "fills": [{ "brick": "b5", "setting": "place" }]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      { "id": "b1", "type": "when.every", "config": { "freq": "weekdays", "time": "07:30" } },
+      { "id": "b2", "type": "look.search", "config": { "query": "news for {my business}", "count": 10, "freshness": "day" } },
+      { "id": "b3", "type": "think.keep", "config": { "criteria": "matter most to {my business}", "max": 5, "sort": "best" } },
+      { "id": "b4", "type": "think.summarize", "config": { "length": "short", "mode": "all", "language": "auto" } },
+      { "id": "b5", "type": "do.chat", "config": { "mode": "one" } }
+    ],
+    "limits": { "max_cards": 50, "max_external_emails": 0, "max_cost_eur": 0.2 }
+  },
+  "required": { "brain": true, "places": ["discord", "slack", "teams", "telegram"] }
+}

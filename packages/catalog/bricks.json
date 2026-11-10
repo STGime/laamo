@@ -1,4 +1,2504 @@
 {
+  "$schema": "./bricks.schema.json",
   "schema": 1,
-  "bricks": []
+  "groups": [
+    {
+      "id": "when",
+      "color": "yellow",
+      "title": {
+        "en": "When",
+        "de": "Wann"
+      },
+      "question": {
+        "en": "When should I start?",
+        "de": "Wann soll ich loslegen?"
+      }
+    },
+    {
+      "id": "look",
+      "color": "blue",
+      "title": {
+        "en": "Look",
+        "de": "Schauen"
+      },
+      "question": {
+        "en": "What should I read?",
+        "de": "Was soll ich lesen?"
+      }
+    },
+    {
+      "id": "think",
+      "color": "purple",
+      "title": {
+        "en": "Think",
+        "de": "Denken"
+      },
+      "question": {
+        "en": "What should I do with it?",
+        "de": "Was soll ich damit machen?"
+      }
+    },
+    {
+      "id": "do",
+      "color": "green",
+      "title": {
+        "en": "Do",
+        "de": "Tun"
+      },
+      "question": {
+        "en": "What should I change?",
+        "de": "Was soll ich ändern?"
+      }
+    },
+    {
+      "id": "ask",
+      "color": "red",
+      "title": {
+        "en": "Ask me",
+        "de": "Frag mich"
+      },
+      "question": {
+        "en": "When do I need your OK?",
+        "de": "Wann brauche ich dein OK?"
+      }
+    }
+  ],
+  "profile": [
+    {
+      "key": "name",
+      "label": {
+        "en": "My name",
+        "de": "Mein Name"
+      },
+      "question": {
+        "en": "What's your name?",
+        "de": "Wie heißt du?"
+      }
+    },
+    {
+      "key": "business",
+      "label": {
+        "en": "My business",
+        "de": "Mein Geschäft"
+      },
+      "question": {
+        "en": "What kind of business do you run?",
+        "de": "Was für ein Geschäft hast du?"
+      }
+    },
+    {
+      "key": "offer",
+      "label": {
+        "en": "My offer",
+        "de": "Mein Angebot"
+      },
+      "question": {
+        "en": "What do you offer your customers?",
+        "de": "Was bietest du deinen Kunden an?"
+      }
+    },
+    {
+      "key": "city",
+      "label": {
+        "en": "My city",
+        "de": "Meine Stadt"
+      },
+      "question": {
+        "en": "Where are you based?",
+        "de": "Wo bist du zu Hause?"
+      }
+    },
+    {
+      "key": "website",
+      "label": {
+        "en": "My website",
+        "de": "Meine Website"
+      },
+      "question": {
+        "en": "What's your website?",
+        "de": "Wie lautet deine Website?"
+      }
+    },
+    {
+      "key": "tone",
+      "label": {
+        "en": "My tone",
+        "de": "Mein Ton"
+      },
+      "question": {
+        "en": "How do you usually write: casual or formal?",
+        "de": "Wie schreibst du meistens: locker oder förmlich?"
+      }
+    },
+    {
+      "key": "signature",
+      "label": {
+        "en": "My signature",
+        "de": "Meine Signatur"
+      },
+      "question": {
+        "en": "How should your emails be signed?",
+        "de": "Wie sollen deine E-Mails unterschrieben werden?"
+      }
+    }
+  ],
+  "fields": [
+    {
+      "key": "title",
+      "label": {
+        "en": "Title",
+        "de": "Titel"
+      },
+      "pick": true
+    },
+    {
+      "key": "url",
+      "label": {
+        "en": "Link",
+        "de": "Link"
+      }
+    },
+    {
+      "key": "snippet",
+      "label": {
+        "en": "Snippet",
+        "de": "Ausschnitt"
+      }
+    },
+    {
+      "key": "published_at",
+      "label": {
+        "en": "Published",
+        "de": "Veröffentlicht"
+      }
+    },
+    {
+      "key": "name",
+      "label": {
+        "en": "Name",
+        "de": "Name"
+      },
+      "pick": true
+    },
+    {
+      "key": "email",
+      "label": {
+        "en": "Email",
+        "de": "E-Mail"
+      },
+      "pick": true
+    },
+    {
+      "key": "phone",
+      "label": {
+        "en": "Phone",
+        "de": "Telefon"
+      },
+      "pick": true
+    },
+    {
+      "key": "website",
+      "label": {
+        "en": "Website",
+        "de": "Website"
+      },
+      "pick": true
+    },
+    {
+      "key": "address",
+      "label": {
+        "en": "Address",
+        "de": "Adresse"
+      },
+      "pick": true
+    },
+    {
+      "key": "opening_hours",
+      "label": {
+        "en": "Opening hours",
+        "de": "Öffnungszeiten"
+      }
+    },
+    {
+      "key": "price",
+      "label": {
+        "en": "Price",
+        "de": "Preis"
+      },
+      "pick": true
+    },
+    {
+      "key": "date",
+      "label": {
+        "en": "Date",
+        "de": "Datum"
+      },
+      "pick": true
+    },
+    {
+      "key": "time",
+      "label": {
+        "en": "Time",
+        "de": "Uhrzeit"
+      },
+      "pick": true
+    },
+    {
+      "key": "place",
+      "label": {
+        "en": "Place",
+        "de": "Ort"
+      },
+      "pick": true
+    },
+    {
+      "key": "page_title",
+      "label": {
+        "en": "Page title",
+        "de": "Seitentitel"
+      }
+    },
+    {
+      "key": "page_text",
+      "label": {
+        "en": "Page text",
+        "de": "Seitentext"
+      }
+    },
+    {
+      "key": "from",
+      "label": {
+        "en": "From",
+        "de": "Von"
+      }
+    },
+    {
+      "key": "subject",
+      "label": {
+        "en": "Subject",
+        "de": "Betreff"
+      }
+    },
+    {
+      "key": "text",
+      "label": {
+        "en": "Text",
+        "de": "Text"
+      }
+    },
+    {
+      "key": "summary",
+      "label": {
+        "en": "Summary",
+        "de": "Zusammenfassung"
+      }
+    },
+    {
+      "key": "body",
+      "label": {
+        "en": "Message",
+        "de": "Nachricht"
+      }
+    },
+    {
+      "key": "score",
+      "label": {
+        "en": "Score",
+        "de": "Bewertung"
+      }
+    },
+    {
+      "key": "reason",
+      "label": {
+        "en": "Why",
+        "de": "Warum"
+      }
+    }
+  ],
+  "fixes": {
+    "email": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "email"
+        ]
+      }
+    },
+    "phone": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "phone"
+        ]
+      }
+    },
+    "website": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "website"
+        ]
+      }
+    },
+    "address": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "address"
+        ]
+      }
+    },
+    "name": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "name"
+        ]
+      }
+    },
+    "title": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "title"
+        ]
+      }
+    },
+    "price": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "price"
+        ]
+      }
+    },
+    "date": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "date",
+          "time",
+          "place"
+        ]
+      }
+    },
+    "time": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "date",
+          "time",
+          "place"
+        ]
+      }
+    },
+    "place": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "date",
+          "time",
+          "place"
+        ]
+      }
+    },
+    "body": {
+      "brick": "think.write",
+      "config": {
+        "what": "",
+        "tone": 0.5,
+        "mode": "each"
+      }
+    },
+    "subject": {
+      "brick": "think.write",
+      "config": {
+        "what": "",
+        "tone": 0.5,
+        "mode": "each"
+      }
+    },
+    "summary": {
+      "brick": "think.summarize",
+      "config": {
+        "length": "short",
+        "mode": "all"
+      }
+    },
+    "page_text": {
+      "brick": "look.read_page",
+      "config": {
+        "source": "website",
+        "depth": "page"
+      }
+    },
+    "check": {
+      "brick": "ask.check",
+      "config": {
+        "timeout_h": 48,
+        "on_timeout": "skip"
+      }
+    }
+  },
+  "bricks": [
+    {
+      "id": "when.every",
+      "group": "when",
+      "shape": "start",
+      "status": "mvp",
+      "trigger": "schedule",
+      "title": {
+        "en": "Every…",
+        "de": "Jeden…"
+      },
+      "does": {
+        "en": "Runs on a schedule.",
+        "de": "Läuft nach Zeitplan."
+      },
+      "sentence": [
+        {
+          "if": {
+            "freq": [
+              "daily"
+            ]
+          },
+          "text": {
+            "en": "Every day at [time]",
+            "de": "Jeden Tag um [time]"
+          }
+        },
+        {
+          "if": {
+            "freq": [
+              "weekdays"
+            ]
+          },
+          "text": {
+            "en": "Every weekday at [time]",
+            "de": "Werktags um [time]"
+          }
+        },
+        {
+          "text": {
+            "en": "Every [days] at [time]",
+            "de": "Jeden [days] um [time]"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "freq",
+          "type": "select",
+          "label": {
+            "en": "How often",
+            "de": "Wie oft"
+          },
+          "required": true,
+          "default": "weekdays",
+          "options": [
+            {
+              "value": "daily",
+              "label": {
+                "en": "Every day",
+                "de": "Jeden Tag"
+              }
+            },
+            {
+              "value": "weekdays",
+              "label": {
+                "en": "Weekdays",
+                "de": "Werktags"
+              }
+            },
+            {
+              "value": "weekly",
+              "label": {
+                "en": "Some days",
+                "de": "An bestimmten Tagen"
+              }
+            }
+          ]
+        },
+        {
+          "key": "days",
+          "type": "days",
+          "label": {
+            "en": "Days",
+            "de": "Tage"
+          },
+          "required": true,
+          "show_if": {
+            "freq": [
+              "weekly"
+            ]
+          },
+          "default": [
+            "mon"
+          ]
+        },
+        {
+          "key": "time",
+          "type": "time",
+          "label": {
+            "en": "Time",
+            "de": "Uhrzeit"
+          },
+          "required": true,
+          "default": "08:00"
+        }
+      ]
+    },
+    {
+      "id": "when.tap",
+      "group": "when",
+      "shape": "start",
+      "status": "mvp",
+      "trigger": "manual",
+      "title": {
+        "en": "Tap Go",
+        "de": "Auf Los tippen"
+      },
+      "does": {
+        "en": "Runs when you press the big button in the app.",
+        "de": "Läuft, wenn du in der App auf den großen Knopf drückst."
+      },
+      "sentence": [
+        {
+          "if": {
+            "question": "set"
+          },
+          "text": {
+            "en": "When I tap Go, ask “[question]”",
+            "de": "Wenn ich auf Los tippe, frag „[question]“"
+          }
+        },
+        {
+          "text": {
+            "en": "When I tap Go",
+            "de": "Wenn ich auf Los tippe"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "question",
+          "type": "text",
+          "label": {
+            "en": "Ask me before starting (optional)",
+            "de": "Vor dem Start fragen (optional)"
+          },
+          "placeholder": {
+            "en": "Which city?",
+            "de": "Welche Stadt?"
+          },
+          "max_length": 120
+        }
+      ],
+      "provides_if": [
+        {
+          "if": {
+            "question": "set"
+          },
+          "keys": [
+            "answer"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "when.email",
+      "group": "when",
+      "shape": "start",
+      "status": "mvp",
+      "trigger": "email",
+      "title": {
+        "en": "Email this helper",
+        "de": "Diesem Helfer mailen"
+      },
+      "does": {
+        "en": "Gives the helper its own address. Every email you forward to it starts a run.",
+        "de": "Gibt dem Helfer eine eigene Adresse. Jede weitergeleitete E-Mail startet einen Lauf."
+      },
+      "sentence": [
+        {
+          "if": {
+            "senders": "set"
+          },
+          "text": {
+            "en": "When [senders] emails this helper",
+            "de": "Wenn [senders] diesem Helfer mailt"
+          }
+        },
+        {
+          "text": {
+            "en": "When an email arrives",
+            "de": "Wenn eine E-Mail ankommt"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "senders",
+          "type": "tags",
+          "label": {
+            "en": "Only from these senders (optional)",
+            "de": "Nur von diesen Absendern (optional)"
+          },
+          "placeholder": {
+            "en": "anna@example.com",
+            "de": "anna@beispiel.de"
+          }
+        }
+      ],
+      "card_kind": "email",
+      "adds": [
+        "from",
+        "subject",
+        "text"
+      ],
+      "provides": [
+        "trigger.from",
+        "trigger.subject"
+      ]
+    },
+    {
+      "id": "when.watch",
+      "group": "when",
+      "shape": "start",
+      "status": "later",
+      "trigger": "watch",
+      "title": {
+        "en": "Something changed",
+        "de": "Etwas hat sich geändert"
+      },
+      "does": {
+        "en": "Watches a webpage or RSS feed and runs when it changes.",
+        "de": "Beobachtet eine Webseite oder einen RSS-Feed und läuft bei Änderungen."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "When [url] changes",
+            "de": "Wenn sich [url] ändert"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "url",
+          "type": "url",
+          "label": {
+            "en": "Page or feed",
+            "de": "Seite oder Feed"
+          },
+          "required": true
+        },
+        {
+          "key": "every",
+          "type": "select",
+          "label": {
+            "en": "Check every",
+            "de": "Prüfen alle"
+          },
+          "default": "day",
+          "options": [
+            {
+              "value": "hour",
+              "label": {
+                "en": "Hour",
+                "de": "Stunde"
+              }
+            },
+            {
+              "value": "day",
+              "label": {
+                "en": "Day",
+                "de": "Tag"
+              }
+            }
+          ]
+        },
+        {
+          "key": "change",
+          "type": "select",
+          "label": {
+            "en": "What counts as a change",
+            "de": "Was als Änderung zählt"
+          },
+          "default": "anything",
+          "options": [
+            {
+              "value": "anything",
+              "label": {
+                "en": "Anything",
+                "de": "Alles"
+              }
+            },
+            {
+              "value": "price",
+              "label": {
+                "en": "A price",
+                "de": "Ein Preis"
+              }
+            },
+            {
+              "value": "new_item",
+              "label": {
+                "en": "A new item",
+                "de": "Ein neuer Eintrag"
+              }
+            }
+          ]
+        }
+      ],
+      "card_kind": "page",
+      "adds": [
+        "url",
+        "page_title",
+        "page_text"
+      ]
+    },
+    {
+      "id": "look.search",
+      "group": "look",
+      "shape": "expand",
+      "status": "mvp",
+      "title": {
+        "en": "Search the web",
+        "de": "Im Web suchen"
+      },
+      "does": {
+        "en": "Searches the web and returns the results as cards.",
+        "de": "Sucht im Web und liefert die Treffer als Karten."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Search the web for “[query]”",
+            "de": "Im Web nach „[query]“ suchen"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "query",
+          "type": "text",
+          "label": {
+            "en": "What to search",
+            "de": "Wonach suchen"
+          },
+          "placeholder": {
+            "en": "news for {my business}",
+            "de": "Neuigkeiten zu {my business}"
+          },
+          "required": true,
+          "pills": true,
+          "max_length": 200
+        },
+        {
+          "key": "count",
+          "type": "select",
+          "label": {
+            "en": "How many",
+            "de": "Wie viele"
+          },
+          "default": 10,
+          "options": [
+            {
+              "value": 5,
+              "label": {
+                "en": "5",
+                "de": "5"
+              }
+            },
+            {
+              "value": 10,
+              "label": {
+                "en": "10",
+                "de": "10"
+              }
+            },
+            {
+              "value": 25,
+              "label": {
+                "en": "25",
+                "de": "25"
+              }
+            }
+          ]
+        },
+        {
+          "key": "freshness",
+          "type": "select",
+          "label": {
+            "en": "How fresh",
+            "de": "Wie aktuell"
+          },
+          "default": "week",
+          "options": [
+            {
+              "value": "day",
+              "label": {
+                "en": "Last day",
+                "de": "Letzter Tag"
+              }
+            },
+            {
+              "value": "week",
+              "label": {
+                "en": "Last week",
+                "de": "Letzte Woche"
+              }
+            },
+            {
+              "value": "any",
+              "label": {
+                "en": "Any time",
+                "de": "Egal wann"
+              }
+            }
+          ]
+        }
+      ],
+      "card_kind": "web_result",
+      "adds": [
+        "title",
+        "url",
+        "snippet",
+        "published_at"
+      ]
+    },
+    {
+      "id": "look.read_page",
+      "group": "look",
+      "shape": "enrich",
+      "shape_if": [
+        {
+          "if": {
+            "source": [
+              "fixed"
+            ]
+          },
+          "shape": "expand"
+        }
+      ],
+      "status": "mvp",
+      "title": {
+        "en": "Read a webpage",
+        "de": "Webseite lesen"
+      },
+      "does": {
+        "en": "Opens one page, or the link on every card, and turns it into clean text.",
+        "de": "Öffnet eine Seite oder den Link jeder Karte und macht daraus sauberen Text."
+      },
+      "sentence": [
+        {
+          "if": {
+            "source": [
+              "fixed"
+            ]
+          },
+          "text": {
+            "en": "Read [url]",
+            "de": "[url] lesen"
+          }
+        },
+        {
+          "if": {
+            "source": [
+              "url"
+            ]
+          },
+          "text": {
+            "en": "Read each page",
+            "de": "Jede Seite lesen"
+          }
+        },
+        {
+          "if": {
+            "depth": [
+              "contact"
+            ]
+          },
+          "text": {
+            "en": "Read their website and contact page",
+            "de": "Ihre Website und Kontaktseite lesen"
+          }
+        },
+        {
+          "text": {
+            "en": "Read their website",
+            "de": "Ihre Website lesen"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "source",
+          "type": "select",
+          "label": {
+            "en": "Which page",
+            "de": "Welche Seite"
+          },
+          "default": "website",
+          "options": [
+            {
+              "value": "website",
+              "label": {
+                "en": "Their website (from the cards)",
+                "de": "Ihre Website (aus den Karten)"
+              }
+            },
+            {
+              "value": "url",
+              "label": {
+                "en": "The link on each card",
+                "de": "Den Link jeder Karte"
+              }
+            },
+            {
+              "value": "fixed",
+              "label": {
+                "en": "One page",
+                "de": "Eine bestimmte Seite"
+              }
+            }
+          ]
+        },
+        {
+          "key": "url",
+          "type": "url",
+          "label": {
+            "en": "Page",
+            "de": "Seite"
+          },
+          "required": true,
+          "show_if": {
+            "source": [
+              "fixed"
+            ]
+          }
+        },
+        {
+          "key": "depth",
+          "type": "select",
+          "label": {
+            "en": "How deep",
+            "de": "Wie tief"
+          },
+          "default": "page",
+          "options": [
+            {
+              "value": "page",
+              "label": {
+                "en": "Just this page",
+                "de": "Nur diese Seite"
+              }
+            },
+            {
+              "value": "contact",
+              "label": {
+                "en": "+ contact & about pages",
+                "de": "+ Kontakt- und Über-uns-Seite"
+              }
+            }
+          ]
+        }
+      ],
+      "needs_if": [
+        {
+          "if": {
+            "source": [
+              "website"
+            ]
+          },
+          "fields": [
+            "website"
+          ]
+        },
+        {
+          "if": {
+            "source": [
+              "url"
+            ]
+          },
+          "fields": [
+            "url"
+          ]
+        }
+      ],
+      "card_kind": "page",
+      "adds": [
+        "page_title",
+        "page_text"
+      ]
+    },
+    {
+      "id": "look.find_businesses",
+      "group": "look",
+      "shape": "expand",
+      "status": "mvp",
+      "title": {
+        "en": "Find businesses",
+        "de": "Betriebe finden"
+      },
+      "does": {
+        "en": "Finds local businesses by type and place: name, address, website, phone (OpenStreetMap).",
+        "de": "Findet Betriebe nach Art und Ort: Name, Adresse, Website, Telefon (OpenStreetMap)."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Find [what] in [where]",
+            "de": "[what] in [where] finden"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "what",
+          "type": "text",
+          "label": {
+            "en": "What kind",
+            "de": "Welche Art"
+          },
+          "placeholder": {
+            "en": "bakeries",
+            "de": "Bäckereien"
+          },
+          "required": true,
+          "pills": true,
+          "max_length": 80
+        },
+        {
+          "key": "where",
+          "type": "text",
+          "label": {
+            "en": "Where",
+            "de": "Wo"
+          },
+          "default": "{my city}",
+          "required": true,
+          "pills": true,
+          "max_length": 80
+        },
+        {
+          "key": "radius_km",
+          "type": "select",
+          "label": {
+            "en": "How far",
+            "de": "Wie weit"
+          },
+          "default": 10,
+          "options": [
+            {
+              "value": 2,
+              "label": {
+                "en": "2 km",
+                "de": "2 km"
+              }
+            },
+            {
+              "value": 5,
+              "label": {
+                "en": "5 km",
+                "de": "5 km"
+              }
+            },
+            {
+              "value": 10,
+              "label": {
+                "en": "10 km",
+                "de": "10 km"
+              }
+            },
+            {
+              "value": 25,
+              "label": {
+                "en": "25 km",
+                "de": "25 km"
+              }
+            }
+          ]
+        }
+      ],
+      "card_kind": "business",
+      "adds": [
+        "name",
+        "address",
+        "website",
+        "phone",
+        "opening_hours"
+      ]
+    },
+    {
+      "id": "look.my_stuff",
+      "group": "look",
+      "shape": "expand",
+      "status": "mvp",
+      "title": {
+        "en": "Read my stuff",
+        "de": "Meine Sachen lesen"
+      },
+      "does": {
+        "en": "Uses one of your Lists or text you pasted.",
+        "de": "Nutzt eine deiner Listen oder eingefügten Text."
+      },
+      "sentence": [
+        {
+          "if": {
+            "source": [
+              "paste"
+            ]
+          },
+          "text": {
+            "en": "Read my notes",
+            "de": "Meine Notizen lesen"
+          }
+        },
+        {
+          "text": {
+            "en": "Read my list [list]",
+            "de": "Meine Liste [list] lesen"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "source",
+          "type": "select",
+          "label": {
+            "en": "What to read",
+            "de": "Was lesen"
+          },
+          "default": "list",
+          "options": [
+            {
+              "value": "list",
+              "label": {
+                "en": "One of my Lists",
+                "de": "Eine meiner Listen"
+              }
+            },
+            {
+              "value": "paste",
+              "label": {
+                "en": "Text I paste",
+                "de": "Text, den ich einfüge"
+              }
+            },
+            {
+              "value": "file",
+              "label": {
+                "en": "A file (PDF, CSV, DOCX)",
+                "de": "Eine Datei (PDF, CSV, DOCX)"
+              },
+              "status": "later"
+            }
+          ]
+        },
+        {
+          "key": "list",
+          "type": "list",
+          "label": {
+            "en": "List",
+            "de": "Liste"
+          },
+          "required": true,
+          "show_if": {
+            "source": [
+              "list"
+            ]
+          }
+        },
+        {
+          "key": "text",
+          "type": "longtext",
+          "label": {
+            "en": "Text",
+            "de": "Text"
+          },
+          "required": true,
+          "show_if": {
+            "source": [
+              "paste"
+            ]
+          },
+          "max_length": 20000
+        }
+      ],
+      "card_kind": "row",
+      "adds_if": [
+        {
+          "if": {
+            "source": [
+              "paste"
+            ]
+          },
+          "fields": [
+            "text"
+          ]
+        },
+        {
+          "if": {
+            "source": [
+              "list"
+            ]
+          },
+          "open": true
+        }
+      ]
+    },
+    {
+      "id": "think.summarize",
+      "group": "think",
+      "shape": "combine",
+      "shape_if": [
+        {
+          "if": {
+            "mode": [
+              "each"
+            ]
+          },
+          "shape": "enrich"
+        }
+      ],
+      "status": "mvp",
+      "requires": {
+        "brain": true
+      },
+      "title": {
+        "en": "Sum it up",
+        "de": "Zusammenfassen"
+      },
+      "does": {
+        "en": "Turns many cards into one short summary, or summarizes each card.",
+        "de": "Fasst viele Karten zu einer kurzen Zusammenfassung zusammen, oder jede Karte einzeln."
+      },
+      "sentence": [
+        {
+          "if": {
+            "mode": [
+              "each"
+            ]
+          },
+          "text": {
+            "en": "Sum up each card",
+            "de": "Jede Karte zusammenfassen"
+          }
+        },
+        {
+          "text": {
+            "en": "Sum it all up",
+            "de": "Alles zusammenfassen"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "length",
+          "type": "select",
+          "label": {
+            "en": "Length",
+            "de": "Länge"
+          },
+          "default": "short",
+          "options": [
+            {
+              "value": "line",
+              "label": {
+                "en": "One line",
+                "de": "Eine Zeile"
+              }
+            },
+            {
+              "value": "short",
+              "label": {
+                "en": "Short",
+                "de": "Kurz"
+              }
+            },
+            {
+              "value": "detailed",
+              "label": {
+                "en": "Detailed",
+                "de": "Ausführlich"
+              }
+            }
+          ]
+        },
+        {
+          "key": "mode",
+          "type": "select",
+          "label": {
+            "en": "One summary or one per card",
+            "de": "Eine Zusammenfassung oder eine pro Karte"
+          },
+          "default": "all",
+          "options": [
+            {
+              "value": "all",
+              "label": {
+                "en": "One for all",
+                "de": "Eine für alle"
+              }
+            },
+            {
+              "value": "each",
+              "label": {
+                "en": "One per card",
+                "de": "Eine pro Karte"
+              }
+            }
+          ]
+        },
+        {
+          "key": "language",
+          "type": "select",
+          "label": {
+            "en": "Language",
+            "de": "Sprache"
+          },
+          "default": "auto",
+          "options": [
+            {
+              "value": "auto",
+              "label": {
+                "en": "My language",
+                "de": "Meine Sprache"
+              }
+            },
+            {
+              "value": "en",
+              "label": {
+                "en": "English",
+                "de": "Englisch"
+              }
+            },
+            {
+              "value": "de",
+              "label": {
+                "en": "German",
+                "de": "Deutsch"
+              }
+            }
+          ]
+        }
+      ],
+      "card_kind": "summary",
+      "adds": [
+        "summary"
+      ]
+    },
+    {
+      "id": "think.keep",
+      "group": "think",
+      "shape": "filter",
+      "status": "mvp",
+      "requires": {
+        "brain": true
+      },
+      "title": {
+        "en": "Keep the good ones",
+        "de": "Die Guten behalten"
+      },
+      "does": {
+        "en": "Filters and ranks cards by what you describe in plain words.",
+        "de": "Filtert und sortiert Karten nach dem, was du in eigenen Worten beschreibst."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Keep ones that [criteria], max [max]",
+            "de": "Behalte die, die [criteria], höchstens [max]"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "criteria",
+          "type": "text",
+          "label": {
+            "en": "What makes it good",
+            "de": "Was macht es gut"
+          },
+          "placeholder": {
+            "en": "have no online booking",
+            "de": "keine Online-Buchung haben"
+          },
+          "required": true,
+          "pills": true,
+          "max_length": 300
+        },
+        {
+          "key": "max",
+          "type": "number",
+          "label": {
+            "en": "Keep at most",
+            "de": "Höchstens behalten"
+          },
+          "default": 10,
+          "min": 1,
+          "max": 50
+        },
+        {
+          "key": "sort",
+          "type": "select",
+          "label": {
+            "en": "Sort by",
+            "de": "Sortieren nach"
+          },
+          "default": "best",
+          "options": [
+            {
+              "value": "best",
+              "label": {
+                "en": "Best first",
+                "de": "Beste zuerst"
+              }
+            },
+            {
+              "value": "original",
+              "label": {
+                "en": "Keep the order",
+                "de": "Reihenfolge behalten"
+              }
+            }
+          ]
+        }
+      ],
+      "adds": [
+        "score",
+        "reason"
+      ]
+    },
+    {
+      "id": "think.extract",
+      "group": "think",
+      "shape": "enrich",
+      "status": "mvp",
+      "requires": {
+        "brain": true
+      },
+      "title": {
+        "en": "Pull out details",
+        "de": "Details herausziehen"
+      },
+      "does": {
+        "en": "Pulls out fields so they fit in a list: name, email, phone, date…",
+        "de": "Zieht Felder heraus, damit sie in eine Liste passen: Name, E-Mail, Telefon, Datum…"
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Pull out [fields]",
+            "de": "[fields] herausziehen"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "fields",
+          "type": "fields",
+          "label": {
+            "en": "Which details",
+            "de": "Welche Details"
+          },
+          "required": true,
+          "default": [
+            "name",
+            "email"
+          ]
+        }
+      ],
+      "adds_from": "fields"
+    },
+    {
+      "id": "think.write",
+      "group": "think",
+      "shape": "enrich",
+      "shape_if": [
+        {
+          "if": {
+            "mode": [
+              "all"
+            ]
+          },
+          "shape": "combine"
+        }
+      ],
+      "status": "mvp",
+      "requires": {
+        "brain": true
+      },
+      "title": {
+        "en": "Write it",
+        "de": "Schreiben"
+      },
+      "does": {
+        "en": "Writes an email, message, reply or post: one per card or one in total.",
+        "de": "Schreibt eine E-Mail, Nachricht, Antwort oder einen Post: einen pro Karte oder einen insgesamt."
+      },
+      "sentence": [
+        {
+          "if": {
+            "mode": [
+              "all"
+            ]
+          },
+          "text": {
+            "en": "Write one [what]",
+            "de": "Einmal [what] schreiben"
+          }
+        },
+        {
+          "text": {
+            "en": "Write [what] for each",
+            "de": "Für jede Karte [what] schreiben"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "what",
+          "type": "longtext",
+          "label": {
+            "en": "What to write",
+            "de": "Was schreiben"
+          },
+          "placeholder": {
+            "en": "a short friendly email offering {my offer}",
+            "de": "eine kurze, freundliche E-Mail mit {my offer}"
+          },
+          "required": true,
+          "pills": true,
+          "max_length": 1000
+        },
+        {
+          "key": "tone",
+          "type": "slider",
+          "label": {
+            "en": "Tone",
+            "de": "Ton"
+          },
+          "min": 0,
+          "max": 1,
+          "step": 0.1,
+          "default": 0.5,
+          "ends": [
+            {
+              "en": "Casual",
+              "de": "Locker"
+            },
+            {
+              "en": "Formal",
+              "de": "Förmlich"
+            }
+          ]
+        },
+        {
+          "key": "mode",
+          "type": "select",
+          "label": {
+            "en": "One per card or one in total",
+            "de": "Einen pro Karte oder einen insgesamt"
+          },
+          "default": "each",
+          "options": [
+            {
+              "value": "each",
+              "label": {
+                "en": "One per card",
+                "de": "Einen pro Karte"
+              }
+            },
+            {
+              "value": "all",
+              "label": {
+                "en": "One in total",
+                "de": "Einen insgesamt"
+              }
+            }
+          ]
+        },
+        {
+          "key": "signature",
+          "type": "toggle",
+          "label": {
+            "en": "Add my signature",
+            "de": "Meine Signatur anfügen"
+          },
+          "default": true,
+          "advanced": true
+        }
+      ],
+      "card_kind": "draft",
+      "adds": [
+        "subject",
+        "body"
+      ]
+    },
+    {
+      "id": "do.chat",
+      "group": "do",
+      "shape": "act",
+      "status": "mvp",
+      "title": {
+        "en": "Post to chat",
+        "de": "In den Chat posten"
+      },
+      "does": {
+        "en": "Posts cards or a summary to Discord, Slack, Teams or Telegram.",
+        "de": "Postet Karten oder eine Zusammenfassung in Discord, Slack, Teams oder Telegram."
+      },
+      "sentence": [
+        {
+          "if": {
+            "mode": [
+              "each"
+            ]
+          },
+          "text": {
+            "en": "Post each card to [place]",
+            "de": "Jede Karte in [place] posten"
+          }
+        },
+        {
+          "text": {
+            "en": "Post to [place]",
+            "de": "In [place] posten"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "place",
+          "type": "place",
+          "label": {
+            "en": "Which chat",
+            "de": "Welcher Chat"
+          },
+          "required": true,
+          "place_types": [
+            "discord",
+            "slack",
+            "teams",
+            "telegram"
+          ]
+        },
+        {
+          "key": "mode",
+          "type": "select",
+          "label": {
+            "en": "One message or one per card",
+            "de": "Eine Nachricht oder eine pro Karte"
+          },
+          "default": "one",
+          "options": [
+            {
+              "value": "one",
+              "label": {
+                "en": "One message",
+                "de": "Eine Nachricht"
+              }
+            },
+            {
+              "value": "each",
+              "label": {
+                "en": "One per card",
+                "de": "Eine pro Karte"
+              }
+            }
+          ]
+        }
+      ],
+      "requires": {
+        "places": [
+          "discord",
+          "slack",
+          "teams",
+          "telegram"
+        ]
+      },
+      "adds": [
+        "posted_at"
+      ]
+    },
+    {
+      "id": "do.email",
+      "group": "do",
+      "shape": "act",
+      "status": "mvp",
+      "title": {
+        "en": "Send an email",
+        "de": "E-Mail senden"
+      },
+      "does": {
+        "en": "Sends an email to you, or prepares one for people from the cards that you send from your own mailbox.",
+        "de": "Sendet dir eine E-Mail, oder bereitet eine für Leute aus den Karten vor, die du aus deinem eigenen Postfach sendest."
+      },
+      "sentence": [
+        {
+          "if": {
+            "to": [
+              "me"
+            ]
+          },
+          "text": {
+            "en": "Email me",
+            "de": "Mir mailen"
+          }
+        },
+        {
+          "if": {
+            "to": [
+              "sender"
+            ]
+          },
+          "text": {
+            "en": "Reply to the sender",
+            "de": "Dem Absender antworten"
+          }
+        },
+        {
+          "if": {
+            "to": [
+              "fixed"
+            ]
+          },
+          "text": {
+            "en": "Prepare an email to [address]",
+            "de": "E-Mail an [address] vorbereiten"
+          }
+        },
+        {
+          "text": {
+            "en": "Prepare an email to each",
+            "de": "Jedem eine E-Mail vorbereiten"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "to",
+          "type": "select",
+          "label": {
+            "en": "To",
+            "de": "An"
+          },
+          "default": "me",
+          "options": [
+            {
+              "value": "me",
+              "label": {
+                "en": "Me",
+                "de": "Mich"
+              }
+            },
+            {
+              "value": "sender",
+              "label": {
+                "en": "Whoever emailed this helper",
+                "de": "Wer diesem Helfer gemailt hat"
+              }
+            },
+            {
+              "value": "cards",
+              "label": {
+                "en": "People from the cards",
+                "de": "Leute aus den Karten"
+              }
+            },
+            {
+              "value": "fixed",
+              "label": {
+                "en": "This address",
+                "de": "Diese Adresse"
+              }
+            }
+          ]
+        },
+        {
+          "key": "address",
+          "type": "email",
+          "label": {
+            "en": "Address",
+            "de": "Adresse"
+          },
+          "required": true,
+          "show_if": {
+            "to": [
+              "fixed"
+            ]
+          }
+        },
+        {
+          "key": "subject",
+          "type": "text",
+          "label": {
+            "en": "Subject",
+            "de": "Betreff"
+          },
+          "required": false,
+          "pills": true,
+          "max_length": 200,
+          "placeholder": {
+            "en": "{subject}",
+            "de": "{subject}"
+          },
+          "help": {
+            "en": "Empty: a subject is made from the content.",
+            "de": "Leer: Der Betreff wird aus dem Inhalt gebildet."
+          }
+        }
+      ],
+      "needs_if": [
+        {
+          "if": {
+            "to": [
+              "sender",
+              "cards",
+              "fixed"
+            ]
+          },
+          "fields": [
+            "body"
+          ]
+        },
+        {
+          "if": {
+            "to": [
+              "cards"
+            ]
+          },
+          "fields": [
+            "email"
+          ]
+        },
+        {
+          "if": {
+            "to": [
+              "sender"
+            ]
+          },
+          "context": [
+            "trigger.from"
+          ]
+        }
+      ],
+      "requires_if": [
+        {
+          "if": {
+            "to": [
+              "sender"
+            ]
+          },
+          "plan": "paid"
+        }
+      ],
+      "check": {
+        "required_if": {
+          "to": [
+            "sender",
+            "cards",
+            "fixed"
+          ]
+        }
+      },
+      "adds": [
+        "sent_at"
+      ]
+    },
+    {
+      "id": "do.list",
+      "group": "do",
+      "shape": "act",
+      "status": "mvp",
+      "title": {
+        "en": "Save to a list",
+        "de": "In einer Liste speichern"
+      },
+      "does": {
+        "en": "Adds cards as rows in one of your Lists, skipping duplicates.",
+        "de": "Fügt Karten als Zeilen in eine deiner Listen ein und überspringt Doppelte."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Save to my list [list]",
+            "de": "In meiner Liste [list] speichern"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "list",
+          "type": "list",
+          "label": {
+            "en": "Which list",
+            "de": "Welche Liste"
+          },
+          "required": true,
+          "create": true
+        },
+        {
+          "key": "dedupe",
+          "type": "select",
+          "label": {
+            "en": "What makes a duplicate",
+            "de": "Was ist doppelt"
+          },
+          "default": "website",
+          "options": [
+            {
+              "value": "email",
+              "label": {
+                "en": "Same email",
+                "de": "Gleiche E-Mail"
+              }
+            },
+            {
+              "value": "website",
+              "label": {
+                "en": "Same website",
+                "de": "Gleiche Website"
+              }
+            },
+            {
+              "value": "name",
+              "label": {
+                "en": "Same name",
+                "de": "Gleicher Name"
+              }
+            },
+            {
+              "value": "none",
+              "label": {
+                "en": "Keep everything",
+                "de": "Alles behalten"
+              }
+            }
+          ]
+        }
+      ],
+      "needs_if": [
+        {
+          "if": {
+            "dedupe": [
+              "email"
+            ]
+          },
+          "fields": [
+            "email"
+          ]
+        },
+        {
+          "if": {
+            "dedupe": [
+              "website"
+            ]
+          },
+          "fields": [
+            "website"
+          ]
+        },
+        {
+          "if": {
+            "dedupe": [
+              "name"
+            ]
+          },
+          "fields": [
+            "name"
+          ]
+        }
+      ],
+      "adds": [
+        "list_row_id"
+      ]
+    },
+    {
+      "id": "do.calendar",
+      "group": "do",
+      "shape": "act",
+      "status": "mvp",
+      "title": {
+        "en": "Put in my calendar",
+        "de": "In meinen Kalender"
+      },
+      "does": {
+        "en": "Creates calendar events: an invite to you, or an entry in your helper calendar.",
+        "de": "Erstellt Termine: eine Einladung an dich oder einen Eintrag in deinem Helfer-Kalender."
+      },
+      "sentence": [
+        {
+          "if": {
+            "invite_others": [
+              true
+            ]
+          },
+          "text": {
+            "en": "Put it in my calendar and invite them",
+            "de": "In meinen Kalender und sie einladen"
+          }
+        },
+        {
+          "text": {
+            "en": "Put it in my calendar",
+            "de": "In meinen Kalender eintragen"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "mode",
+          "type": "select",
+          "label": {
+            "en": "How",
+            "de": "Wie"
+          },
+          "default": "invite",
+          "options": [
+            {
+              "value": "invite",
+              "label": {
+                "en": "Send me an invite",
+                "de": "Mir eine Einladung senden"
+              }
+            },
+            {
+              "value": "feed",
+              "label": {
+                "en": "Add to my helper calendar",
+                "de": "In meinen Helfer-Kalender"
+              }
+            }
+          ]
+        },
+        {
+          "key": "invite_others",
+          "type": "toggle",
+          "label": {
+            "en": "Invite them too",
+            "de": "Sie auch einladen"
+          },
+          "default": false
+        },
+        {
+          "key": "title",
+          "type": "text",
+          "label": {
+            "en": "Event title",
+            "de": "Titel des Termins"
+          },
+          "required": false,
+          "pills": true,
+          "max_length": 200,
+          "placeholder": {
+            "en": "Call with {name}",
+            "de": "Gespräch mit {name}"
+          },
+          "help": {
+            "en": "Empty: the title is made from the card.",
+            "de": "Leer: Der Titel wird aus der Karte gebildet."
+          }
+        },
+        {
+          "key": "duration_min",
+          "type": "number",
+          "label": {
+            "en": "Length in minutes",
+            "de": "Dauer in Minuten"
+          },
+          "default": 30,
+          "min": 5,
+          "max": 1440,
+          "advanced": true
+        }
+      ],
+      "needs": [
+        "date",
+        "time"
+      ],
+      "needs_if": [
+        {
+          "if": {
+            "invite_others": [
+              true
+            ]
+          },
+          "fields": [
+            "email"
+          ]
+        }
+      ],
+      "check": {
+        "required_if": {
+          "invite_others": [
+            true
+          ]
+        }
+      },
+      "adds": [
+        "event_uid"
+      ]
+    },
+    {
+      "id": "do.social",
+      "group": "do",
+      "shape": "act",
+      "status": "later",
+      "title": {
+        "en": "Post to social (Posta)",
+        "de": "Auf Social Media posten (Posta)"
+      },
+      "does": {
+        "en": "Publishes or schedules a post on your social accounts through Posta.",
+        "de": "Veröffentlicht oder plant einen Post auf deinen Social-Media-Konten über Posta."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Post to my social accounts",
+            "de": "Auf meinen Social-Media-Konten posten"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "accounts",
+          "type": "place",
+          "label": {
+            "en": "Which accounts",
+            "de": "Welche Konten"
+          },
+          "required": true,
+          "place_types": [
+            "posta"
+          ]
+        },
+        {
+          "key": "when",
+          "type": "select",
+          "label": {
+            "en": "When",
+            "de": "Wann"
+          },
+          "default": "draft",
+          "options": [
+            {
+              "value": "now",
+              "label": {
+                "en": "Now",
+                "de": "Jetzt"
+              }
+            },
+            {
+              "value": "at",
+              "label": {
+                "en": "At a time",
+                "de": "Zu einer Uhrzeit"
+              }
+            },
+            {
+              "value": "draft",
+              "label": {
+                "en": "Save as draft in Posta",
+                "de": "Als Entwurf in Posta"
+              }
+            }
+          ]
+        },
+        {
+          "key": "mode",
+          "type": "select",
+          "label": {
+            "en": "One post or one per card",
+            "de": "Ein Post oder einer pro Karte"
+          },
+          "default": "one",
+          "options": [
+            {
+              "value": "one",
+              "label": {
+                "en": "One post",
+                "de": "Ein Post"
+              }
+            },
+            {
+              "value": "each",
+              "label": {
+                "en": "One per card",
+                "de": "Einer pro Karte"
+              }
+            }
+          ]
+        }
+      ],
+      "needs": [
+        "body"
+      ],
+      "requires": {
+        "places": [
+          "posta"
+        ],
+        "plan": "paid"
+      },
+      "check": {
+        "default": true
+      },
+      "adds": [
+        "posted_at"
+      ]
+    },
+    {
+      "id": "ask.check",
+      "group": "ask",
+      "shape": "filter",
+      "status": "mvp",
+      "title": {
+        "en": "Check first",
+        "de": "Erst prüfen"
+      },
+      "does": {
+        "en": "Pauses and puts a card in your Feed: Approve, Edit or Skip.",
+        "de": "Hält an und legt eine Karte in deinen Feed: Freigeben, Bearbeiten oder Überspringen."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Check with me first",
+            "de": "Erst mit mir abklären"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "timeout_h",
+          "type": "select",
+          "label": {
+            "en": "If I don't answer within",
+            "de": "Wenn ich nicht antworte innerhalb von"
+          },
+          "default": 48,
+          "options": [
+            {
+              "value": 24,
+              "label": {
+                "en": "1 day",
+                "de": "1 Tag"
+              }
+            },
+            {
+              "value": 48,
+              "label": {
+                "en": "2 days",
+                "de": "2 Tagen"
+              }
+            },
+            {
+              "value": 72,
+              "label": {
+                "en": "3 days",
+                "de": "3 Tagen"
+              }
+            },
+            {
+              "value": 168,
+              "label": {
+                "en": "1 week",
+                "de": "1 Woche"
+              }
+            }
+          ]
+        },
+        {
+          "key": "on_timeout",
+          "type": "select",
+          "label": {
+            "en": "Then",
+            "de": "Dann"
+          },
+          "default": "skip",
+          "options": [
+            {
+              "value": "skip",
+              "label": {
+                "en": "Skip",
+                "de": "Überspringen"
+              }
+            },
+            {
+              "value": "go",
+              "label": {
+                "en": "Go ahead",
+                "de": "Weitermachen"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ask.pick",
+      "group": "ask",
+      "shape": "filter",
+      "status": "mvp",
+      "title": {
+        "en": "Let me pick",
+        "de": "Lass mich wählen"
+      },
+      "does": {
+        "en": "Shows the cards as a swipe stack; only the ones you keep go on.",
+        "de": "Zeigt die Karten zum Wischen; nur die behaltenen gehen weiter."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Let me pick",
+            "de": "Lass mich wählen"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "max_show",
+          "type": "number",
+          "label": {
+            "en": "Show at most",
+            "de": "Höchstens zeigen"
+          },
+          "default": 10,
+          "min": 1,
+          "max": 50
+        },
+        {
+          "key": "remember",
+          "type": "toggle",
+          "label": {
+            "en": "Learn from my choices",
+            "de": "Aus meinen Entscheidungen lernen"
+          },
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "ask.question",
+      "group": "ask",
+      "shape": "filter",
+      "status": "mvp",
+      "title": {
+        "en": "Ask me something",
+        "de": "Frag mich etwas"
+      },
+      "does": {
+        "en": "Asks a question with quick answers or free text before going on.",
+        "de": "Stellt eine Frage mit Schnellantworten oder freiem Text, bevor es weitergeht."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Ask me “[question]”",
+            "de": "Frag mich „[question]“"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "question",
+          "type": "text",
+          "label": {
+            "en": "Question",
+            "de": "Frage"
+          },
+          "required": true,
+          "pills": true,
+          "max_length": 200
+        },
+        {
+          "key": "answers",
+          "type": "tags",
+          "label": {
+            "en": "Answer buttons",
+            "de": "Antwort-Knöpfe"
+          },
+          "placeholder": {
+            "en": "Yes",
+            "de": "Ja"
+          }
+        },
+        {
+          "key": "free_text",
+          "type": "toggle",
+          "label": {
+            "en": "Allow my own answer",
+            "de": "Eigene Antwort erlauben"
+          },
+          "default": true
+        }
+      ],
+      "provides": [
+        "answer"
+      ]
+    },
+    {
+      "id": "ask.stop",
+      "group": "ask",
+      "shape": "filter",
+      "status": "mvp",
+      "title": {
+        "en": "Safety stop",
+        "de": "Sicherheitsstopp"
+      },
+      "does": {
+        "en": "Stops the run if limits are hit or nothing useful came out, and tells you why.",
+        "de": "Stoppt den Lauf, wenn Grenzen erreicht sind oder nichts Brauchbares herauskam, und sagt dir warum."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Stop if more than [max_cards] cards",
+            "de": "Stopp bei mehr als [max_cards] Karten"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "max_cards",
+          "type": "number",
+          "label": {
+            "en": "Max cards",
+            "de": "Höchstens Karten"
+          },
+          "default": 50,
+          "min": 1,
+          "max": 500
+        },
+        {
+          "key": "max_emails",
+          "type": "number",
+          "label": {
+            "en": "Max emails per run",
+            "de": "Höchstens E-Mails pro Lauf"
+          },
+          "default": 10,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "key": "max_cost_eur",
+          "type": "number",
+          "label": {
+            "en": "Max € per run",
+            "de": "Höchstens € pro Lauf"
+          },
+          "default": 0.5,
+          "min": 0.01,
+          "max": 10,
+          "step": 0.01
+        }
+      ]
+    }
+  ]
 }

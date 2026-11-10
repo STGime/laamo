@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.mod
+          cache-dependency-path: backend/go.sum
       - uses: golangci/golangci-lint-action@v8
         with:
           version: v2.15.0
@@ -43,6 +43,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @laamo/catalog test
       - run: pnpm --filter @laamo/web lint
       - run: pnpm --filter @laamo/web check
       - run: pnpm --filter @laamo/web test
