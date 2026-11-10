@@ -83,6 +83,18 @@ tasks:
       - cd {{.BACKEND}} && mkdir -p bin && go build -o bin/ ./cmd/...
       - pnpm -r build
 
+  runstack:
+    desc: "Run a stack or template locally, e.g. task runstack -- -live ../packages/catalog/templates/morning-briefing.json"
+    dir: '{{.BACKEND}}'
+    cmds:
+      - go run ./cmd/runstack {{.CLI_ARGS}}
+
+  briefing:
+    desc: Morning Briefing end to end with live search and AI (messages are printed, not posted)
+    dir: '{{.BACKEND}}'
+    cmds:
+      - go run ./cmd/runstack -live {{.CLI_ARGS}} ../packages/catalog/templates/morning-briefing.json
+
   test:live:
     desc: Live checks against the laamo Eurobase project (store reads; queue ping round trip; engine run if LAAMO_LIVE_USER_ID is set). Cleans up after itself.
     dir: backend
