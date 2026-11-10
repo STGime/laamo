@@ -4,7 +4,7 @@
 --   * id uuid PK (Eurobase REST is wired to a column named id)
 --   * workspace_id for RLS by membership
 --   * user_id NOT NULL = workspace owner. Eurobase realtime filters events by
---     this column; a row without it would be sent to every subscriber.
+--     this column; a row without it reaches no end user over realtime.
 --   * Policies: members may SELECT; all writes go through the Go services
 --     with the secret key (public.is_service_role()).
 

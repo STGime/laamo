@@ -1,9 +1,8 @@
 -- Templates, helpers, versions, triggers and inbound email.
 
 -- templates: the Shelf. Public catalog data, readable by anyone.
--- Written only by the service, and only via RPC or migrations: it has no
--- owner column, so a REST write would be broadcast to every realtime subscriber
--- (harmless here, since the data is public anyway).
+-- Written only by the service. It has no owner column, so template changes
+-- reach no end user over realtime; the app re-reads the Shelf instead.
 CREATE TABLE templates (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   slug             text NOT NULL UNIQUE,

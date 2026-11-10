@@ -2,8 +2,8 @@
 -- The claim/enqueue RPC functions and the cron entry come in issue #7.
 --
 -- Service only. Workers subscribe to realtime INSERTs as a wake-up signal.
--- user_id is the workspace owner, or the all-zero "system" id for jobs without
--- a workspace; no end user has that id, so realtime never sends them a job row.
+-- user_id is always the all-zero "system" id. No end user has it, so realtime
+-- sends job rows only to secret-key connections (the workers), never to users.
 -- Keep payloads to ids: never put user content or secrets in a job.
 
 CREATE TABLE jobs (
@@ -21,7 +21,7 @@ CREATE TABLE jobs (
   lease_until   timestamptz,
   last_error    text,
   created_at    timestamptz NOT NULL DEFAULT now(),
-  CHECK (workspace_id IS NOT NULL OR user_id = '00000000-0000-0000-0000-000000000000')
+  CHECK (user_id = '00000000-0000-0000-0000-000000000000')
 );
 -- claim_jobs() looks for due queued jobs and expired leases
 CREATE INDEX jobs_queued_idx ON jobs (run_after) WHERE status = 'queued';

@@ -37,7 +37,13 @@ INSERT INTO feed_cards (workspace_id, user_id, run_id, type, title) VALUES
 INSERT INTO brains (workspace_id, user_id, key_ciphertext) VALUES (:wa, :a, '\x01');
 INSERT INTO places (workspace_id, user_id, type, label, secret_ciphertext) VALUES (:wa, :a, 'slack', 'Team', '\x02');
 INSERT INTO calendar_feeds (workspace_id, user_id, token) VALUES (:wa, :a, 'secret-token');
-INSERT INTO jobs (workspace_id, user_id, kind) VALUES (:wa, :a, 'run');
+INSERT INTO jobs (workspace_id, kind) VALUES (:wa, 'run');
+DO $$ BEGIN
+  INSERT INTO jobs (workspace_id, user_id, kind)
+    VALUES ('aaaaaaaa-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'run');
+  RAISE EXCEPTION 'jobs must not carry an end-user owner (realtime would deliver them)';
+EXCEPTION WHEN check_violation THEN NULL;
+END $$;
 INSERT INTO jobs (kind) VALUES ('send_digest');
 
 DO $$ BEGIN
@@ -116,7 +122,7 @@ BEGIN
        SELECT 1 FROM information_schema.columns c
         WHERE c.table_schema = t.table_schema AND c.table_name = t.table_name
           AND c.column_name = 'user_id' AND c.is_nullable = 'NO');
-  ASSERT missing IS NULL, 'tables without NOT NULL user_id (realtime would broadcast them): ' || missing;
+  ASSERT missing IS NULL, 'tables without NOT NULL user_id (owners would get no realtime events): ' || missing;
 END $$;
 
 \echo 'RLS tests passed'
