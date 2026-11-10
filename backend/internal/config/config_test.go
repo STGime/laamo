@@ -62,3 +62,19 @@ func TestProjectID(t *testing.T) {
 		t.Fatalf("explicit project id: %v %q", err, c.EurobaseProjectID)
 	}
 }
+
+func TestLLMConfig(t *testing.T) {
+	for _, k := range []string{"LLM_BASE_URL", "LLM_API_KEY", "LLM_AUTH", "LLM_MODEL"} {
+		t.Setenv(k, "")
+	}
+	t.Setenv("FAL_KEY", "fal-key")
+	c, _ := Load()
+	if c.LLMBaseURL != DefaultLLMBaseURL || c.LLMAPIKey != "fal-key" || c.LLMAuth != "Key" || c.LLMModel != DefaultLLMModel {
+		t.Fatalf("fal.ai defaults: %+v", c)
+	}
+	t.Setenv("LLM_API_KEY", "mistral-key")
+	t.Setenv("LLM_AUTH", "Bearer")
+	if c, _ := Load(); c.LLMAPIKey != "mistral-key" || c.LLMAuth != "Bearer" {
+		t.Fatalf("explicit key wins: %+v", c)
+	}
+}

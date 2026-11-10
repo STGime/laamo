@@ -38,6 +38,7 @@ func Run(t *testing.T, newStore New) {
 	t.Run("Usage", func(t *testing.T) { testUsage(t, newStore) })
 	t.Run("Outbound", func(t *testing.T) { testOutbound(t, newStore) })
 	t.Run("Workspaces", func(t *testing.T) { testWorkspaces(t, newStore) })
+	t.Run("Brains", func(t *testing.T) { testBrains(t, newStore) })
 }
 
 func testReadSeeded(t *testing.T, newStore New) {
@@ -437,6 +438,39 @@ func testWorkspaces(t *testing.T, newStore New) {
 	eq(t, "profile", u.Profile["city"], any("Wien"))
 	eq(t, "timezone kept", u.Timezone, "Europe/Vienna")
 	isErr(t, "update unknown", get(s.UpdateWorkspace(ctx, store.NewID(), store.WorkspacePatch{Name: new("x")})), store.ErrNotFound)
+}
+
+func testBrains(t *testing.T, newStore New) {
+	s, _ := newStore(t)
+	ctx := context.Background()
+	owner := store.NewID()
+	w, err := s.CreateWorkspace(ctx, store.NewWorkspace{OwnerID: owner, Name: "Brainy"})
+	must(t, err)
+
+	b, err := s.GetBrain(ctx, w.ID)
+	must(t, err)
+	eq(t, "mode", b.Mode, "included")
+	eq(t, "allowance", b.AllowanceCredits, store.Num(500))
+	eq(t, "credits left", b.CreditsLeft(time.Now()), 500.0)
+
+	b, err = s.AddBrainUsage(ctx, w.ID, 120.5)
+	must(t, err)
+	eq(t, "used", b.UsedCreditsThisPeriod, store.Num(120.5))
+	eq(t, "status", b.Status, "ok")
+	b, err = s.AddBrainUsage(ctx, w.ID, 400)
+	must(t, err)
+	eq(t, "allowance used", b.Status, "allowance_used")
+	if left := b.CreditsLeft(time.Now()); left > -20 || left < -21 {
+		t.Fatalf("credits left: %v", left)
+	}
+
+	isErr(t, "no brain", get(s.GetBrain(ctx, store.NewID())), store.ErrNotFound)
+	isErr(t, "usage without brain", get(s.AddBrainUsage(ctx, store.NewID(), 1)), store.ErrNotFound)
+	isErr(t, "negative credits", get(s.AddBrainUsage(ctx, w.ID, -1)), store.ErrInvalid)
+
+	// A brain from last month has its full allowance this month.
+	last := store.Brain{AllowanceCredits: 500, UsedCreditsThisPeriod: 499, PeriodStart: time.Now().AddDate(0, -1, 0)}
+	eq(t, "new month", last.CreditsLeft(time.Now()), 500.0)
 }
 
 // ---- assertions ----

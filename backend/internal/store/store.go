@@ -39,6 +39,7 @@ type Store interface {
 	FeedStore
 	ListStore
 	UsageStore
+	BrainStore
 	OutboundStore
 }
 
@@ -107,6 +108,14 @@ type ListStore interface {
 
 type UsageStore interface {
 	AddUsage(ctx context.Context, u *UsageEntry) error
+}
+
+type BrainStore interface {
+	// GetBrain returns a workspace's brain, or ErrNotFound.
+	GetBrain(ctx context.Context, workspaceID string) (Brain, error)
+	// AddBrainUsage counts credits against the brain (a new month starts a
+	// new period) and returns the updated brain.
+	AddBrainUsage(ctx context.Context, workspaceID string, credits float64) (Brain, error)
 }
 
 type OutboundStore interface {

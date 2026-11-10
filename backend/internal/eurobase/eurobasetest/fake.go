@@ -96,7 +96,7 @@ func New(t interface{ Cleanup(func()) }) *Fake {
 		clock:  time.Date(2026, 11, 10, 8, 0, 0, 0, time.UTC),
 		tables: laamoTables(),
 		rows:   map[string][]Row{},
-		rpcs:   map[string]RPCFunc{"insert_cards": insertCards, "claim_jobs": claimJobs, "extend_lease": extendLease, "finish_job": finishJob, "create_workspace": createWorkspace},
+		rpcs:   map[string]RPCFunc{"insert_cards": insertCards, "claim_jobs": claimJobs, "extend_lease": extendLease, "finish_job": finishJob, "create_workspace": createWorkspace, "add_brain_usage": addBrainUsage},
 	}
 	f.Server = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.Server.Close)
@@ -506,9 +506,15 @@ func laamoTables() map[string]table {
 		}
 	}
 	return map[string]table{
-		"workspaces":      {defaults: with(ts("created_at", "updated_at"), Row{"timezone": "Europe/Berlin", "locale": "en", "plan": "free", "profile": Row{}})},
-		"members":         {defaults: ts("created_at"), uniques: [][]string{{"workspace_id", "user_id"}}},
-		"brains":          {defaults: with(ts("created_at", "updated_at"), Row{"mode": "included", "status": "ok"}), uniques: [][]string{{"workspace_id"}}},
+		"workspaces": {defaults: with(ts("created_at", "updated_at"), Row{"timezone": "Europe/Berlin", "locale": "en", "plan": "free", "profile": Row{}})},
+		"members":    {defaults: ts("created_at"), uniques: [][]string{{"workspace_id", "user_id"}}},
+		"brains": {defaults: func(now string) Row {
+			r := Row{"created_at": now, "updated_at": now, "mode": "included", "status": "ok",
+				"allowance_credits": 500.0, "used_credits_this_period": 0.0}
+			t, _ := time.Parse(TimeFormat, now)
+			r["period_start"] = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC).Format(TimeFormat)
+			return r
+		}, uniques: [][]string{{"workspace_id"}}},
 		"helpers":         {defaults: with(ts("created_at", "updated_at"), Row{"status": "draft", "created_via": "scratch"})},
 		"helper_versions": {defaults: ts("created_at"), uniques: [][]string{{"helper_id", "version"}}},
 		"triggers":        {defaults: with(ts("created_at", "updated_at"), Row{"config": Row{}}), uniques: [][]string{{"inbound_address"}, {"webhook_token"}}},

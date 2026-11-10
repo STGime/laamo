@@ -18,6 +18,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/config"
 	"github.com/STGime/laamo/backend/internal/engine"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
+	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/queue"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	sebs "github.com/STGime/laamo/backend/internal/store/eurobase"
@@ -44,11 +45,20 @@ func run(log *slog.Logger) error {
 	defer stop()
 
 	client := eb.New(cfg.EurobaseURL, cfg.EurobaseSecretKey)
+	st := sebs.New(client)
+	if cfg.LLMAPIKey == "" {
+		log.Warn("no LLM key (FAL_KEY, FAL_AI_API_KEY or LLM_API_KEY): Think bricks will fail")
+	}
 	eng := &engine.Engine{
-		Store:   sebs.New(client),
+		Store:   st,
 		Catalog: catalog.Default(),
 		Bricks:  bricks.All(),
-		Log:     log,
+		Brain: &llm.Brain{
+			Chat:  &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel},
+			Model: cfg.LLMModel,
+			Store: st,
+		},
+		Log: log,
 		// Blobs: Eurobase storage comes with Read a webpage (#26); until then
 		// large fields stay inline.
 	}
