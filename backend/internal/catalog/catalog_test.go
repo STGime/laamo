@@ -3,6 +3,7 @@ package catalog_test
 import (
 	"encoding/json"
 	"io/fs"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -330,112 +331,54 @@ func codes(issues []catalog.Issue) []string {
 	return out
 }
 
-func TestValidate(t *testing.T) {
-	every := b{Type: "when.every", Config: cfg{"freq": "weekly", "days": []string{"mon"}, "time": "08:00"}}
-	tap := b{Type: "when.tap"}
-	search := b{Type: "look.search", Config: cfg{"query": "bakery news"}}
+// Validator cases live in packages/catalog/fixtures/validate.json and run in
+// both Go and TypeScript (packages/catalog/validate.ts), so the builder's
+// live hints and the server agree.
+type fixture struct {
+	Name    string            `json:"name"`
+	Stack   catalog.Stack     `json:"stack"`
+	Pending []string          `json:"pending"`
+	Issues  []string          `json:"issues"`
+	Fixes   map[string]string `json:"fixes"`
+}
 
-	cases := []struct {
-		name string
-		st   catalog.Stack
-		want []string
-	}{
-		{"morning briefing shape", stack(every, search,
-			b{Type: "think.keep", Config: cfg{"criteria": "matter to {my business}", "max": 5}},
-			b{Type: "think.summarize"},
-			b{Type: "do.chat", Config: cfg{"place": "p1"}}), nil},
-		{"customer finder without extract or check", stack(every,
-			b{Type: "look.find_businesses", Config: cfg{"what": "bakeries"}},
-			b{Type: "look.read_page", Config: cfg{"depth": "contact"}},
-			b{Type: "think.write", Config: cfg{"what": "a friendly intro"}},
-			b{Type: "do.email", Config: cfg{"to": "cards"}}),
-			[]string{"b5:check_required", "b5:missing_field"}},
-		{"customer finder complete", stack(every,
-			b{Type: "look.find_businesses", Config: cfg{"what": "bakeries"}},
-			b{Type: "look.read_page", Config: cfg{"depth": "contact"}},
-			b{Type: "think.extract", Config: cfg{"fields": []string{"email"}}},
-			b{Type: "think.keep", Config: cfg{"criteria": "no online shop"}},
-			b{Type: "ask.pick"},
-			b{Type: "think.write", Config: cfg{"what": "a friendly intro offering {my offer} to {name}"}},
-			b{Type: "ask.check"},
-			b{Type: "do.email", Config: cfg{"to": "cards", "subject": "Hello {name}"}},
-			b{Type: "do.list", Config: cfg{"list": "leads", "dedupe": "email"}}), nil},
-		{"must start with When", stack(search), []string{"b1:start_first"}},
-		{"When only on top", stack(tap, every), []string{"b2:start_only_first"}},
-		{"unknown and later bricks", stack(tap, b{Type: "look.magic"}, b{Type: "do.social", Config: cfg{"accounts": "x"}}),
-			[]string{"b2:unknown_brick", "b3:check_suggested", "b3:missing_field", "b3:not_available"}},
-		{"settings", stack(
-			b{Type: "when.every", Config: cfg{"freq": "weekly", "days": []string{}, "time": "8am", "color": "red"}},
-			b{Type: "look.search", Config: cfg{"count": 7}},
-			b{Type: "think.keep", Config: cfg{"criteria": "x", "max": 99}}),
-			[]string{"b1:bad_value", "b1:missing_setting", "b1:unknown_setting", "b2:bad_value", "b2:missing_setting", "b3:bad_value"}},
-		{"hidden settings are not required", stack(tap,
-			b{Type: "look.my_stuff", Config: cfg{"source": "paste", "text": "a, b"}},
-			b{Type: "look.read_page", Config: cfg{"source": "fixed", "url": "https://example.com"}}), nil},
-		{"later option", stack(tap, b{Type: "look.my_stuff", Config: cfg{"source": "file"}}), []string{"b2:bad_value"}},
-		{"pills", stack(tap,
-			b{Type: "look.search", Config: cfg{"query": "{my planet} {answer} {} {email}"}}),
-			[]string{"b2:bad_pill", "b2:missing_context", "b2:missing_field", "b2:unknown_profile"}},
-		{"answer from Tap Go question", stack(
-			b{Type: "when.tap", Config: cfg{"question": "Which city?"}},
-			b{Type: "look.find_businesses", Config: cfg{"what": "bakeries", "where": "{answer}"}}), nil},
-		{"answer from Ask me something", stack(tap,
-			b{Type: "ask.question", Config: cfg{"question": "Which city?"}},
-			b{Type: "look.find_businesses", Config: cfg{"what": "bakeries", "where": "{answer}"}}), nil},
-		{"trigger only with email", stack(tap,
-			b{Type: "think.write", Config: cfg{"what": "a reply to {trigger.subject}"}}), []string{"b2:missing_context"}},
-		{"meeting catcher", stack(
-			b{Type: "when.email"},
-			b{Type: "think.extract", Config: cfg{"fields": []string{"date", "time", "place", "name"}}},
-			b{Type: "ask.check"},
-			b{Type: "do.calendar", Config: cfg{"invite_others": false}},
-			b{Type: "think.write", Config: cfg{"what": "a short confirmation for {trigger.subject}"}},
-			b{Type: "do.email", Config: cfg{"to": "sender"}}), nil},
-		{"reply needs the email trigger", stack(tap,
-			b{Type: "think.write", Config: cfg{"what": "hi"}},
-			b{Type: "ask.check"},
-			b{Type: "do.email", Config: cfg{"to": "sender"}}), []string{"b4:missing_context"}},
-		{"combine drops fields", stack(every,
-			b{Type: "look.find_businesses", Config: cfg{"what": "bakeries"}},
-			b{Type: "think.summarize", Config: cfg{"mode": "all"}},
-			b{Type: "do.list", Config: cfg{"list": "l", "dedupe": "website"}}), []string{"b4:missing_field"}},
-		{"enrich keeps fields", stack(every,
-			b{Type: "look.find_businesses", Config: cfg{"what": "bakeries"}},
-			b{Type: "think.summarize", Config: cfg{"mode": "each"}},
-			b{Type: "do.list", Config: cfg{"list": "l", "dedupe": "website"}}), nil},
-		{"list columns are open", stack(tap,
-			b{Type: "look.my_stuff", Config: cfg{"list": "leads"}},
-			b{Type: "think.write", Config: cfg{"what": "hi {name}"}},
-			b{Type: "ask.check"},
-			b{Type: "do.email", Config: cfg{"to": "cards"}}), nil},
-		{"email me a summary", stack(every, search, b{Type: "think.summarize"}, b{Type: "do.email"}), nil},
-		{"check that goes ahead", stack(tap,
-			b{Type: "look.my_stuff", Config: cfg{"list": "leads"}},
-			b{Type: "ask.check", Config: cfg{"on_timeout": "go"}},
-			b{Type: "think.write", Config: cfg{"what": "hi"}},
-			b{Type: "do.email", Config: cfg{"to": "cards"}}), []string{"b3:check_goes_ahead"}},
-		{"invite others needs email and check", stack(tap,
-			b{Type: "look.my_stuff", Config: cfg{"source": "paste", "text": "x"}},
-			b{Type: "think.extract", Config: cfg{"fields": []string{"date", "time"}}},
-			b{Type: "do.calendar", Config: cfg{"invite_others": true}}),
-			[]string{"b4:check_required", "b4:missing_field"}},
-		{"Go ints and float settings", stack(tap,
-			b{Type: "look.search", Config: cfg{"query": "x", "count": 25}},
-			b{Type: "ask.stop", Config: cfg{"max_cards": 20, "max_cost_eur": 0.25}}), nil},
+func loadFixtures(t *testing.T) []fixture {
+	t.Helper()
+	raw, err := os.ReadFile("../../../packages/catalog/fixtures/validate.json")
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := codes(cat.Validate(tc.st, catalog.Options{}))
-			want := tc.want
-			if want == nil {
-				want = []string{}
+	var fx []fixture
+	if err := json.Unmarshal(raw, &fx); err != nil {
+		t.Fatal(err)
+	}
+	return fx
+}
+
+func TestValidate(t *testing.T) {
+	for _, fx := range loadFixtures(t) {
+		t.Run(fx.Name, func(t *testing.T) {
+			pending := map[string]bool{}
+			for _, p := range fx.Pending {
+				pending[p] = true
 			}
-			slices.Sort(want)
+			issues := cat.Validate(fx.Stack, catalog.Options{Pending: pending})
+			got, want := codes(issues), slices.Sorted(slices.Values(fx.Issues))
 			if !slices.Equal(got, want) {
-				for _, i := range cat.Validate(tc.st, catalog.Options{}) {
+				for _, i := range issues {
 					t.Logf("  %s %s: %s", i.Brick, i.Code, i.Message)
 				}
 				t.Fatalf("issues\n got  %v\n want %v", got, want)
+			}
+			for _, i := range issues {
+				key := i.Brick + ":" + i.Code
+				gotFix := ""
+				if i.Fix != nil {
+					gotFix = i.Fix.Insert
+				}
+				if gotFix != fx.Fixes[key] {
+					t.Errorf("%s: fix %q, want %q", key, gotFix, fx.Fixes[key])
+				}
 			}
 		})
 	}

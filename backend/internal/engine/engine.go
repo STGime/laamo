@@ -307,7 +307,7 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 	if err := e.Store.CreateStep(ctx, &step); err != nil {
 		return nil, err
 	}
-	rc.StepID, rc.BrickID = step.ID, sb.ID
+	rc.StepID, rc.BrickID, rc.Brick = step.ID, sb.ID, b
 	costBefore := rc.Cost()
 
 	cfg := Config(b.Config(sb.Config))
@@ -334,7 +334,7 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 		case errors.Is(err, ErrLimit):
 			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunStopped, err: err,
 				problem: fmt.Sprintf("Stopped at “%s”: %s.", title, limitText(err))}}
-		case errors.Is(err, queue.ErrPermanent), errors.Is(err, errShape):
+		case errors.Is(err, queue.ErrPermanent), errors.Is(err, errShape), errors.Is(err, ErrMissingValue):
 			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunFailed, err: err,
 				problem: fmt.Sprintf("“%s” didn't work: %s", title, friendly(err))}}
 		}

@@ -1,0 +1,899 @@
+[
+  {
+    "name": "morning briefing shape",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.every",
+          "config": {
+            "days": [
+              "mon"
+            ],
+            "freq": "weekly",
+            "time": "08:00"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "look.search",
+          "config": {
+            "query": "bakery news"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "think.keep",
+          "config": {
+            "criteria": "matter to {my business}",
+            "max": 5
+          }
+        },
+        {
+          "id": "b4",
+          "type": "think.summarize",
+          "config": null
+        },
+        {
+          "id": "b5",
+          "type": "do.chat",
+          "config": {
+            "place": "p1"
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "customer finder without extract or check",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.every",
+          "config": {
+            "days": [
+              "mon"
+            ],
+            "freq": "weekly",
+            "time": "08:00"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "look.find_businesses",
+          "config": {
+            "what": "bakeries"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "look.read_page",
+          "config": {
+            "depth": "contact"
+          }
+        },
+        {
+          "id": "b4",
+          "type": "think.write",
+          "config": {
+            "what": "a friendly intro"
+          }
+        },
+        {
+          "id": "b5",
+          "type": "do.email",
+          "config": {
+            "to": "cards"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b5:check_required",
+      "b5:missing_field"
+    ],
+    "fixes": {
+      "b5:check_required": "ask.check",
+      "b5:missing_field": "think.extract"
+    }
+  },
+  {
+    "name": "customer finder complete",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.every",
+          "config": {
+            "days": [
+              "mon"
+            ],
+            "freq": "weekly",
+            "time": "08:00"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "look.find_businesses",
+          "config": {
+            "what": "bakeries"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "look.read_page",
+          "config": {
+            "depth": "contact"
+          }
+        },
+        {
+          "id": "b4",
+          "type": "think.extract",
+          "config": {
+            "fields": [
+              "email"
+            ]
+          }
+        },
+        {
+          "id": "b5",
+          "type": "think.keep",
+          "config": {
+            "criteria": "no online shop"
+          }
+        },
+        {
+          "id": "b6",
+          "type": "ask.pick",
+          "config": null
+        },
+        {
+          "id": "b7",
+          "type": "think.write",
+          "config": {
+            "what": "a friendly intro offering {my offer} to {name}"
+          }
+        },
+        {
+          "id": "b8",
+          "type": "ask.check",
+          "config": null
+        },
+        {
+          "id": "b9",
+          "type": "do.email",
+          "config": {
+            "subject": "Hello {name}",
+            "to": "cards"
+          }
+        },
+        {
+          "id": "b:",
+          "type": "do.list",
+          "config": {
+            "dedupe": "email",
+            "list": "leads"
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "must start with When",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "look.search",
+          "config": {
+            "query": "bakery news"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b1:start_first"
+    ],
+    "fixes": {
+      "b1:start_first": "when.tap"
+    }
+  },
+  {
+    "name": "When only on top",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "when.every",
+          "config": {
+            "days": [
+              "mon"
+            ],
+            "freq": "weekly",
+            "time": "08:00"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b2:start_only_first"
+    ]
+  },
+  {
+    "name": "unknown and later bricks",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "look.magic",
+          "config": null
+        },
+        {
+          "id": "b3",
+          "type": "do.social",
+          "config": {
+            "accounts": "x"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b2:unknown_brick",
+      "b3:check_suggested",
+      "b3:missing_field",
+      "b3:not_available"
+    ],
+    "fixes": {
+      "b3:check_suggested": "ask.check",
+      "b3:missing_field": "think.write"
+    }
+  },
+  {
+    "name": "settings",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.every",
+          "config": {
+            "color": "red",
+            "days": [],
+            "freq": "weekly",
+            "time": "8am"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "look.search",
+          "config": {
+            "count": 7
+          }
+        },
+        {
+          "id": "b3",
+          "type": "think.keep",
+          "config": {
+            "criteria": "x",
+            "max": 99
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b1:bad_value",
+      "b1:missing_setting",
+      "b1:unknown_setting",
+      "b2:bad_value",
+      "b2:missing_setting",
+      "b3:bad_value"
+    ]
+  },
+  {
+    "name": "hidden settings are not required",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "look.my_stuff",
+          "config": {
+            "source": "paste",
+            "text": "a, b"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "look.read_page",
+          "config": {
+            "source": "fixed",
+            "url": "https://example.com"
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "later option",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "look.my_stuff",
+          "config": {
+            "source": "file"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b2:bad_value"
+    ]
+  },
+  {
+    "name": "pills",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "look.search",
+          "config": {
+            "query": "{my planet} {answer} {} {email}"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b2:bad_pill",
+      "b2:missing_context",
+      "b2:missing_field",
+      "b2:unknown_profile"
+    ],
+    "fixes": {
+      "b2:missing_field": "think.extract"
+    }
+  },
+  {
+    "name": "answer from Tap Go question",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": {
+            "question": "Which city?"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "look.find_businesses",
+          "config": {
+            "what": "bakeries",
+            "where": "{answer}"
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "answer from Ask me something",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "ask.question",
+          "config": {
+            "question": "Which city?"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "look.find_businesses",
+          "config": {
+            "what": "bakeries",
+            "where": "{answer}"
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "trigger only with email",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "think.write",
+          "config": {
+            "what": "a reply to {trigger.subject}"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b2:missing_context"
+    ]
+  },
+  {
+    "name": "meeting catcher",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.email",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "think.extract",
+          "config": {
+            "fields": [
+              "date",
+              "time",
+              "place",
+              "name"
+            ]
+          }
+        },
+        {
+          "id": "b3",
+          "type": "ask.check",
+          "config": null
+        },
+        {
+          "id": "b4",
+          "type": "do.calendar",
+          "config": {
+            "invite_others": false
+          }
+        },
+        {
+          "id": "b5",
+          "type": "think.write",
+          "config": {
+            "what": "a short confirmation for {trigger.subject}"
+          }
+        },
+        {
+          "id": "b6",
+          "type": "do.email",
+          "config": {
+            "to": "sender"
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "reply needs the email trigger",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "think.write",
+          "config": {
+            "what": "hi"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "ask.check",
+          "config": null
+        },
+        {
+          "id": "b4",
+          "type": "do.email",
+          "config": {
+            "to": "sender"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b4:missing_context"
+    ]
+  },
+  {
+    "name": "combine drops fields",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.every",
+          "config": {
+            "days": [
+              "mon"
+            ],
+            "freq": "weekly",
+            "time": "08:00"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "look.find_businesses",
+          "config": {
+            "what": "bakeries"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "think.summarize",
+          "config": {
+            "mode": "all"
+          }
+        },
+        {
+          "id": "b4",
+          "type": "do.list",
+          "config": {
+            "dedupe": "website",
+            "list": "l"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b4:missing_field"
+    ],
+    "fixes": {
+      "b4:missing_field": "think.extract"
+    }
+  },
+  {
+    "name": "enrich keeps fields",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.every",
+          "config": {
+            "days": [
+              "mon"
+            ],
+            "freq": "weekly",
+            "time": "08:00"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "look.find_businesses",
+          "config": {
+            "what": "bakeries"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "think.summarize",
+          "config": {
+            "mode": "each"
+          }
+        },
+        {
+          "id": "b4",
+          "type": "do.list",
+          "config": {
+            "dedupe": "website",
+            "list": "l"
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "list columns are open",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "look.my_stuff",
+          "config": {
+            "list": "leads"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "think.write",
+          "config": {
+            "what": "hi {name}"
+          }
+        },
+        {
+          "id": "b4",
+          "type": "ask.check",
+          "config": null
+        },
+        {
+          "id": "b5",
+          "type": "do.email",
+          "config": {
+            "to": "cards"
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "email me a summary",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.every",
+          "config": {
+            "days": [
+              "mon"
+            ],
+            "freq": "weekly",
+            "time": "08:00"
+          }
+        },
+        {
+          "id": "b2",
+          "type": "look.search",
+          "config": {
+            "query": "bakery news"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "think.summarize",
+          "config": null
+        },
+        {
+          "id": "b4",
+          "type": "do.email",
+          "config": null
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "check that goes ahead",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "look.my_stuff",
+          "config": {
+            "list": "leads"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "ask.check",
+          "config": {
+            "on_timeout": "go"
+          }
+        },
+        {
+          "id": "b4",
+          "type": "think.write",
+          "config": {
+            "what": "hi"
+          }
+        },
+        {
+          "id": "b5",
+          "type": "do.email",
+          "config": {
+            "to": "cards"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b3:check_goes_ahead"
+    ]
+  },
+  {
+    "name": "invite others needs email and check",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "look.my_stuff",
+          "config": {
+            "source": "paste",
+            "text": "x"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "think.extract",
+          "config": {
+            "fields": [
+              "date",
+              "time"
+            ]
+          }
+        },
+        {
+          "id": "b4",
+          "type": "do.calendar",
+          "config": {
+            "invite_others": true
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b4:check_required",
+      "b4:missing_field"
+    ],
+    "fixes": {
+      "b4:check_required": "ask.check",
+      "b4:missing_field": "think.extract"
+    }
+  },
+  {
+    "name": "Go ints and float settings",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "look.search",
+          "config": {
+            "count": 25,
+            "query": "x"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "ask.stop",
+          "config": {
+            "max_cards": 20,
+            "max_cost_eur": 0.25
+          }
+        }
+      ]
+    },
+    "issues": []
+  },
+  {
+    "name": "pending settings are filled later",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "do.chat",
+          "config": {}
+        }
+      ]
+    },
+    "pending": [
+      "b2.place"
+    ],
+    "issues": []
+  },
+  {
+    "name": "bad limits and duplicate ids",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b1",
+          "type": "ask.pick",
+          "config": null
+        }
+      ],
+      "limits": {
+        "max_cards": 0
+      }
+    },
+    "issues": [
+      ":bad_limit",
+      "b1:duplicate_id"
+    ]
+  },
+  {
+    "name": "empty stack",
+    "stack": {
+      "schema": 1,
+      "bricks": []
+    },
+    "issues": [
+      ":empty_stack"
+    ]
+  }
+]
