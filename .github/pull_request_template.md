@@ -18,6 +18,6 @@
 
 ## Safety (backend changes only)
 
-- [ ] Schema changes are migrations in `schema/`, not manual edits
+- [ ] Schema changes are new files in `migrations/` (never edit an applied one), `task test:migrations` passes
 - [ ] No secrets in code, logs or the web app
 - [ ] Untrusted content (web pages, inbound email) can't choose recipients
