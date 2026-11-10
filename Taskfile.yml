@@ -1,0 +1,79 @@
+version: '3'
+
+dotenv: ['.env']
+
+vars:
+  BACKEND: backend
+  WEB: apps/web
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  setup:
+    desc: Install dependencies
+    cmds:
+      - pnpm install
+      - cd {{.BACKEND}} && go mod download
+
+  dev:
+    desc: Run api and web together (web on :5173, api on :8787)
+    deps: [dev:api, dev:web]
+
+  dev:api:
+    desc: Run the Go api
+    dir: '{{.BACKEND}}'
+    cmds:
+      - go run ./cmd/api
+
+  dev:web:
+    desc: Run the SvelteKit dev server
+    cmds:
+      - pnpm --filter @laamo/web dev
+
+  up:
+    desc: Start local helpers (Mailpit, Overpass mock)
+    cmds:
+      - docker compose up -d
+
+  down:
+    desc: Stop local helpers
+    cmds:
+      - docker compose down
+
+  gen:
+    desc: Generate Go server stubs and TS client from OpenAPI
+    cmds:
+      - echo "Not wired yet, see issue #11"
+
+  test:
+    desc: Run all tests
+    cmds:
+      - cd {{.BACKEND}} && go test ./...
+      - pnpm -r test
+
+  lint:
+    desc: Lint and type-check everything
+    cmds:
+      - cd {{.BACKEND}} && gofmt -l . | (! grep .) && go vet ./...
+      # CI always runs golangci-lint; locally it's skipped if not installed.
+      - |
+        if command -v golangci-lint >/dev/null; then
+          cd {{.BACKEND}} && golangci-lint run ./...
+        else
+          echo "golangci-lint not installed, skipping"
+        fi
+      - pnpm -r check
+
+  build:
+    desc: Build all binaries and the web app
+    cmds:
+      - cd {{.BACKEND}} && mkdir -p bin && go build -o bin/ ./cmd/...
+      - pnpm -r build
+
+  migrate:
+    desc: Apply schema/ migrations to the Eurobase project
+    cmds:
+      - echo "Not wired yet, see issue #6"

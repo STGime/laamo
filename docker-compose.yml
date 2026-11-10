@@ -1,0 +1,24 @@
+# Local dev helpers. App data lives in the Eurobase dev project, not here.
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025" # web UI: http://localhost:8025
+      - "1025:1025" # SMTP
+    restart: unless-stopped
+
+  overpass-mock:
+    image: golang:1.26-alpine
+    working_dir: /src
+    command: go run ./cmd/overpassmock
+    environment:
+      ADDR: ":8081"
+    volumes:
+      - ./backend:/src:ro
+      - gomodcache:/go/pkg/mod
+    ports:
+      - "8081:8081" # http://localhost:8081/api/interpreter
+    restart: unless-stopped
+
+volumes:
+  gomodcache:

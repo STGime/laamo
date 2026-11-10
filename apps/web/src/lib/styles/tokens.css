@@ -1,0 +1,52 @@
+/*
+ * Design tokens. Components use only these values (see Look & feel in the product plan).
+ * Full token set, display font and lint rules: issue #30.
+ */
+:root {
+	/* Brick colors: solid, flat, each one means something */
+	--brick-yellow: #ffc83d; /* When  – black text */
+	--brick-blue: #2f6bff; /* Look  – white text */
+	--brick-purple: #8b4dff; /* Think – white text */
+	--brick-green: #00b36b; /* Do    – black text */
+	--brick-red: #ff3b5c; /* Ask   – white text */
+
+	/* Neutrals */
+	--white: #ffffff;
+	--gray-50: #f3f3f1;
+	--gray-200: #e4e4e0;
+	--gray-600: #6b6b66;
+	--ink: #111111;
+
+	/* Type: system font for UI; display face added in #30 (self-hosted) */
+	--font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--text-body: 16px;
+
+	/* Shape */
+	--radius-control: 8px;
+	--brick-edge: 0 2px 0 var(--ink);
+
+	/* Layout: one centered column on every screen size */
+	--column-max: 560px;
+	--tap-min: 48px;
+
+	/* Motion: state changes only */
+	--motion-fast: 120ms;
+	--motion-base: 200ms;
+	--ease: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--motion-fast: 0ms;
+		--motion-base: 0ms;
+	}
+}
+
+html,
+body {
+	margin: 0;
+	background: var(--white);
+	color: var(--ink);
+	font-family: var(--font-ui);
+	font-size: var(--text-body);
+}
