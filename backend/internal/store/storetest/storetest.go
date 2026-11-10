@@ -40,6 +40,7 @@ func Run(t *testing.T, newStore New) {
 	t.Run("Workspaces", func(t *testing.T) { testWorkspaces(t, newStore) })
 	t.Run("Brains", func(t *testing.T) { testBrains(t, newStore) })
 	t.Run("Triggers", func(t *testing.T) { testTriggers(t, newStore) })
+	t.Run("Places", func(t *testing.T) { testPlaces(t, newStore) })
 }
 
 func testReadSeeded(t *testing.T, newStore New) {
@@ -510,6 +511,20 @@ func testTriggers(t *testing.T, newStore New) {
 	got, err = s.HelperTriggers(ctx, fx.HelperID)
 	must(t, err)
 	eq(t, "after delete", len(got), 1)
+}
+
+func testPlaces(t *testing.T, newStore New) {
+	s, fx := newStore(t)
+	ctx := context.Background()
+	p := store.Place{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, Type: "discord", Label: "#news",
+		SecretCiphertext: new("AQJ2MQ…base64"), SecretLast4: new("…x9Zq")}
+	must(t, s.CreatePlace(ctx, &p))
+	got, err := s.GetPlace(ctx, p.ID)
+	must(t, err)
+	if got.Type != "discord" || got.Label != "#news" || got.SecretCiphertext == nil || *got.SecretCiphertext != "AQJ2MQ…base64" {
+		t.Fatalf("place: %+v", got)
+	}
+	isErr(t, "unknown place", get(s.GetPlace(ctx, store.NewID())), store.ErrNotFound)
 }
 
 // ---- assertions ----

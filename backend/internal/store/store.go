@@ -41,6 +41,7 @@ type Store interface {
 	UsageStore
 	BrainStore
 	TriggerStore
+	PlaceStore
 	OutboundStore
 }
 
@@ -118,6 +119,11 @@ type TriggerStore interface {
 	UpdateTrigger(ctx context.Context, id string, p TriggerPatch) (Trigger, error)
 	// DeleteTrigger removes a trigger; a missing one is not an error.
 	DeleteTrigger(ctx context.Context, id string) error
+}
+
+type PlaceStore interface {
+	CreatePlace(ctx context.Context, p *Place) error
+	GetPlace(ctx context.Context, id string) (Place, error)
 }
 
 type BrainStore interface {

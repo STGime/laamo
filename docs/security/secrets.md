@@ -33,6 +33,6 @@ Rotation re-wraps only the small data keys, never the secrets themselves.
 
 If a key may have leaked, do all three steps at once, then ask users to replace their secrets in the external services (webhook URLs can be regenerated in Discord and Slack).
 
-## Open point for #34
+## Storage
 
-The `places.secret_ciphertext` and `brains.key_ciphertext` columns are `bytea`. Eurobase REST sends `bytea` as JSON, so the encoding round trip (a base64 string in, base64 out) has to be checked live before the first secret is stored. If it isn't clean, store the envelope base64-encoded in a `text` column instead (a small migration).
+Envelopes are stored base64-encoded in `text` columns (`places.secret_ciphertext`, `brains.key_ciphertext`; migration 0010). The REST API's JSON encoding of `bytea` isn't something to depend on, and base64 text round-trips unchanged. Decrypt with `crypto.AAD("places", id, "secret")` (Post to chat does this in `bricks/do`).

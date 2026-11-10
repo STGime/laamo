@@ -269,6 +269,23 @@ type UsageEntry struct {
 	CreatedAt    time.Time `json:"created_at,omitzero"`
 }
 
+// Place is where helpers tell the user things (a Discord or Slack webhook,
+// a Telegram chat, Email me, Posta).
+type Place struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	UserID      string `json:"user_id"`
+	Type        string `json:"type"` // discord, slack, teams, telegram, email, posta
+	Label       string `json:"label"`
+	// SecretCiphertext: base64 of an internal/crypto envelope sealed for
+	// crypto.AAD("places", id, "secret"). Never returned to the app.
+	SecretCiphertext *string        `json:"secret_ciphertext,omitempty"`
+	SecretLast4      *string        `json:"secret_last4,omitempty"`
+	Meta             map[string]any `json:"meta,omitzero"`
+	VerifiedAt       *time.Time     `json:"verified_at,omitempty"`
+	CreatedAt        time.Time      `json:"created_at,omitzero"`
+}
+
 // Brain is a workspace's AI: the included model with a monthly allowance,
 // or (post-MVP) the user's own key.
 type Brain struct {

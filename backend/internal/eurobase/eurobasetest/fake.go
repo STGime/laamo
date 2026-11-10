@@ -508,6 +508,7 @@ func laamoTables() map[string]table {
 	return map[string]table{
 		"workspaces": {defaults: with(ts("created_at", "updated_at"), Row{"timezone": "Europe/Berlin", "locale": "en", "plan": "free", "profile": Row{}})},
 		"members":    {defaults: ts("created_at"), uniques: [][]string{{"workspace_id", "user_id"}}},
+		"places":     {defaults: with(ts("created_at"), Row{"meta": Row{}})},
 		"brains": {defaults: func(now string) Row {
 			r := Row{"created_at": now, "updated_at": now, "mode": "included", "status": "ok",
 				"allowance_credits": 500.0, "used_credits_this_period": 0.0}

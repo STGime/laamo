@@ -27,6 +27,7 @@ type Store struct {
 	members    map[string]store.Member
 	brains     map[string]store.Brain // by workspace id
 	triggers   map[string]store.Trigger
+	places     map[string]store.Place
 	helpers    map[string]store.Helper
 	versions   map[string]store.HelperVersion
 	runs       map[string]store.Run
@@ -48,6 +49,7 @@ func New() *Store {
 		members:    map[string]store.Member{},
 		brains:     map[string]store.Brain{},
 		triggers:   map[string]store.Trigger{},
+		places:     map[string]store.Place{},
 		helpers:    map[string]store.Helper{},
 		versions:   map[string]store.HelperVersion{},
 		runs:       map[string]store.Run{},
@@ -636,6 +638,31 @@ func (s *Store) GetOutboundByKey(_ context.Context, key string) (store.OutboundM
 
 func (s *Store) UpdateOutbound(_ context.Context, id string, p store.OutboundPatch) (store.OutboundMessage, error) {
 	return update(s, s.outbound, id, p)
+}
+
+// ---- places ----
+
+func (s *Store) CreatePlace(_ context.Context, p *store.Place) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if p.ID == "" {
+		p.ID = store.NewID()
+	}
+	if _, ok := s.places[p.ID]; ok {
+		return dup("places", p.ID)
+	}
+	if p.Meta == nil {
+		p.Meta = map[string]any{}
+	}
+	if p.CreatedAt.IsZero() {
+		p.CreatedAt = s.now()
+	}
+	s.places[p.ID] = clone(*p)
+	return nil
+}
+
+func (s *Store) GetPlace(_ context.Context, id string) (store.Place, error) {
+	return get(s, s.places, id)
 }
 
 // ---- triggers ----

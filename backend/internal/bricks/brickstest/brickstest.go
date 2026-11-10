@@ -84,7 +84,9 @@ func Contract(t *testing.T, brickType string, b engine.Brick, rc *engine.RunCont
 			}
 		}
 	}
-	if len(out) > 0 && !open {
+	// Act bricks may legitimately skip (e.g. a message an earlier attempt
+	// may have sent), so they needn't add their fields every time.
+	if len(out) > 0 && !open && shape != catalog.ShapeAct {
 		for _, f := range adds {
 			if !slices.ContainsFunc(out, func(c engine.Card) bool { _, ok := c.Fields[f]; return ok }) {
 				t.Errorf("%s: no output card has %q, which the catalog says it adds", brickType, f)
