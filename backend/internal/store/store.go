@@ -25,6 +25,9 @@ var (
 	// ErrTooLarge: a single row is over the request size limit. Put large
 	// content in storage and keep a reference on the card.
 	ErrTooLarge = errors.New("store: row too large")
+	// ErrInvalid: the database refused a value (bad timezone, too many
+	// workspaces, …). The error text says why and is safe to show.
+	ErrInvalid = errors.New("store: invalid")
 )
 
 // Store is everything the services need.
@@ -47,6 +50,18 @@ type Store interface {
 
 type WorkspaceStore interface {
 	GetWorkspace(ctx context.Context, id string) (Workspace, error)
+	// GetWorkspaces returns the workspaces with these ids (missing ones are
+	// left out), in no particular order.
+	GetWorkspaces(ctx context.Context, ids []string) ([]Workspace, error)
+	// CreateWorkspace creates a workspace with owner as its owner member and
+	// the included brain, in one transaction. ErrInvalid for a bad name,
+	// timezone or locale, or when the owner has 5 workspaces.
+	CreateWorkspace(ctx context.Context, w NewWorkspace) (Workspace, error)
+	UpdateWorkspace(ctx context.Context, id string, p WorkspacePatch) (Workspace, error)
+	// Memberships returns the user's memberships, oldest first.
+	Memberships(ctx context.Context, userID string) ([]Member, error)
+	// Membership returns the user's membership in a workspace, or ErrNotFound.
+	Membership(ctx context.Context, workspaceID, userID string) (Member, error)
 }
 
 type HelperStore interface {

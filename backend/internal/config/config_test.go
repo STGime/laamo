@@ -17,6 +17,8 @@ func TestLoadDefaults(t *testing.T) {
 
 func TestLoadRequiresSecretOutsideDev(t *testing.T) {
 	t.Setenv("LAAMO_ENV", "prod")
+	t.Setenv("EUROBASE_PROJECT_ID", "p1")
+	t.Setenv("LAAMO_MASTER_KEYS", "v1:x")
 	t.Setenv("EUROBASE_PRIVATE_KEY", "")
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error without secret key in prod")
@@ -29,5 +31,34 @@ func TestBraveKeyFallback(t *testing.T) {
 	c, _ := Load()
 	if c.BraveSearchAPIKey != "old" {
 		t.Fatalf("got %q", c.BraveSearchAPIKey)
+	}
+}
+
+func TestProjectID(t *testing.T) {
+	t.Setenv("LAAMO_ENV", "")
+	t.Setenv("EUROBASE_URL", "")
+	t.Setenv("EUROBASE_PROJECT_ID", "")
+	c, _ := Load()
+	if c.EurobaseProjectID != DevProjectID {
+		t.Fatalf("dev default: got %q", c.EurobaseProjectID)
+	}
+
+	t.Setenv("EUROBASE_URL", "https://other.eurobase.app")
+	if c, _ := Load(); c.EurobaseProjectID != "" {
+		t.Fatalf("no default for another project: got %q", c.EurobaseProjectID)
+	}
+
+	t.Setenv("LAAMO_ENV", "prod")
+	t.Setenv("EUROBASE_PRIVATE_KEY", "eb_sk_x")
+	if _, err := Load(); err == nil {
+		t.Fatal("prod needs EUROBASE_PROJECT_ID")
+	}
+	t.Setenv("EUROBASE_PROJECT_ID", "p1")
+	if _, err := Load(); err == nil {
+		t.Fatal("prod needs LAAMO_MASTER_KEYS")
+	}
+	t.Setenv("LAAMO_MASTER_KEYS", "v1:x")
+	if c, err := Load(); err != nil || c.EurobaseProjectID != "p1" {
+		t.Fatalf("explicit project id: %v %q", err, c.EurobaseProjectID)
 	}
 }

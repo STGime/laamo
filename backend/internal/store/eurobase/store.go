@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"slices"
 
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -37,6 +39,56 @@ func (s *Store) SetChunkLimits(maxBytes, maxRows int) {
 
 func (s *Store) GetWorkspace(ctx context.Context, id string) (store.Workspace, error) {
 	return getRow[store.Workspace](ctx, s, "workspaces", id)
+}
+
+func (s *Store) GetWorkspaces(ctx context.Context, ids []string) ([]store.Workspace, error) {
+	var out []store.Workspace
+	for chunk := range slices.Chunk(ids, 100) {
+		rows, err := listRows[store.Workspace](ctx, s, "workspaces", eb.NewQuery().In("id", chunk...), 0)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, rows...)
+	}
+	return out, nil
+}
+
+// CreateWorkspace calls create_workspace (migrations/0008): workspace,
+// owner membership and included brain in one transaction.
+func (s *Store) CreateWorkspace(ctx context.Context, w store.NewWorkspace) (store.Workspace, error) {
+	args := map[string]any{"owner": w.OwnerID, "name": w.Name}
+	if w.Timezone != "" {
+		args["timezone"] = w.Timezone
+	}
+	if w.Locale != "" {
+		args["locale"] = w.Locale
+	}
+	var out store.Workspace
+	if err := s.c.RPC(ctx, "create_workspace", args, &out); err != nil {
+		return store.Workspace{}, mapErr(err)
+	}
+	return out, nil
+}
+
+func (s *Store) UpdateWorkspace(ctx context.Context, id string, p store.WorkspacePatch) (store.Workspace, error) {
+	return updateRow[store.Workspace](ctx, s, "workspaces", id, p)
+}
+
+func (s *Store) Memberships(ctx context.Context, userID string) ([]store.Member, error) {
+	q := eb.NewQuery().Eq("user_id", userID).Order("created_at", false).Order("id", false)
+	return listRows[store.Member](ctx, s, "members", q, 0)
+}
+
+func (s *Store) Membership(ctx context.Context, workspaceID, userID string) (store.Member, error) {
+	q := eb.NewQuery().Eq("workspace_id", workspaceID).Eq("user_id", userID)
+	rows, err := listRows[store.Member](ctx, s, "members", q, 1)
+	if err != nil {
+		return store.Member{}, err
+	}
+	if len(rows) == 0 {
+		return store.Member{}, store.ErrNotFound
+	}
+	return rows[0], nil
 }
 
 func (s *Store) GetHelper(ctx context.Context, id string) (store.Helper, error) {
@@ -266,6 +318,11 @@ func mapErr(err error) error {
 		return fmt.Errorf("%w: %w", store.ErrConflict, err)
 	case errors.Is(err, eb.ErrTooLarge):
 		return fmt.Errorf("%w: %w", store.ErrTooLarge, err)
+	}
+	var apiErr *eb.APIError
+	if errors.As(err, &apiErr) && apiErr.Status == http.StatusBadRequest {
+		// The database refused a value; its message says why.
+		return fmt.Errorf("%w: %s", store.ErrInvalid, apiErr.Message)
 	}
 	return err
 }

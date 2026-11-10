@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/STGime/laamo/backend/internal/auth"
 	"github.com/STGime/laamo/backend/internal/config"
+	"github.com/STGime/laamo/backend/internal/store"
 )
 
 // BaseURL is where the API is mounted (servers.url in the spec).
@@ -15,19 +17,32 @@ const BaseURL = "/api"
 
 // Server implements StrictServerInterface.
 type Server struct {
-	cfg  config.Config
-	http *http.Client
-	log  *slog.Logger
+	cfg   config.Config
+	store store.Store
+	auth  auth.TokenVerifier
+	http  *http.Client
+	log   *slog.Logger
 }
 
 var _ StrictServerInterface = (*Server)(nil)
 
-func NewServer(cfg config.Config, log *slog.Logger) *Server {
-	if log == nil {
-		log = slog.Default()
-	}
-	return &Server{cfg: cfg, http: &http.Client{Timeout: 3 * time.Second}, log: log}
+// Deps are the API's collaborators.
+type Deps struct {
+	Config config.Config
+	Store  store.Store
+	Auth   auth.TokenVerifier
+	Log    *slog.Logger
 }
+
+func NewServer(d Deps) *Server {
+	if d.Log == nil {
+		d.Log = slog.Default()
+	}
+	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log}
+}
+
+// maxBody caps request bodies.
+const maxBody = 1 << 20
 
 // Handler returns the API's http.Handler, with routes from the spec under
 // /api and JSON errors ({error, code}) for bad requests and failures.
@@ -41,19 +56,38 @@ func (s *Server) Handler() http.Handler {
 			WriteError(w, http.StatusInternalServerError, "internal", "internal server error")
 		},
 	})
-	return HandlerWithOptions(strict, StdHTTPServerOptions{
+	routes := HandlerWithOptions(strict, StdHTTPServerOptions{
 		BaseURL: BaseURL,
 		ErrorHandlerFunc: func(w http.ResponseWriter, _ *http.Request, err error) {
 			WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
 		},
 	})
+	mux := http.NewServeMux()
+	mux.Handle("/", routes)
+	// The contract itself, for API tools (Postman, Bruno, Insomnia import it).
+	mux.HandleFunc("GET "+BaseURL+"/openapi.json", s.serveSpec)
+
+	public := func(r *http.Request) bool {
+		return r.Method == http.MethodGet && (r.URL.Path == BaseURL+"/healthz" || r.URL.Path == BaseURL+"/openapi.json")
+	}
+	return http.MaxBytesHandler(auth.Middleware(s.auth, public, WriteError)(mux), maxBody)
+}
+
+func (s *Server) serveSpec(w http.ResponseWriter, _ *http.Request) {
+	spec, err := GetSwagger()
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "internal", "spec unavailable")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(spec)
 }
 
 // WriteError writes the spec's Error schema.
 func WriteError(w http.ResponseWriter, status int, code, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(Error{Error: msg, Code: code})
+	_ = json.NewEncoder(w).Encode(Error{Error: msg, Code: ErrorCode(code)})
 }
 
 func (s *Server) GetHealth(ctx context.Context, _ GetHealthRequestObject) (GetHealthResponseObject, error) {

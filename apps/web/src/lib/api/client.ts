@@ -10,10 +10,23 @@ export interface ApiOptions {
 	/** Absolute in tests (Node has no page URL to resolve /api against). */
 	baseUrl?: string;
 	fetch?: typeof fetch;
+	/** Current Eurobase access token, or null when signed out. */
+	token?: () => string | null | undefined;
 }
 
 export function createApi(opts: ApiOptions = {}) {
-	return createClient<paths>({ baseUrl: opts.baseUrl ?? '/api', fetch: opts.fetch });
+	const client = createClient<paths>({ baseUrl: opts.baseUrl ?? '/api', fetch: opts.fetch });
+	const token = opts.token;
+	if (token) {
+		client.use({
+			onRequest({ request }) {
+				const t = token();
+				if (t) request.headers.set('Authorization', `Bearer ${t}`);
+				return request;
+			}
+		});
+	}
+	return client;
 }
 
 export type Api = ReturnType<typeof createApi>;
