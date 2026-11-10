@@ -4,13 +4,18 @@
 //
 // Retries, by what is safe:
 //   - 429: always retried after Retry-After. The request was not processed.
-//   - 503: always retried. Eurobase answers 503 before running anything
-//     (database login unavailable, maintenance).
+//   - 503: always retried. Eurobase answers 503 when nothing ran or the
+//     statement was cancelled (database unavailable, SQLSTATE class 53/57).
+//   - 409 with a SQLSTATE class 40 code (deadlock, serialization failure):
+//     always retried; Postgres rolled the transaction back.
 //   - 502, 504 and network errors: the request may or may not have run.
 //     Retried only for idempotent calls (GET, PATCH, DELETE, and inserts with
 //     a client-made id). Otherwise the error wraps ErrUncertain so the caller
 //     can check what happened.
-//   - Anything else is returned as *APIError.
+//   - Anything else is returned as *APIError, with the Postgres SQLSTATE in
+//     Code when Eurobase sends one (RPC errors since Eurobase #829, e.g.
+//     a duplicate key is 400 with code 23505; a RAISE in the function is 400
+//     with its own message).
 package eurobase
 
 import (
@@ -43,11 +48,20 @@ type APIError struct {
 	Method  string
 	Path    string
 	Status  int
+	Code    string // Postgres SQLSTATE, when Eurobase sends one
 	Message string
 }
 
 func (e *APIError) Error() string {
+	if e.Code != "" {
+		return fmt.Sprintf("eurobase: %s %s: %d %s (%s)", e.Method, e.Path, e.Status, e.Message, e.Code)
+	}
 	return fmt.Sprintf("eurobase: %s %s: %d %s", e.Method, e.Path, e.Status, e.Message)
+}
+
+// transient: Postgres rolled back a deadlock or serialization failure.
+func (e *APIError) transient() bool {
+	return e.Status == http.StatusConflict && strings.HasPrefix(e.Code, "40")
 }
 
 func (e *APIError) Is(target error) bool {
@@ -55,7 +69,8 @@ func (e *APIError) Is(target error) bool {
 	case ErrNotFound:
 		return e.Status == http.StatusNotFound
 	case ErrConflict:
-		return e.Status == http.StatusConflict
+		// REST unique violation (409, no code) or a duplicate key from an RPC.
+		return e.Code == "23505" || (e.Status == http.StatusConflict && !e.transient())
 	case ErrTooLarge:
 		return e.Status == http.StatusRequestEntityTooLarge
 	}
@@ -295,7 +310,11 @@ func (c *Client) try(ctx context.Context, cl call, target string, attempt int, o
 		return -1, nil
 	}
 
-	apiErr := &APIError{Method: cl.method, Path: cl.path, Status: resp.StatusCode, Message: errorMessage(data)}
+	msg, code := errorBody(data)
+	apiErr := &APIError{Method: cl.method, Path: cl.path, Status: resp.StatusCode, Code: code, Message: msg}
+	if apiErr.transient() {
+		return c.backoff(attempt), apiErr
+	}
 	switch resp.StatusCode {
 	case http.StatusTooManyRequests:
 		return c.retryAfter(resp.Header.Get("Retry-After"), attempt), apiErr
@@ -326,17 +345,18 @@ func (c *Client) backoff(attempt int) time.Duration {
 	return d/2 + rand.N(d/2+1) //nolint:gosec // jitter, not security
 }
 
-func errorMessage(data []byte) string {
+func errorBody(data []byte) (msg, code string) {
 	var e struct {
 		Error string `json:"error"`
+		Code  string `json:"code"`
 	}
 	if json.Unmarshal(data, &e) == nil && e.Error != "" {
-		return e.Error
+		return e.Error, e.Code
 	}
 	if len(data) > 200 {
 		data = data[:200]
 	}
-	return strings.TrimSpace(string(data))
+	return strings.TrimSpace(string(data)), ""
 }
 
 func rowPath(table, id string) string {

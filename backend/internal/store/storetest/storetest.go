@@ -253,13 +253,10 @@ func testCards(t *testing.T, newStore New) {
 		t.Fatalf("score: %v", got[2].Score)
 	}
 
-	// all-or-nothing: a duplicate card_id in the same step rejects the pile.
-	// (Only "an error": Eurobase RPC errors carry no detail, so no ErrConflict.)
+	// all-or-nothing: a duplicate card_id in the same step rejects the pile
 	dupe := mk(3, "d")
 	dupe.CardID = pile[0].CardID
-	if err := s.InsertCards(ctx, []store.Card{mk(4, "e"), dupe}); err == nil {
-		t.Fatal("duplicate card in step: want an error")
-	}
+	isErr(t, "duplicate card in step", s.InsertCards(ctx, []store.Card{mk(4, "e"), dupe}), store.ErrConflict)
 	got, err = s.ListCards(ctx, st.ID)
 	must(t, err)
 	eq(t, "pile unchanged", len(got), 3)
