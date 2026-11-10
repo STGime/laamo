@@ -50,3 +50,36 @@ func createWorkspace(f *Fake, args map[string]json.RawMessage) (any, error) {
 	}
 	return ws, nil
 }
+
+// addBrainUsage mirrors add_brain_usage (migrations/0009).
+func addBrainUsage(f *Fake, args map[string]json.RawMessage) (any, error) {
+	ws := argString(args, "ws")
+	var credits float64
+	_ = json.Unmarshal(args["credits"], &credits)
+	if credits < 0 {
+		return nil, &PGError{Code: "22023", Message: "credits must be zero or more"}
+	}
+	for _, b := range f.rows["brains"] {
+		if b["workspace_id"] != ws {
+			continue
+		}
+		now := f.at()
+		month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+		used, _ := b["used_credits_this_period"].(float64)
+		if parseTS(b["period_start"]).Before(month) {
+			used = 0
+			b["period_start"] = ts(month)
+		}
+		used += credits
+		b["used_credits_this_period"] = used
+		allowance, _ := b["allowance_credits"].(float64)
+		switch {
+		case b["mode"] == "included" && used >= allowance:
+			b["status"] = "allowance_used"
+		case b["status"] == "allowance_used":
+			b["status"] = "ok"
+		}
+		return copyRow(b), nil
+	}
+	return nil, &PGError{Code: "P0002", Message: "workspace " + ws + " has no brain"}
+}

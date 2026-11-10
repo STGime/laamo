@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/STGime/laamo/backend/internal/catalog"
+	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/store"
 )
@@ -25,7 +26,8 @@ type Engine struct {
 	Store   store.Store
 	Catalog *catalog.Catalog
 	Bricks  map[string]Brick
-	Blobs   Blobs // nil: large content stays inline
+	Blobs   Blobs      // nil: large content stays inline
+	Brain   *llm.Brain // the AI for Think bricks
 	Log     *slog.Logger
 	Now     func() time.Time
 }
@@ -209,8 +211,8 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 
 	rc := &RunContext{
 		Run: r, Helper: h, Workspace: ws, TestMode: r.TestMode,
-		Limits: limitsFor(stack), Blobs: e.Blobs, Log: e.log().With("run", r.ID), Now: e.now,
-		costEUR: float64(r.CostEUR),
+		Limits: limitsFor(stack), Blobs: e.Blobs, Brain: e.Brain, Log: e.log().With("run", r.ID), Now: e.now,
+		usage: e.Store, costEUR: float64(r.CostEUR), tokensIn: r.TokensIn, tokensOut: r.TokensOut,
 	}
 	for k, val := range r.TriggerData {
 		if s, ok := val.(string); ok {
@@ -269,7 +271,9 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		pile = out
 
 		next := i + 1
-		r, err = e.Store.UpdateRun(ctx, r.ID, store.RunPatch{NextBrickIndex: &next, CostEUR: new(store.Num(rc.Cost()))})
+		tokIn, tokOut := rc.Tokens()
+		r, err = e.Store.UpdateRun(ctx, r.ID, store.RunPatch{NextBrickIndex: &next, CostEUR: new(store.Num(rc.Cost())),
+			TokensIn: &tokIn, TokensOut: &tokOut})
 		if err != nil {
 			return err
 		}
@@ -331,10 +335,17 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 			Log: []map[string]any{{"level": "error", "msg": err.Error()}}})
 		title := b.Title.In(rc.Workspace.Locale)
 		switch {
+		case errors.Is(err, llm.ErrAllowance):
+			msg := "Your brain allowance for this month is used up. Upgrade your plan, wait until next month, or use your own AI."
+			if rc.Workspace.Locale == "de" {
+				msg = "Dein Brain-Kontingent für diesen Monat ist aufgebraucht. Wechsle den Tarif, warte bis nächsten Monat oder nutze deine eigene KI."
+			}
+			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunStopped, err: err, problem: msg}}
 		case errors.Is(err, ErrLimit):
 			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunStopped, err: err,
 				problem: fmt.Sprintf("Stopped at “%s”: %s.", title, limitText(err))}}
-		case errors.Is(err, queue.ErrPermanent), errors.Is(err, errShape), errors.Is(err, ErrMissingValue):
+		case errors.Is(err, queue.ErrPermanent), errors.Is(err, errShape), errors.Is(err, ErrMissingValue),
+			errors.Is(err, llm.ErrBadOutput), errors.Is(err, llm.ErrNotConfigured):
 			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunFailed, err: err,
 				problem: fmt.Sprintf("“%s” didn't work: %s", title, friendly(err))}}
 		}

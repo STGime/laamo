@@ -25,6 +25,7 @@ type Store struct {
 	now        func() time.Time
 	workspaces map[string]store.Workspace
 	members    map[string]store.Member
+	brains     map[string]store.Brain // by workspace id
 	helpers    map[string]store.Helper
 	versions   map[string]store.HelperVersion
 	runs       map[string]store.Run
@@ -44,6 +45,7 @@ func New() *Store {
 		now:        time.Now,
 		workspaces: map[string]store.Workspace{},
 		members:    map[string]store.Member{},
+		brains:     map[string]store.Brain{},
 		helpers:    map[string]store.Helper{},
 		versions:   map[string]store.HelperVersion{},
 		runs:       map[string]store.Run{},
@@ -162,6 +164,7 @@ func (s *Store) CreateWorkspace(_ context.Context, nw store.NewWorkspace) (store
 	s.workspaces[w.ID] = clone(w)
 	m := store.Member{ID: store.NewID(), WorkspaceID: w.ID, UserID: nw.OwnerID, Role: store.RoleOwner, CreatedAt: now}
 	s.members[m.ID] = m
+	s.brains[w.ID] = newBrain(w.ID, nw.OwnerID, now)
 	return w, nil
 }
 
@@ -190,6 +193,67 @@ func (s *Store) UpdateWorkspace(_ context.Context, id string, p store.WorkspaceP
 	w.UpdatedAt = s.now()
 	s.workspaces[id] = clone(w)
 	return w, nil
+}
+
+func newBrain(workspaceID, userID string, now time.Time) store.Brain {
+	return store.Brain{ID: store.NewID(), WorkspaceID: workspaceID, UserID: userID, Mode: "included", Status: "ok",
+		AllowanceCredits: 500, PeriodStart: monthStart(now), CreatedAt: now}
+}
+
+func monthStart(t time.Time) time.Time {
+	t = t.UTC()
+	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+}
+
+// PutBrain sets a workspace's brain (test seeding).
+func (s *Store) PutBrain(b store.Brain) store.Brain {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if b.ID == "" {
+		b.ID = store.NewID()
+	}
+	b.Mode = cmp.Or(b.Mode, "included")
+	b.Status = cmp.Or(b.Status, "ok")
+	if b.PeriodStart.IsZero() {
+		b.PeriodStart = monthStart(s.now())
+	}
+	s.brains[b.WorkspaceID] = b
+	return b
+}
+
+func (s *Store) GetBrain(_ context.Context, workspaceID string) (store.Brain, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b, ok := s.brains[workspaceID]
+	if !ok {
+		return store.Brain{}, store.ErrNotFound
+	}
+	return b, nil
+}
+
+// AddBrainUsage follows migrations/0009 add_brain_usage.
+func (s *Store) AddBrainUsage(_ context.Context, workspaceID string, credits float64) (store.Brain, error) {
+	if credits < 0 {
+		return store.Brain{}, fmt.Errorf("%w: credits must be zero or more", store.ErrInvalid)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b, ok := s.brains[workspaceID]
+	if !ok {
+		return store.Brain{}, store.ErrNotFound
+	}
+	if month := monthStart(s.now()); b.PeriodStart.Before(month) {
+		b.UsedCreditsThisPeriod, b.PeriodStart = 0, month
+	}
+	b.UsedCreditsThisPeriod += store.Num(credits)
+	switch {
+	case b.Mode == "included" && b.UsedCreditsThisPeriod >= b.AllowanceCredits:
+		b.Status = "allowance_used"
+	case b.Status == "allowance_used":
+		b.Status = "ok"
+	}
+	s.brains[workspaceID] = b
+	return b, nil
 }
 
 // PutMember adds a membership (test seeding).

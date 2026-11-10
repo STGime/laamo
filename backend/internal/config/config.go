@@ -25,7 +25,19 @@ type Config struct {
 	// internal/crypto and docs/security/secrets.md. Server side only.
 	MasterKeys      string
 	MasterKeyActive string
+	// The AI brain: an OpenAI-compatible chat endpoint. Default: Mistral
+	// Small through fal.ai (OpenRouter). Mistral direct: LLM_BASE_URL=
+	// https://api.mistral.ai/v1, LLM_AUTH=Bearer, LLM_MODEL=mistral-small-latest.
+	LLMBaseURL string
+	LLMAPIKey  string // server side only
+	LLMAuth    string // Key (fal.ai) or Bearer
+	LLMModel   string
 }
+
+const (
+	DefaultLLMBaseURL = "https://fal.run/openrouter/router/openai/v1"
+	DefaultLLMModel   = "mistralai/mistral-small-3.2-24b-instruct"
+)
 
 // Load reads the config from the environment and applies defaults.
 func Load() (Config, error) {
@@ -40,6 +52,10 @@ func Load() (Config, error) {
 		BraveSearchAPIKey: firstNonEmpty(os.Getenv("BRAVE_SEARCH_API_KEY"), os.Getenv("BRAVESEARCH_PUBLIC_KEY")),
 		MasterKeys:        os.Getenv("LAAMO_MASTER_KEYS"),
 		MasterKeyActive:   os.Getenv("LAAMO_MASTER_KEY_ACTIVE"),
+		LLMBaseURL:        getenv("LLM_BASE_URL", DefaultLLMBaseURL),
+		LLMAPIKey:         firstNonEmpty(os.Getenv("LLM_API_KEY"), os.Getenv("FAL_KEY"), os.Getenv("FAL_AI_API_KEY")),
+		LLMAuth:           getenv("LLM_AUTH", "Key"),
+		LLMModel:          getenv("LLM_MODEL", DefaultLLMModel),
 	}
 	if c.EurobaseProjectID == "" && c.Env == "dev" && c.EurobaseURL == DevEurobaseURL {
 		c.EurobaseProjectID = DevProjectID

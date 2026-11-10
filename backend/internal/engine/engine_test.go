@@ -14,6 +14,7 @@ import (
 
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/store/memory"
@@ -613,3 +614,80 @@ type missingErr struct{}
 
 func (*missingErr) Error() string { return "{my offer} isn't set yet" }
 func (*missingErr) Unwrap() error { return engine.ErrMissingValue }
+
+// ---- the brain ----
+
+type fakeChat struct{ answers []string }
+
+func (f *fakeChat) Chat(context.Context, llm.Request) (llm.Response, error) {
+	text := `{"summary":"ok"}`
+	if len(f.answers) > 0 {
+		text, f.answers = f.answers[0], f.answers[1:]
+	}
+	return llm.Response{Text: text, Model: "mistralai/mistral-small-3.2-24b-instruct", TokensIn: 900, TokensOut: 100,
+		CostUSD: 0.0001, FinishReason: "stop"}, nil
+}
+
+// summarizeWithBrain is a Sum it up that really asks the (fake) brain.
+var summarizeWithBrain = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in []engine.Card, _ engine.Config) ([]engine.Card, error) {
+	var out struct {
+		Summary string `json:"summary"`
+	}
+	if err := rc.Brain.AskJSON(ctx, rc, llm.Request{Messages: []llm.Message{{Role: "user", Content: "sum up"}}}, &out, nil); err != nil {
+		return nil, err
+	}
+	var c engine.Card
+	c.Set("summary", out.Summary, engine.TrustExtracted)
+	return []engine.Card{c}, nil
+})
+
+func withBrain(t *testing.T, answers ...string) *env {
+	t.Helper()
+	e := newEnv(t, morningBriefing())
+	e.store.PutBrain(store.Brain{WorkspaceID: e.ws.ID, UserID: e.ws.UserID, AllowanceCredits: 500})
+	e.eng.Brain = &llm.Brain{Chat: &fakeChat{answers: answers}, Store: e.store, USDToEUR: 1}
+	e.eng.Bricks["think.summarize"] = summarizeWithBrain
+	return e
+}
+
+func TestBrainIsMeteredPerRun(t *testing.T) {
+	e := withBrain(t)
+	r := e.run(e.start("manual", false))
+	if r.Status != store.RunDone || r.TokensIn != 900 || r.TokensOut != 100 {
+		t.Fatalf("run: %s tokens %d/%d", r.Status, r.TokensIn, r.TokensOut)
+	}
+	usage := e.store.Usage()
+	if len(usage) != 1 || usage[0].Kind != "llm" || usage[0].RunID == nil || *usage[0].RunID != r.ID ||
+		usage[0].WorkspaceID != e.ws.ID || float64(usage[0].BrainCredits) != 0.1 {
+		t.Fatalf("ledger: %+v", usage)
+	}
+	b, _ := e.store.GetBrain(context.Background(), e.ws.ID)
+	if float64(b.UsedCreditsThisPeriod) != 0.1 {
+		t.Fatalf("allowance: %v", b.UsedCreditsThisPeriod)
+	}
+}
+
+func TestAllowanceStopsTheRun(t *testing.T) {
+	e := withBrain(t)
+	if _, err := e.store.AddBrainUsage(context.Background(), e.ws.ID, 500); err != nil {
+		t.Fatal(err)
+	}
+	r := e.run(e.start("manual", false))
+	if r.Status != store.RunStopped || e.calls.get("do.chat") != 0 {
+		t.Fatalf("run %s", r.Status)
+	}
+	if f := e.feed(r.ID); len(f) != 1 || !strings.Contains(*f[0].Body, "allowance") || !strings.Contains(*f[0].Body, "Upgrade") {
+		t.Fatalf("feed: %+v", f)
+	}
+}
+
+func TestUnusableAnswerFailsTheRun(t *testing.T) {
+	e := withBrain(t, "not json", "still not json")
+	r := e.run(e.start("manual", false))
+	if r.Status != store.RunFailed {
+		t.Fatalf("run %s", r.Status)
+	}
+	if len(e.store.Usage()) != 2 {
+		t.Fatal("both attempts must be in the ledger")
+	}
+}

@@ -11,7 +11,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 web="$root/apps/web"
 fail=0
 
-forbidden='LAAMO_MASTER_KEY|EUROBASE_PRIVATE_KEY|EUROBASE_SECRET|EUROBASE_MCP_TOKEN|EUROBASE_PAT|BRAVE_SEARCH_API_KEY|BRAVESEARCH_|eb_ptk_'
+forbidden='LAAMO_MASTER_KEY|FAL_KEY|FAL_AI_API_KEY|LLM_API_KEY|EUROBASE_PRIVATE_KEY|EUROBASE_SECRET|EUROBASE_MCP_TOKEN|EUROBASE_PAT|BRAVE_SEARCH_API_KEY|BRAVESEARCH_|eb_ptk_'
 if grep -rnE "$forbidden" "$web" \
 	--exclude-dir=node_modules --exclude-dir=.svelte-kit --exclude-dir=build; then
 	echo "✗ Server-only secret referenced in apps/web (see above)." >&2

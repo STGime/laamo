@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/STGime/laamo/backend/internal/catalog"
+	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/store"
 )
 
@@ -51,6 +52,9 @@ type Limits struct {
 // DefaultLimits apply when the stack sets none.
 var DefaultLimits = Limits{MaxCards: 50, MaxExternalEmails: 10, MaxCostEUR: 0.5}
 
+// MaxRunTokens caps the AI tokens one run may use, on top of the cost limit.
+const MaxRunTokens = 200_000
+
 // TestModeMaxCards: in a test run, piles are cut to this many cards.
 const TestModeMaxCards = 3
 
@@ -76,13 +80,18 @@ type RunContext struct {
 	TestMode bool
 	Limits   Limits
 	Blobs    Blobs
+	Brain    *llm.Brain // the AI for Think bricks: rc.Brain.Ask(ctx, rc, req)
 	Log      *slog.Logger
 	Now      func() time.Time
+
+	usage store.UsageStore
 
 	mu        sync.Mutex
 	values    map[string]string // run values: answer, trigger.subject, …
 	costEUR   float64           // this run so far (including earlier jobs)
 	extEmails int
+	tokensIn  int
+	tokensOut int
 }
 
 // Profile returns an About me fact ("city", "business", …).
@@ -143,4 +152,42 @@ func (rc *RunContext) UseExternalEmail() error {
 	}
 	rc.extEmails++
 	return nil
+}
+
+// WorkspaceID is the run's workspace (llm.Meter).
+func (rc *RunContext) WorkspaceID() string { return rc.Run.WorkspaceID }
+
+// Record writes a usage_ledger row for this run (every AI, search, fetch,
+// email and places call) and adds its cost; ErrLimit once the run is over
+// its cost limit (the row is written either way).
+func (rc *RunContext) Record(ctx context.Context, u store.UsageEntry) error {
+	u.WorkspaceID, u.UserID = rc.Run.WorkspaceID, rc.Run.UserID
+	if rc.Run.ID != "" {
+		u.RunID = &rc.Run.ID
+	}
+	if rc.usage != nil {
+		if err := rc.usage.AddUsage(ctx, &u); err != nil {
+			return fmt.Errorf("usage ledger: %w", err)
+		}
+	}
+	return rc.AddCost(float64(u.EstCostEUR))
+}
+
+// AddTokens counts AI tokens; ErrLimit past MaxRunTokens.
+func (rc *RunContext) AddTokens(in, out int) error {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	rc.tokensIn += in
+	rc.tokensOut += out
+	if rc.tokensIn+rc.tokensOut > MaxRunTokens {
+		return fmt.Errorf("%w: this run used more than %d AI tokens", ErrLimit, MaxRunTokens)
+	}
+	return nil
+}
+
+// Tokens returns the AI tokens used so far.
+func (rc *RunContext) Tokens() (in, out int) {
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	return rc.tokensIn, rc.tokensOut
 }

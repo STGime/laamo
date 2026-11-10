@@ -248,6 +248,32 @@ func (s *Store) ListRows(ctx context.Context, listID string, limit int) ([]store
 	return listRows[store.ListRow](ctx, s, "list_rows", q, limit)
 }
 
+// ---- brains ----
+
+func (s *Store) GetBrain(ctx context.Context, workspaceID string) (store.Brain, error) {
+	rows, err := listRows[store.Brain](ctx, s, "brains", eb.NewQuery().Eq("workspace_id", workspaceID), 1)
+	if err != nil {
+		return store.Brain{}, err
+	}
+	if len(rows) == 0 {
+		return store.Brain{}, store.ErrNotFound
+	}
+	return rows[0], nil
+}
+
+// AddBrainUsage calls add_brain_usage (migrations/0009). It is not retried
+// after an uncertain failure (it would count twice); the ledger row is the
+// record of truth.
+func (s *Store) AddBrainUsage(ctx context.Context, workspaceID string, credits float64) (store.Brain, error) {
+	var b store.Brain
+	err := s.c.RPC(ctx, "add_brain_usage", map[string]any{"ws": workspaceID, "credits": credits}, &b)
+	var apiErr *eb.APIError
+	if errors.As(err, &apiErr) && apiErr.Code == "P0002" { // no_data_found: no brain
+		return store.Brain{}, fmt.Errorf("%w: %s", store.ErrNotFound, apiErr.Message)
+	}
+	return b, mapErr(err)
+}
+
 // ---- usage, outbound ----
 
 func (s *Store) AddUsage(ctx context.Context, u *store.UsageEntry) error {

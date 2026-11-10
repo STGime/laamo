@@ -240,6 +240,31 @@ type UsageEntry struct {
 	CreatedAt    time.Time `json:"created_at,omitzero"`
 }
 
+// Brain is a workspace's AI: the included model with a monthly allowance,
+// or (post-MVP) the user's own key.
+type Brain struct {
+	ID                    string    `json:"id"`
+	WorkspaceID           string    `json:"workspace_id"`
+	UserID                string    `json:"user_id"`
+	Mode                  string    `json:"mode"`   // included, byok
+	Status                string    `json:"status"` // ok, invalid, over_budget, allowance_used
+	AllowanceCredits      Num       `json:"allowance_credits"`
+	UsedCreditsThisPeriod Num       `json:"used_credits_this_period"`
+	PeriodStart           time.Time `json:"period_start"`
+	CreatedAt             time.Time `json:"created_at,omitzero"`
+}
+
+// CreditsLeft is what's left of the included allowance this month (a new
+// month counts as a fresh allowance even before the first usage resets it).
+func (b Brain) CreditsLeft(now time.Time) float64 {
+	used := float64(b.UsedCreditsThisPeriod)
+	month := time.Date(now.UTC().Year(), now.UTC().Month(), 1, 0, 0, 0, 0, time.UTC)
+	if b.PeriodStart.Before(month) {
+		used = 0
+	}
+	return float64(b.AllowanceCredits) - used
+}
+
 type OutboundMessage struct {
 	ID                string     `json:"id"`
 	WorkspaceID       string     `json:"workspace_id"`
