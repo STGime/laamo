@@ -89,7 +89,7 @@ tasks:
     env:
       LAAMO_EUROBASE_LIVE: "1"
     cmds:
-      - go test -count=1 -run TestLive -v ./internal/store/eurobase/ ./internal/queue/eurobase/ ./internal/engine/ ./internal/llm/ ./internal/search/
+      - go test -count=1 -run TestLive -v ./internal/store/eurobase/ ./internal/queue/eurobase/ ./internal/engine/ ./internal/llm/ ./internal/search/ ./internal/bricks/...
 
   migrate:
     desc: Apply pending migrations and sync cron jobs (migrations/cron.json) on the laamo Eurobase project
