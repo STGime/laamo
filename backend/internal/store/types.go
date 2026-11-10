@@ -234,6 +234,3 @@ type OutboundPatch struct {
 	Error             *string    `json:"error,omitempty"`
 	SentAt            *time.Time `json:"sent_at,omitempty"`
 }
-
-// Ptr returns a pointer to v, for optional row fields and patches.
-func Ptr[T any](v T) *T { return &v }

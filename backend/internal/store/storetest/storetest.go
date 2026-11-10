@@ -91,11 +91,11 @@ func testRuns(t *testing.T, newStore New) {
 	cardID := store.NewID()
 	started := time.Now().UTC().Truncate(time.Millisecond)
 	got, err = s.UpdateRun(ctx, r.ID, store.RunPatch{
-		Status:          store.Ptr(store.RunWaiting),
-		NextBrickIndex:  store.Ptr(3),
+		Status:          new(store.RunWaiting),
+		NextBrickIndex:  new(3),
 		WaitingOnCardID: store.Set(cardID),
 		StartedAt:       &started,
-		CostEUR:         store.Ptr(store.Num(0.0125)),
+		CostEUR:         new(store.Num(0.0125)),
 	})
 	must(t, err)
 	eq(t, "status", got.Status, store.RunWaiting)
@@ -108,7 +108,7 @@ func testRuns(t *testing.T, newStore New) {
 	}
 	eq(t, "cost", got.CostEUR, store.Num(0.0125))
 
-	got, err = s.UpdateRun(ctx, r.ID, store.RunPatch{WaitingOnCardID: store.Null[string](), Status: store.Ptr(store.RunRunning)})
+	got, err = s.UpdateRun(ctx, r.ID, store.RunPatch{WaitingOnCardID: store.Null[string](), Status: new(store.RunRunning)})
 	must(t, err)
 	if got.WaitingOnCardID != nil {
 		t.Fatalf("waiting_on_card_id should be cleared, got %v", *got.WaitingOnCardID)
@@ -120,7 +120,7 @@ func testRuns(t *testing.T, newStore New) {
 	must(t, err)
 	eq(t, "persisted status", got.Status, store.RunRunning)
 
-	isErr(t, "update unknown run", get(s.UpdateRun(ctx, store.NewID(), store.RunPatch{Status: store.Ptr(store.RunDone)})), store.ErrNotFound)
+	isErr(t, "update unknown run", get(s.UpdateRun(ctx, store.NewID(), store.RunPatch{Status: new(store.RunDone)})), store.ErrNotFound)
 
 	// returned rows are copies
 	got.TriggerData["answer"] = "changed"
@@ -199,7 +199,7 @@ func testSteps(t *testing.T, newStore New) {
 
 	done := time.Now().UTC().Truncate(time.Millisecond)
 	st, err := s.UpdateStep(ctx, b1.ID, store.StepPatch{
-		Status: store.Ptr("done"), CardsOut: store.Ptr(12), FinishedAt: &done,
+		Status: new("done"), CardsOut: new(12), FinishedAt: &done,
 		Log: []map[string]any{{"msg": "searched", "results": float64(12)}},
 	})
 	must(t, err)
@@ -209,7 +209,7 @@ func testSteps(t *testing.T, newStore New) {
 	if len(st.Log) != 1 || st.Log[0]["msg"] != "searched" {
 		t.Fatalf("log: %v", st.Log)
 	}
-	isErr(t, "update unknown step", get(s.UpdateStep(ctx, store.NewID(), store.StepPatch{Status: store.Ptr("done")})), store.ErrNotFound)
+	isErr(t, "update unknown step", get(s.UpdateStep(ctx, store.NewID(), store.StepPatch{Status: new("done")})), store.ErrNotFound)
 }
 
 func testCards(t *testing.T, newStore New) {
@@ -227,8 +227,8 @@ func testCards(t *testing.T, newStore New) {
 			Trust: map[string]string{"title": "untrusted"}}
 	}
 	pile := []store.Card{mk(2, "c"), mk(0, "a"), mk(1, "b")}
-	pile[0].SourceURL = store.Ptr("https://example.com/c")
-	pile[0].Score = store.Ptr(store.Num(0.75))
+	pile[0].SourceURL = new("https://example.com/c")
+	pile[0].Score = new(store.Num(0.75))
 	must(t, s.InsertCards(ctx, pile))
 	for i, c := range pile {
 		if c.ID == "" {
@@ -282,7 +282,7 @@ func testFeed(t *testing.T, newStore New) {
 
 	when := time.Now().UTC().Truncate(time.Millisecond)
 	got, err := s.UpdateFeedCard(ctx, c.ID, store.FeedCardPatch{
-		State: store.Ptr("edited"), Decision: map[string]any{"edits": map[string]any{"subject": "Hi"}},
+		State: new("edited"), Decision: map[string]any{"edits": map[string]any{"subject": "Hi"}},
 		DecidedBy: &fx.UserID, DecidedAt: &when,
 	})
 	must(t, err)
@@ -303,7 +303,7 @@ func testLists(t *testing.T, newStore New) {
 	s, fx := newStore(t)
 	ctx := context.Background()
 
-	l := store.List{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, Name: "Leads", DedupeField: store.Ptr("website")}
+	l := store.List{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, Name: "Leads", DedupeField: new("website")}
 	must(t, s.CreateList(ctx, &l))
 	other := store.List{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, Name: "Leads"}
 	isErr(t, "same list name", s.CreateList(ctx, &other), store.ErrConflict)
@@ -316,7 +316,7 @@ func testLists(t *testing.T, newStore New) {
 
 	row := func(site string) store.ListRow {
 		return store.ListRow{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, ListID: l.ID,
-			Data: map[string]any{"website": site}, DedupeKey: store.Ptr(site)}
+			Data: map[string]any{"website": site}, DedupeKey: new(site)}
 	}
 	r1 := row("a.de")
 	must(t, s.AddListRow(ctx, &r1))
@@ -345,7 +345,7 @@ func testUsage(t *testing.T, newStore New) {
 	s, fx := newStore(t)
 	ctx := context.Background()
 	u := store.UsageEntry{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, Kind: "llm",
-		BrainMode: store.Ptr("included"), Model: store.Ptr("mistral-small"),
+		BrainMode: new("included"), Model: new("mistral-small"),
 		Units: 1200, BrainCredits: 1.2, EstCostEUR: 0.00042}
 	must(t, s.AddUsage(ctx, &u))
 	if u.ID == "" || u.CreatedAt.IsZero() {
@@ -361,8 +361,8 @@ func testOutbound(t *testing.T, newStore New) {
 
 	key := r.ID + ":b5:" + store.NewID()
 	m := store.OutboundMessage{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, RunID: &r.ID,
-		IdempotencyKey: key, Channel: "email", Lane: store.Ptr(1), Recipient: "owner@example.com",
-		Subject: store.Ptr("Your morning briefing")}
+		IdempotencyKey: key, Channel: "email", Lane: new(1), Recipient: "owner@example.com",
+		Subject: new("Your morning briefing")}
 	must(t, s.CreateOutbound(ctx, &m))
 	eq(t, "default status", m.Status, "pending")
 
@@ -376,8 +376,8 @@ func testOutbound(t *testing.T, newStore New) {
 	isErr(t, "unknown key", get(s.GetOutboundByKey(ctx, "nope")), store.ErrNotFound)
 
 	sent := time.Now().UTC().Truncate(time.Millisecond)
-	got, err = s.UpdateOutbound(ctx, m.ID, store.OutboundPatch{Status: store.Ptr("sent"),
-		ProviderMessageID: store.Ptr("tem-123"), SentAt: &sent})
+	got, err = s.UpdateOutbound(ctx, m.ID, store.OutboundPatch{Status: new("sent"),
+		ProviderMessageID: new("tem-123"), SentAt: &sent})
 	must(t, err)
 	eq(t, "sent", got.Status, "sent")
 	eq(t, "recipient kept", got.Recipient, "owner@example.com")
