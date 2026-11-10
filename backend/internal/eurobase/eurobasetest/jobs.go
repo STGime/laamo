@@ -2,7 +2,6 @@ package eurobasetest
 
 import (
 	"encoding/json"
-	"fmt"
 	"slices"
 	"time"
 )
@@ -58,7 +57,7 @@ func claimJobs(f *Fake, args map[string]json.RawMessage) (any, error) {
 	worker := argString(args, "worker")
 	n := argInt(args, "n", 10)
 	if n < 1 || n > 100 {
-		return nil, fmt.Errorf("n must be between 1 and 100")
+		return nil, &PGError{Code: "22023", Message: "n must be between 1 and 100"}
 	}
 	now := f.at()
 	var due []Row
@@ -104,7 +103,7 @@ func heldJob(f *Fake, args map[string]json.RawMessage) Row {
 func extendLease(f *Fake, args map[string]json.RawMessage) (any, error) {
 	secs := argInt(args, "seconds", 300)
 	if secs < 1 || secs > 3600 {
-		return nil, fmt.Errorf("seconds must be between 1 and 3600")
+		return nil, &PGError{Code: "22023", Message: "seconds must be between 1 and 3600"}
 	}
 	j := heldJob(f, args)
 	if j == nil {
@@ -117,11 +116,11 @@ func extendLease(f *Fake, args map[string]json.RawMessage) (any, error) {
 func finishJob(f *Fake, args map[string]json.RawMessage) (any, error) {
 	outcome := argString(args, "outcome")
 	if outcome != "done" && outcome != "retry" && outcome != "failed" {
-		return nil, fmt.Errorf("outcome must be done, retry or failed")
+		return nil, &PGError{Code: "22023", Message: "outcome must be done, retry or failed"}
 	}
 	retryIn := argInt(args, "retry_in", 60)
 	if outcome == "retry" && (retryIn < 0 || retryIn > 86400) {
-		return nil, fmt.Errorf("retry_in out of range")
+		return nil, &PGError{Code: "22023", Message: "retry_in out of range"}
 	}
 	j := heldJob(f, args)
 	if j == nil {
