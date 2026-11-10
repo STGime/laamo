@@ -8,7 +8,7 @@ new one instead.
 
 ```sh
 task test:migrations   # apply to a throwaway local Postgres + run RLS tests (Docker)
-task migrate           # apply pending migrations to the laamo Eurobase project
+task migrate           # apply pending migrations + sync cron jobs to the laamo Eurobase project
 task migrate:status    # local files vs applied versions
 ```
 
@@ -30,3 +30,21 @@ task migrate:status    # local files vs applied versions
 - RPC functions return a single value; return `jsonb` instead of `SETOF`.
 
 `test/harness.sql` mimics a Eurobase tenant locally (helper functions, schema, non-owner API role). It is never applied to Eurobase.
+
+## Cron jobs
+
+Eurobase cron jobs are platform config, not SQL, so they live in `cron.json` and are
+created or updated by `scripts/sync-cron.sh` (part of `task migrate`). Current jobs:
+
+- `enqueue-due-triggers`: every minute, calls `enqueue_due_triggers()` as the service role.
+
+## Queue functions (0005)
+
+| Function | Called by | Returns |
+| --- | --- | --- |
+| `claim_jobs(worker, n)` | worker, ~1/s when idle | jsonb array of claimed jobs (SKIP LOCKED, 5 min lease, reclaims expired leases, fails exhausted ones) |
+| `insert_cards(rows)` | worker, per brick | `[{id, card_id}]`; one transaction per call, keep under 1 MB |
+| `enqueue_due_triggers()` | cron, every minute | `{enqueued, skipped}`; queues `run` jobs and advances `next_run_at` |
+| `next_schedule_time(config, tz, from_ts)` | API when saving a trigger, and the scheduler | next run strictly after `from_ts`, or NULL |
+
+Schedule trigger config: `{"freq": "daily" | "weekdays" | "weekly", "time": "HH:MM", "days": ["mon", …]}` in the workspace timezone.

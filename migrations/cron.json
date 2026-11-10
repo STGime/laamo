@@ -1,0 +1,12 @@
+[
+  {
+    "name": "enqueue-due-triggers",
+    "description": "Queue runs for due schedule triggers (Laamo scheduler)",
+    "schedule": "* * * * *",
+    "timezone": "UTC",
+    "action_type": "rpc",
+    "action": "enqueue_due_triggers",
+    "run_as": "service",
+    "enabled": true
+  }
+]
