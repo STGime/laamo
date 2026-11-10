@@ -1,0 +1,38 @@
+# Laamo API requests for VS Code REST Client / JetBrains HTTP client.
+# Set @token to the output of: scripts/dev-token.sh you@example.com
+
+@base = http://localhost:8787/api
+@token = paste-token-here
+
+### Health (no token)
+GET {{base}}/healthz
+
+### Me
+GET {{base}}/me
+Authorization: Bearer {{token}}
+
+### Create a workspace
+# @name created
+POST {{base}}/workspaces
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"name": "Bäckerei Krause", "timezone": "Europe/Berlin", "locale": "de"}
+
+### Get it
+GET {{base}}/workspaces/{{created.response.body.id}}
+Authorization: Bearer {{token}}
+
+### About me facts (empty value forgets a fact)
+PATCH {{base}}/workspaces/{{created.response.body.id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"profile": {"city": "Leipzig", "business": "bakery", "offer": "fresh bread and cakes"}}
+
+### Bad timezone → 400
+PATCH {{base}}/workspaces/{{created.response.body.id}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"timezone": "Mars/Olympus"}

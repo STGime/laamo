@@ -37,6 +37,7 @@ func Run(t *testing.T, newStore New) {
 	t.Run("Lists", func(t *testing.T) { testLists(t, newStore) })
 	t.Run("Usage", func(t *testing.T) { testUsage(t, newStore) })
 	t.Run("Outbound", func(t *testing.T) { testOutbound(t, newStore) })
+	t.Run("Workspaces", func(t *testing.T) { testWorkspaces(t, newStore) })
 }
 
 func testReadSeeded(t *testing.T, newStore New) {
@@ -378,6 +379,64 @@ func testOutbound(t *testing.T, newStore New) {
 	must(t, err)
 	eq(t, "sent", got.Status, "sent")
 	eq(t, "recipient kept", got.Recipient, "owner@example.com")
+}
+
+func testWorkspaces(t *testing.T, newStore New) {
+	s, fx := newStore(t)
+	ctx := context.Background()
+	owner := store.NewID()
+
+	w, err := s.CreateWorkspace(ctx, store.NewWorkspace{OwnerID: owner, Name: "  Bäckerei Krause ", Timezone: "Europe/Vienna", Locale: "de"})
+	must(t, err)
+	eq(t, "name trimmed", w.Name, "Bäckerei Krause")
+	eq(t, "owner", w.UserID, owner)
+	eq(t, "timezone", w.Timezone, "Europe/Vienna")
+	eq(t, "plan", w.Plan, "free")
+
+	d, err := s.CreateWorkspace(ctx, store.NewWorkspace{OwnerID: owner, Name: "Second"})
+	must(t, err)
+	eq(t, "default timezone", d.Timezone, "Europe/Berlin")
+	eq(t, "default locale", d.Locale, "en")
+
+	m, err := s.Membership(ctx, w.ID, owner)
+	must(t, err)
+	eq(t, "owner role", m.Role, store.RoleOwner)
+	isErr(t, "not a member", get(s.Membership(ctx, w.ID, store.NewID())), store.ErrNotFound)
+	isErr(t, "seeded workspace, no member", get(s.Membership(ctx, fx.WorkspaceID, owner)), store.ErrNotFound)
+
+	ms, err := s.Memberships(ctx, owner)
+	must(t, err)
+	if len(ms) != 2 || ms[0].WorkspaceID != w.ID || ms[1].WorkspaceID != d.ID {
+		t.Fatalf("memberships oldest first: %+v", ms)
+	}
+	none, err := s.Memberships(ctx, store.NewID())
+	must(t, err)
+	eq(t, "no memberships", len(none), 0)
+
+	got, err := s.GetWorkspaces(ctx, []string{w.ID, store.NewID(), d.ID})
+	must(t, err)
+	eq(t, "get workspaces skips unknown ids", len(got), 2)
+
+	for name, nw := range map[string]store.NewWorkspace{
+		"empty name":   {OwnerID: owner, Name: "  "},
+		"bad timezone": {OwnerID: owner, Name: "x", Timezone: "Mars/Olympus"},
+		"bad locale":   {OwnerID: owner, Name: "x", Locale: "fr"},
+	} {
+		isErr(t, name, get(s.CreateWorkspace(ctx, nw)), store.ErrInvalid)
+	}
+	for range 3 {
+		_, err := s.CreateWorkspace(ctx, store.NewWorkspace{OwnerID: owner, Name: "filler"})
+		must(t, err)
+	}
+	isErr(t, "sixth workspace", get(s.CreateWorkspace(ctx, store.NewWorkspace{OwnerID: owner, Name: "sixth"})), store.ErrInvalid)
+
+	u, err := s.UpdateWorkspace(ctx, w.ID, store.WorkspacePatch{Name: new("Krause & Söhne"),
+		Profile: map[string]any{"city": "Wien", "business": "bakery"}})
+	must(t, err)
+	eq(t, "renamed", u.Name, "Krause & Söhne")
+	eq(t, "profile", u.Profile["city"], any("Wien"))
+	eq(t, "timezone kept", u.Timezone, "Europe/Vienna")
+	isErr(t, "update unknown", get(s.UpdateWorkspace(ctx, store.NewID(), store.WorkspacePatch{Name: new("x")})), store.ErrNotFound)
 }
 
 // ---- assertions ----

@@ -1,15 +1,29 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Laamo API
   version: 0.1.0
-  description: Contract between the Go api and the web app. Code generation comes in issue #11.
+  description: |
+    Contract between the Go api (backend/internal/api) and the web app
+    (apps/web/src/lib/api). Both sides are generated from this file:
+    run `task gen` after changing it. CI fails if generated code is stale.
+
+    Auth: sign in with Eurobase auth and send the access token as
+    `Authorization: Bearer <token>`. Every endpoint needs it except /healthz.
 servers:
   - url: /api
+security:
+  - bearerAuth: []
+tags:
+  - name: system
+  - name: me
+  - name: workspaces
 paths:
   /healthz:
     get:
       operationId: getHealth
       summary: Service health
+      tags: [system]
+      security: []
       responses:
         '200':
           description: OK
@@ -17,7 +31,126 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+  /me:
+    get:
+      operationId: getMe
+      summary: The signed-in user and their workspaces
+      tags: [me]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /workspaces:
+    post:
+      operationId: createWorkspace
+      summary: Create a workspace (you become its owner)
+      description: Also creates your owner membership and the included brain. At most 5 workspaces per user.
+      tags: [workspaces]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWorkspace'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /workspaces/{workspaceId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: getWorkspace
+      summary: One of your workspaces
+      tags: [workspaces]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateWorkspace
+      summary: Change name, timezone, language or About me facts (owner only)
+      tags: [workspaces]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceUpdate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Eurobase end-user access token (ES256)
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: The request is invalid; error says why
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid access token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: You can see this but not change it
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found, or not yours
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
     Health:
       type: object
@@ -32,3 +165,109 @@ components:
         eurobase:
           type: string
           enum: [reachable, unreachable, not configured, error]
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          description: Human-readable message (English)
+        code:
+          type: string
+          description: Stable machine code
+          enum: [bad_request, unauthorized, forbidden, not_found, auth_unavailable, internal]
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+    Role:
+      type: string
+      enum: [owner, member]
+    Plan:
+      type: string
+      enum: [free, starter, business]
+    Locale:
+      type: string
+      enum: [en, de]
+    WorkspaceSummary:
+      type: object
+      required: [id, name, role, timezone, locale, plan]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        timezone:
+          type: string
+          example: Europe/Berlin
+        locale:
+          $ref: '#/components/schemas/Locale'
+        plan:
+          $ref: '#/components/schemas/Plan'
+    Me:
+      type: object
+      required: [user, workspaces]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        workspaces:
+          type: array
+          description: Oldest first. Empty for a new user (onboarding creates one).
+          items:
+            $ref: '#/components/schemas/WorkspaceSummary'
+    Profile:
+      type: object
+      description: About me facts by key (see packages/catalog/bricks.json `profile`), used as {my city} etc.
+      additionalProperties:
+        type: string
+        maxLength: 500
+      example:
+        city: Berlin
+        business: bakery
+    Workspace:
+      allOf:
+        - $ref: '#/components/schemas/WorkspaceSummary'
+        - type: object
+          required: [profile, created_at]
+          properties:
+            profile:
+              $ref: '#/components/schemas/Profile'
+            created_at:
+              type: string
+              format: date-time
+    NewWorkspace:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+          example: Bäckerei Krause
+        timezone:
+          type: string
+          description: IANA name; default Europe/Berlin (the web app sends the browser's)
+          example: Europe/Berlin
+        locale:
+          $ref: '#/components/schemas/Locale'
+    WorkspaceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        timezone:
+          type: string
+        locale:
+          $ref: '#/components/schemas/Locale'
+        profile:
+          $ref: '#/components/schemas/Profile'

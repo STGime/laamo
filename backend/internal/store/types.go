@@ -20,6 +20,38 @@ type Workspace struct {
 	UpdatedAt time.Time      `json:"updated_at,omitzero"`
 }
 
+// NewWorkspace is the input to CreateWorkspace.
+type NewWorkspace struct {
+	OwnerID  string
+	Name     string
+	Timezone string // IANA name; "" = Europe/Berlin
+	Locale   string // en or de; "" = en
+}
+
+type WorkspacePatch struct {
+	Name     *string        `json:"name,omitempty"`
+	Timezone *string        `json:"timezone,omitempty"`
+	Locale   *string        `json:"locale,omitempty"`
+	Profile  map[string]any `json:"profile,omitempty"` // replaces the whole profile
+}
+
+// Member roles.
+const (
+	RoleOwner  = "owner"
+	RoleMember = "member"
+)
+
+type Member struct {
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspace_id"`
+	UserID      string    `json:"user_id"`
+	Role        string    `json:"role"`
+	DisplayName *string   `json:"display_name,omitempty"`
+	AboutMe     *string   `json:"about_me,omitempty"`
+	Signature   *string   `json:"signature,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitzero"`
+}
+
 type Helper struct {
 	ID               string    `json:"id"`
 	WorkspaceID      string    `json:"workspace_id"`

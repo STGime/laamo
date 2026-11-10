@@ -50,9 +50,10 @@ tasks:
       - docker compose down
 
   gen:
-    desc: Generate Go server stubs and TS client from OpenAPI
+    desc: Generate the Go server and the TS client from packages/openapi/openapi.yaml
     cmds:
-      - echo "Not wired yet, see issue #11"
+      - cd {{.BACKEND}} && go generate ./internal/api
+      - pnpm --filter @laamo/web gen:api
 
   test:
     desc: Run all tests

@@ -12,8 +12,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/STGime/laamo/backend/internal/store"
 )
@@ -22,6 +24,7 @@ type Store struct {
 	mu         sync.Mutex
 	now        func() time.Time
 	workspaces map[string]store.Workspace
+	members    map[string]store.Member
 	helpers    map[string]store.Helper
 	versions   map[string]store.HelperVersion
 	runs       map[string]store.Run
@@ -40,6 +43,7 @@ func New() *Store {
 	return &Store{
 		now:        time.Now,
 		workspaces: map[string]store.Workspace{},
+		members:    map[string]store.Member{},
 		helpers:    map[string]store.Helper{},
 		versions:   map[string]store.HelperVersion{},
 		runs:       map[string]store.Run{},
@@ -111,6 +115,122 @@ func (s *Store) PutHelperVersion(v store.HelperVersion) store.HelperVersion {
 
 func (s *Store) GetWorkspace(_ context.Context, id string) (store.Workspace, error) {
 	return get(s, s.workspaces, id)
+}
+
+func (s *Store) GetWorkspaces(_ context.Context, ids []string) ([]store.Workspace, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.Workspace
+	for _, id := range ids {
+		if w, ok := s.workspaces[id]; ok {
+			out = append(out, clone(w))
+		}
+	}
+	return out, nil
+}
+
+// CreateWorkspace follows migrations/0008 create_workspace.
+func (s *Store) CreateWorkspace(_ context.Context, nw store.NewWorkspace) (store.Workspace, error) {
+	name := strings.TrimSpace(nw.Name)
+	tz := cmp.Or(nw.Timezone, "Europe/Berlin")
+	locale := cmp.Or(nw.Locale, "en")
+	invalid := func(msg string) (store.Workspace, error) {
+		return store.Workspace{}, fmt.Errorf("%w: %s", store.ErrInvalid, msg)
+	}
+	switch n := utf8.RuneCountInString(name); {
+	case n < 1 || n > 80:
+		return invalid("name must be 1 to 80 characters")
+	case locale != "en" && locale != "de":
+		return invalid("locale must be en or de")
+	case !validTimezone(tz):
+		return invalid("unknown timezone " + tz)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	owned := 0
+	for _, w := range s.workspaces {
+		if w.UserID == nw.OwnerID {
+			owned++
+		}
+	}
+	if owned >= 5 {
+		return invalid("you already have 5 workspaces")
+	}
+	now := s.now()
+	w := store.Workspace{ID: store.NewID(), UserID: nw.OwnerID, Name: name, Timezone: tz, Locale: locale,
+		Plan: "free", Profile: map[string]any{}, CreatedAt: now, UpdatedAt: now}
+	s.workspaces[w.ID] = clone(w)
+	m := store.Member{ID: store.NewID(), WorkspaceID: w.ID, UserID: nw.OwnerID, Role: store.RoleOwner, CreatedAt: now}
+	s.members[m.ID] = m
+	return w, nil
+}
+
+func validTimezone(tz string) bool {
+	if tz == "" || tz == "Local" {
+		return false
+	}
+	_, err := time.LoadLocation(tz)
+	return err == nil
+}
+
+func (s *Store) UpdateWorkspace(_ context.Context, id string, p store.WorkspacePatch) (store.Workspace, error) {
+	if p.Locale != nil && *p.Locale != "en" && *p.Locale != "de" {
+		return store.Workspace{}, fmt.Errorf("%w: locale must be en or de", store.ErrInvalid)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	w, ok := s.workspaces[id]
+	if !ok {
+		return store.Workspace{}, store.ErrNotFound
+	}
+	w, err := store.ApplyPatch(w, p)
+	if err != nil {
+		return w, err
+	}
+	w.UpdatedAt = s.now()
+	s.workspaces[id] = clone(w)
+	return w, nil
+}
+
+// PutMember adds a membership (test seeding).
+func (s *Store) PutMember(m store.Member) store.Member {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if m.ID == "" {
+		m.ID = store.NewID()
+	}
+	m.Role = cmp.Or(m.Role, store.RoleMember)
+	if m.CreatedAt.IsZero() {
+		m.CreatedAt = s.now()
+	}
+	s.members[m.ID] = m
+	return m
+}
+
+func (s *Store) Memberships(_ context.Context, userID string) ([]store.Member, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.Member
+	for _, m := range s.members {
+		if m.UserID == userID {
+			out = append(out, clone(m))
+		}
+	}
+	slices.SortFunc(out, func(a, b store.Member) int {
+		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	})
+	return out, nil
+}
+
+func (s *Store) Membership(_ context.Context, workspaceID, userID string) (store.Member, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, m := range s.members {
+		if m.WorkspaceID == workspaceID && m.UserID == userID {
+			return clone(m), nil
+		}
+	}
+	return store.Member{}, store.ErrNotFound
 }
 
 func (s *Store) GetHelper(_ context.Context, id string) (store.Helper, error) {
