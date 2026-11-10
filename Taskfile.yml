@@ -84,12 +84,12 @@ tasks:
       - pnpm -r build
 
   test:live:
-    desc: Live checks against the laamo Eurobase project (store reads only; queue round trip with one ping job it deletes)
+    desc: Live checks against the laamo Eurobase project (store reads; queue ping round trip; engine run if LAAMO_LIVE_USER_ID is set). Cleans up after itself.
     dir: backend
     env:
       LAAMO_EUROBASE_LIVE: "1"
     cmds:
-      - go test -count=1 -run TestLive -v ./internal/store/eurobase/ ./internal/queue/eurobase/
+      - go test -count=1 -run TestLive -v ./internal/store/eurobase/ ./internal/queue/eurobase/ ./internal/engine/
 
   migrate:
     desc: Apply pending migrations and sync cron jobs (migrations/cron.json) on the laamo Eurobase project
