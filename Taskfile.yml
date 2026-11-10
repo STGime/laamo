@@ -65,7 +65,9 @@ tasks:
         else
           echo "golangci-lint not installed, skipping"
         fi
+      - pnpm -r lint
       - pnpm -r check
+      - scripts/check-web-secrets.sh
 
   build:
     desc: Build all binaries and the web app
