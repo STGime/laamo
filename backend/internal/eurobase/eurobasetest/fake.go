@@ -5,7 +5,8 @@
 //     default limit 20, max 1000
 //   - GET/PATCH/DELETE /v1/db/{t}/{id}; POST /v1/db/{t} inserts one row (201)
 //   - unique violation on REST → 409, missing row → 404, errors as {"error": msg}
-//   - POST /v1/db/rpc/{fn} → {"result": …}; any SQL error is a plain 500
+//   - POST /v1/db/rpc/{fn} → {"result": …}; errors as {"error", "code"} with
+//     the status Eurobase maps the SQLSTATE to (since Eurobase #829)
 //
 // Tables get the column defaults and unique constraints from migrations/
 // that the Go code depends on. RLS, foreign keys and types are not checked.
@@ -13,6 +14,7 @@ package eurobasetest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -29,8 +31,34 @@ const TimeFormat = "2006-01-02T15:04:05.000000Z07:00"
 
 type Row = map[string]any
 
-// RPCFunc implements a database function. Returning an error gives a 500.
+// RPCFunc implements a database function. Return a *PGError for a database
+// error; any other error is a 500 "internal server error".
 type RPCFunc func(f *Fake, args map[string]json.RawMessage) (any, error)
+
+// PGError is a Postgres error raised inside an RPC function.
+type PGError struct {
+	Code    string // SQLSTATE, e.g. 23505
+	Message string
+}
+
+func (e *PGError) Error() string { return e.Message }
+
+// rpcStatus mirrors Eurobase's rpcErrorFor (internal/query/rpc_error.go).
+func rpcStatus(code string) int {
+	switch {
+	case code == "42501":
+		return http.StatusForbidden
+	case code == "25006":
+		return http.StatusConflict
+	case strings.HasPrefix(code, "40"):
+		return http.StatusConflict
+	case strings.HasPrefix(code, "53"), strings.HasPrefix(code, "57"):
+		return http.StatusServiceUnavailable
+	case strings.HasPrefix(code, "08"), strings.HasPrefix(code, "58"), strings.HasPrefix(code, "F0"), strings.HasPrefix(code, "XX"):
+		return http.StatusInternalServerError
+	}
+	return http.StatusBadRequest
+}
 
 // Fault is injected into one request. With After, the request is applied
 // first and the fault replaces the response (a lost answer).
@@ -256,7 +284,15 @@ func (f *Fake) rpc(name string, r *http.Request) response {
 		}
 	}
 	res, err := fn(f, args)
-	if err != nil {
+	var pgErr *PGError
+	switch {
+	case errors.As(err, &pgErr):
+		status := rpcStatus(pgErr.Code)
+		if status == http.StatusInternalServerError {
+			return errBody(status, "internal server error")
+		}
+		return response{status, Row{"error": pgErr.Message, "code": pgErr.Code}}
+	case err != nil:
 		return errBody(http.StatusInternalServerError, "internal server error")
 	}
 	return response{http.StatusOK, Row{"result": res}}
@@ -493,7 +529,7 @@ func laamoTables() map[string]table {
 func insertCards(f *Fake, args map[string]json.RawMessage) (any, error) {
 	var rows []Row
 	if err := json.Unmarshal(args["rows"], &rows); err != nil {
-		return nil, fmt.Errorf("rows must be a jsonb array")
+		return nil, &PGError{Code: "22023", Message: "rows must be a jsonb array"}
 	}
 	before := len(f.rows["cards"])
 	var out []Row
@@ -501,7 +537,7 @@ func insertCards(f *Fake, args map[string]json.RawMessage) (any, error) {
 		for _, c := range []string{"workspace_id", "user_id", "run_id", "step_id", "card_id", "kind"} {
 			if row[c] == nil {
 				f.rows["cards"] = f.rows["cards"][:before]
-				return nil, fmt.Errorf("null value in column %s", c)
+				return nil, &PGError{Code: "23502", Message: fmt.Sprintf("null value in column %q violates not-null constraint", c)}
 			}
 		}
 		if row["position"] == nil {
@@ -510,7 +546,7 @@ func insertCards(f *Fake, args map[string]json.RawMessage) (any, error) {
 		stored, err := f.insert("cards", row)
 		if err != nil {
 			f.rows["cards"] = f.rows["cards"][:before] // roll back the whole call
-			return nil, err
+			return nil, &PGError{Code: "23505", Message: "duplicate key value violates unique constraint: " + err.Error()}
 		}
 		out = append(out, Row{"id": stored["id"], "card_id": stored["card_id"], "position": stored["position"]})
 	}

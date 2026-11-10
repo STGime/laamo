@@ -25,7 +25,8 @@ func TestLiveReadOnly(t *testing.T) {
 		t.Fatal("EUROBASE_PRIVATE_KEY not set")
 	}
 	url := cmp.Or(os.Getenv("EUROBASE_URL"), "https://laamo.eurobase.app")
-	s := sebs.New(eb.New(url, key))
+	c := eb.New(url, key)
+	s := sebs.New(c)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -45,5 +46,13 @@ func TestLiveReadOnly(t *testing.T) {
 	}
 	if _, err := s.GetOutboundByKey(ctx, "live-test:"+store.NewID()); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("GetOutboundByKey: want ErrNotFound, got %v", err)
+	}
+
+	// RPC errors carry status and SQLSTATE (Eurobase #829). claim_jobs
+	// rejects n=0 before touching any row.
+	var apiErr *eb.APIError
+	err = c.RPC(ctx, "claim_jobs", map[string]any{"worker": "live-test", "n": 0}, nil)
+	if !errors.As(err, &apiErr) || apiErr.Status != 400 || apiErr.Code != "22023" {
+		t.Fatalf("RPC error shape: want 400 / 22023, got %v", err)
 	}
 }

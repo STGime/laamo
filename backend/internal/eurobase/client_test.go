@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -146,5 +147,51 @@ func TestQueryEncoding(t *testing.T) {
 	want := "limit=5&name=eq.Leads+%26+Co.&order=created_at.desc%2Cid.asc&status=in.%28queued%2Crunning%29"
 	if got != want {
 		t.Fatalf("query\n got  %s\n want %s", got, want)
+	}
+}
+
+// Eurobase (#829+) maps RPC database errors to a status plus the SQLSTATE.
+func TestRPCErrorCodes(t *testing.T) {
+	cases := []struct {
+		name      string
+		status    int
+		body      string
+		wantCalls int32
+		conflict  bool
+	}{
+		{"duplicate key is a conflict", 400, `{"error":"duplicate key value","code":"23505"}`, 1, true},
+		{"deadlock is retried", 409, `{"error":"deadlock detected","code":"40P01"}`, 2, false},
+		{"serialization failure is retried", 409, `{"error":"could not serialize","code":"40001"}`, 2, false},
+		{"REST unique violation is a conflict", 409, `{"error":"a record with this id already exists"}`, 1, true},
+		{"function RAISE is final", 400, `{"error":"n must be between 1 and 100","code":"22023"}`, 1, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var n atomic.Int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if n.Add(1) == 1 {
+					w.WriteHeader(tc.status)
+					_, _ = w.Write([]byte(tc.body))
+					return
+				}
+				_, _ = w.Write([]byte(`{"result": []}`))
+			}))
+			t.Cleanup(srv.Close)
+			var waits []time.Duration
+			err := client(srv.URL, &waits).RPC(context.Background(), "f", nil, nil)
+			if got := n.Load(); got != tc.wantCalls {
+				t.Fatalf("calls = %d, want %d (err %v)", got, tc.wantCalls, err)
+			}
+			if tc.wantCalls == 2 && err != nil {
+				t.Fatalf("retry should succeed: %v", err)
+			}
+			if got := errors.Is(err, eb.ErrConflict); got != tc.conflict {
+				t.Fatalf("ErrConflict = %v, want %v (err %v)", got, tc.conflict, err)
+			}
+			var apiErr *eb.APIError
+			if tc.wantCalls == 1 && (!errors.As(err, &apiErr) || (strings.Contains(tc.body, "code") && apiErr.Code == "")) {
+				t.Fatalf("code not kept: %v", err)
+			}
+		})
 	}
 }
