@@ -79,6 +79,35 @@ type HelperVersion struct {
 	CreatedAt    time.Time       `json:"created_at,omitzero"`
 }
 
+// Trigger types.
+const (
+	TriggerSchedule = "schedule"
+	TriggerManual   = "manual"
+	TriggerEmail    = "email"
+	TriggerWatch    = "watch"
+	TriggerWebhook  = "webhook"
+)
+
+// Trigger is what starts a helper's runs (scheduler, inbound email, …).
+type Trigger struct {
+	ID             string         `json:"id"`
+	WorkspaceID    string         `json:"workspace_id"`
+	UserID         string         `json:"user_id"`
+	HelperID       string         `json:"helper_id"`
+	Type           string         `json:"type"`
+	Config         map[string]any `json:"config,omitzero"`
+	NextRunAt      *time.Time     `json:"next_run_at,omitempty"`
+	InboundAddress *string        `json:"inbound_address,omitempty"`
+	WebhookToken   *string        `json:"webhook_token,omitempty"`
+	CreatedAt      time.Time      `json:"created_at,omitzero"`
+	UpdatedAt      time.Time      `json:"updated_at,omitzero"`
+}
+
+type TriggerPatch struct {
+	Config    map[string]any       `json:"config,omitempty"`
+	NextRunAt *Nullable[time.Time] `json:"next_run_at,omitempty"`
+}
+
 // Run statuses.
 const (
 	RunQueued  = "queued"

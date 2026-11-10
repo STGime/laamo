@@ -40,6 +40,7 @@ type Store interface {
 	ListStore
 	UsageStore
 	BrainStore
+	TriggerStore
 	OutboundStore
 }
 
@@ -108,6 +109,15 @@ type ListStore interface {
 
 type UsageStore interface {
 	AddUsage(ctx context.Context, u *UsageEntry) error
+}
+
+type TriggerStore interface {
+	// HelperTriggers returns a helper's triggers, oldest first.
+	HelperTriggers(ctx context.Context, helperID string) ([]Trigger, error)
+	CreateTrigger(ctx context.Context, t *Trigger) error
+	UpdateTrigger(ctx context.Context, id string, p TriggerPatch) (Trigger, error)
+	// DeleteTrigger removes a trigger; a missing one is not an error.
+	DeleteTrigger(ctx context.Context, id string) error
 }
 
 type BrainStore interface {

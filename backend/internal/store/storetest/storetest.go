@@ -39,6 +39,7 @@ func Run(t *testing.T, newStore New) {
 	t.Run("Outbound", func(t *testing.T) { testOutbound(t, newStore) })
 	t.Run("Workspaces", func(t *testing.T) { testWorkspaces(t, newStore) })
 	t.Run("Brains", func(t *testing.T) { testBrains(t, newStore) })
+	t.Run("Triggers", func(t *testing.T) { testTriggers(t, newStore) })
 }
 
 func testReadSeeded(t *testing.T, newStore New) {
@@ -471,6 +472,44 @@ func testBrains(t *testing.T, newStore New) {
 	// A brain from last month has its full allowance this month.
 	last := store.Brain{AllowanceCredits: 500, UsedCreditsThisPeriod: 499, PeriodStart: time.Now().AddDate(0, -1, 0)}
 	eq(t, "new month", last.CreditsLeft(time.Now()), 500.0)
+}
+
+func testTriggers(t *testing.T, newStore New) {
+	s, fx := newStore(t)
+	ctx := context.Background()
+	next := time.Date(2026, 11, 11, 6, 30, 0, 0, time.UTC)
+	tr := store.Trigger{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, HelperID: fx.HelperID, Type: store.TriggerSchedule,
+		Config: map[string]any{"freq": "weekdays", "time": "07:30"}, NextRunAt: &next}
+	must(t, s.CreateTrigger(ctx, &tr))
+	addr := "briefing.x7k@in.laamo.app"
+	mail := store.Trigger{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, HelperID: fx.HelperID, Type: store.TriggerEmail, InboundAddress: &addr}
+	must(t, s.CreateTrigger(ctx, &mail))
+	again := store.Trigger{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, HelperID: fx.HelperID, Type: store.TriggerEmail, InboundAddress: &addr}
+	isErr(t, "same inbound address", s.CreateTrigger(ctx, &again), store.ErrConflict)
+
+	got, err := s.HelperTriggers(ctx, fx.HelperID)
+	must(t, err)
+	if len(got) != 2 || got[0].ID != tr.ID || got[0].Config["time"] != "07:30" || got[0].NextRunAt == nil || !got[0].NextRunAt.Equal(next) {
+		t.Fatalf("triggers: %+v", got)
+	}
+
+	later := next.Add(24 * time.Hour)
+	u, err := s.UpdateTrigger(ctx, tr.ID, store.TriggerPatch{NextRunAt: store.Set(later), Config: map[string]any{"freq": "daily", "time": "07:30"}})
+	must(t, err)
+	if !u.NextRunAt.Equal(later) || u.Config["freq"] != "daily" {
+		t.Fatalf("update: %+v", u)
+	}
+	u, err = s.UpdateTrigger(ctx, tr.ID, store.TriggerPatch{NextRunAt: store.Null[time.Time]()})
+	must(t, err)
+	if u.NextRunAt != nil {
+		t.Fatal("next_run_at should be cleared (helper paused)")
+	}
+
+	must(t, s.DeleteTrigger(ctx, mail.ID))
+	must(t, s.DeleteTrigger(ctx, mail.ID)) // already gone: fine
+	got, err = s.HelperTriggers(ctx, fx.HelperID)
+	must(t, err)
+	eq(t, "after delete", len(got), 1)
 }
 
 // ---- assertions ----

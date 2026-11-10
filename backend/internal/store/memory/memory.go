@@ -26,6 +26,7 @@ type Store struct {
 	workspaces map[string]store.Workspace
 	members    map[string]store.Member
 	brains     map[string]store.Brain // by workspace id
+	triggers   map[string]store.Trigger
 	helpers    map[string]store.Helper
 	versions   map[string]store.HelperVersion
 	runs       map[string]store.Run
@@ -46,6 +47,7 @@ func New() *Store {
 		workspaces: map[string]store.Workspace{},
 		members:    map[string]store.Member{},
 		brains:     map[string]store.Brain{},
+		triggers:   map[string]store.Trigger{},
 		helpers:    map[string]store.Helper{},
 		versions:   map[string]store.HelperVersion{},
 		runs:       map[string]store.Run{},
@@ -634,6 +636,57 @@ func (s *Store) GetOutboundByKey(_ context.Context, key string) (store.OutboundM
 
 func (s *Store) UpdateOutbound(_ context.Context, id string, p store.OutboundPatch) (store.OutboundMessage, error) {
 	return update(s, s.outbound, id, p)
+}
+
+// ---- triggers ----
+
+func (s *Store) HelperTriggers(_ context.Context, helperID string) ([]store.Trigger, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.Trigger
+	for _, t := range s.triggers {
+		if t.HelperID == helperID {
+			out = append(out, clone(t))
+		}
+	}
+	slices.SortFunc(out, func(a, b store.Trigger) int {
+		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	})
+	return out, nil
+}
+
+func (s *Store) CreateTrigger(_ context.Context, t *store.Trigger) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if t.ID == "" {
+		t.ID = store.NewID()
+	}
+	for _, o := range s.triggers {
+		if o.ID == t.ID || (t.InboundAddress != nil && o.InboundAddress != nil && *o.InboundAddress == *t.InboundAddress) ||
+			(t.WebhookToken != nil && o.WebhookToken != nil && *o.WebhookToken == *t.WebhookToken) {
+			return dup("triggers", t.ID)
+		}
+	}
+	if t.Config == nil {
+		t.Config = map[string]any{}
+	}
+	if t.CreatedAt.IsZero() {
+		t.CreatedAt = s.now()
+	}
+	t.UpdatedAt = t.CreatedAt
+	s.triggers[t.ID] = clone(*t)
+	return nil
+}
+
+func (s *Store) UpdateTrigger(_ context.Context, id string, p store.TriggerPatch) (store.Trigger, error) {
+	return update(s, s.triggers, id, p)
+}
+
+func (s *Store) DeleteTrigger(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.triggers, id)
+	return nil
 }
 
 // ---- helpers ----
