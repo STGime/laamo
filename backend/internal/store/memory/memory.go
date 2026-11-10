@@ -412,6 +412,20 @@ func (s *Store) CreateFeedCard(_ context.Context, c *store.FeedCard) error {
 	return nil
 }
 
+// FeedCards returns all Feed cards, oldest first (test helper).
+func (s *Store) FeedCards() []store.FeedCard {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.FeedCard
+	for _, c := range s.feed {
+		out = append(out, clone(c))
+	}
+	slices.SortFunc(out, func(a, b store.FeedCard) int {
+		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	})
+	return out
+}
+
 func (s *Store) GetFeedCard(_ context.Context, id string) (store.FeedCard, error) {
 	return get(s, s.feed, id)
 }
