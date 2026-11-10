@@ -77,10 +77,11 @@ tasks:
       - pnpm -r build
 
   migrate:
-    desc: Apply pending migrations to the laamo Eurobase project
+    desc: Apply pending migrations and sync cron jobs (migrations/cron.json) on the laamo Eurobase project
     cmds:
       - eurobase switch laamo
       - eurobase migrations up
+      - scripts/sync-cron.sh
 
   migrate:status:
     desc: Show local migrations vs applied versions on Eurobase
