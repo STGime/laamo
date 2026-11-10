@@ -53,9 +53,16 @@ jobs:
           # Optional repo secret. When set, the built bundle is scanned for its value.
           EUROBASE_PRIVATE_KEY: ${{ secrets.EUROBASE_PRIVATE_KEY }}
 
+  migrations:
+    name: Migrations (apply + RLS tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: scripts/test-migrations.sh
+
   images:
     name: Image (${{ matrix.service }})
-    needs: [go, web]
+    needs: [go, web, migrations]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

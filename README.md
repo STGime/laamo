@@ -20,7 +20,7 @@ backend/             one Go module
                      osm, mail, chat, billing, auth, crypto, store, queue, config
 packages/catalog/    bricks.json + templates (single source of truth for bricks)
 packages/openapi/    API contract
-schema/              SQL migrations for Eurobase
+migrations/          SQL migrations for Eurobase (+ local RLS tests)
 deploy/              Dockerfiles, Kapsule manifests, DNS notes
 assets/generated/    dev-only generated media (tracked in its README)
 ```
@@ -41,5 +41,5 @@ Other tasks: `task test`, `task lint`, `task build`, `task --list`.
 ## Rules
 
 - All data lives in Eurobase (EU). The Eurobase secret key is used only by Go services, never in the web app.
-- Schema changes go in `schema/` as migrations, never by hand on a live project.
+- Schema changes go in `migrations/` (see its README), never by hand on a live project.
 - UI follows the Look & feel rules in the product plan: tokens only (`apps/web/src/lib/styles/tokens.css`), no gradients, glows, soft shadows or scroll animations.

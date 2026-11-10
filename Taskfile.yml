@@ -53,6 +53,7 @@ tasks:
     cmds:
       - cd {{.BACKEND}} && go test ./...
       - pnpm -r test
+      - scripts/test-migrations.sh
 
   lint:
     desc: Lint and type-check everything
@@ -76,6 +77,18 @@ tasks:
       - pnpm -r build
 
   migrate:
-    desc: Apply schema/ migrations to the Eurobase project
+    desc: Apply pending migrations to the laamo Eurobase project
     cmds:
-      - echo "Not wired yet, see issue #6"
+      - eurobase switch laamo
+      - eurobase migrations up
+
+  migrate:status:
+    desc: Show local migrations vs applied versions on Eurobase
+    cmds:
+      - eurobase switch laamo
+      - eurobase migrations status
+
+  test:migrations:
+    desc: Apply migrations to a throwaway Postgres and run the RLS tests (Docker)
+    cmds:
+      - scripts/test-migrations.sh
