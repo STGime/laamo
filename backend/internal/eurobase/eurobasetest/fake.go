@@ -14,6 +14,7 @@ package eurobasetest
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -67,7 +68,7 @@ func New(t interface{ Cleanup(func()) }) *Fake {
 		clock:  time.Date(2026, 11, 10, 8, 0, 0, 0, time.UTC),
 		tables: laamoTables(),
 		rows:   map[string][]Row{},
-		rpcs:   map[string]RPCFunc{"insert_cards": insertCards},
+		rpcs:   map[string]RPCFunc{"insert_cards": insertCards, "claim_jobs": claimJobs, "extend_lease": extendLease, "finish_job": finishJob},
 	}
 	f.Server = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.Server.Close)
@@ -81,6 +82,13 @@ func (f *Fake) URL() string { return f.Server.URL }
 func (f *Fake) Now() string {
 	f.clock = f.clock.Add(time.Millisecond)
 	return f.clock.Format(TimeFormat)
+}
+
+// Advance moves the fake's clock forward (lease expiry, backoff).
+func (f *Fake) Advance(d time.Duration) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.clock = f.clock.Add(d)
 }
 
 // Put inserts a seed row (with defaults) and returns it. It panics on a
@@ -222,9 +230,7 @@ func (f *Fake) route(r *http.Request) response {
 			return errBody(http.StatusNotFound, "row not found")
 		}
 		updated := copyRow(f.rows[tbl][i])
-		for k, v := range patch {
-			updated[k] = v
-		}
+		maps.Copy(updated, patch)
 		if err := f.checkUnique(tbl, updated, i); err != nil {
 			return errBody(http.StatusConflict, err.Error())
 		}
@@ -281,9 +287,7 @@ func (f *Fake) insert(tbl string, row Row) (Row, error) {
 	if t.defaults != nil {
 		stored = t.defaults(f.Now())
 	}
-	for k, v := range row {
-		stored[k] = v
-	}
+	maps.Copy(stored, row)
 	if _, ok := stored["id"]; !ok {
 		stored["id"] = fmt.Sprintf("00000000-0000-4000-8000-%012d", len(f.rows[tbl])+1)
 	}
@@ -461,9 +465,7 @@ func laamoTables() map[string]table {
 	with := func(base func(string) Row, extra Row) func(string) Row {
 		return func(now string) Row {
 			r := base(now)
-			for k, v := range extra {
-				r[k] = v
-			}
+			maps.Copy(r, extra)
 			return copyRow(r)
 		}
 	}
