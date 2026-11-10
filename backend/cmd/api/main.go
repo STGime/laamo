@@ -73,7 +73,7 @@ func eurobaseStatus(ctx context.Context, cfg config.Config) string {
 	if err != nil {
 		return "unreachable"
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return "reachable"
 }
 

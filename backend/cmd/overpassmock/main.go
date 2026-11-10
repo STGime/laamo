@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 )
 
 const fixture = `{
@@ -28,12 +29,14 @@ func main() {
 	if v := os.Getenv("ADDR"); v != "" {
 		addr = v
 	}
-	http.HandleFunc("/api/interpreter", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/interpreter", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(fixture))
 	})
 	slog.Info("overpassmock listening", "addr", addr)
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	if err := srv.ListenAndServe(); err != nil {
 		slog.Error("listen", "err", err)
 		os.Exit(1)
 	}
