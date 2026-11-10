@@ -3,7 +3,7 @@
 `bricks.json` is the single source of truth for bricks. The Go engine validates stacks against it, and the web builder renders brick sheets and live hints from it.
 
 - Go: `backend/internal/catalog`. The JSON is embedded via the tiny Go module in this folder (`embed.go`, wired in with a `replace` in `backend/go.mod`).
-- Web: `import { catalog, brick } from '@laamo/catalog'` (types in `index.ts`).
+- Web: `import { catalog, brick } from '@laamo/catalog'` (types in `index.ts`) and `import { validate } from '@laamo/catalog/validate'`.
 - Checks: `pnpm --filter @laamo/catalog test` validates the files against `bricks.schema.json` and `template.schema.json`. `go test ./internal/catalog` checks the meaning: references, defaults, at most 3 visible settings, fixes, and that templates validate as stacks.
 
 Adding a brick takes three steps: add a catalog entry, add a Go executor in `backend/internal/bricks`, and add an `en`/`de` text for every label.
@@ -60,7 +60,7 @@ The validator walks the stack top to bottom and tracks which card fields and run
   - bad stack limits
 - `hint`: a gentle suggestion with a fix, e.g. "Check with you first?".
 
-The same rules will run in the builder for live hints (#41) and in Talk to build (#56).
+The same rules run in TypeScript for the builder's live hints: `import { validate } from '@laamo/catalog/validate'`. Both versions run the cases in `fixtures/validate.json` (Go in `internal/catalog`, TypeScript in `validate.test.ts`), so they can't drift apart. Add a case there whenever a rule changes.
 
 ## Templates (`templates/*.json`)
 
