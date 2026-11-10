@@ -2,8 +2,8 @@ package api_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -259,20 +259,14 @@ func (failingStore) Memberships(context.Context, string) ([]store.Member, error)
 
 func TestSpecIsServed(t *testing.T) {
 	e := newEnv(t, config.Config{})
-	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, e.url+"/api/openapi.json", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, e.url+"/api/openapi.yaml", nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	var spec struct {
-		OpenAPI string                    `json:"openapi"`
-		Paths   map[string]map[string]any `json:"paths"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil || resp.StatusCode != 200 {
-		t.Fatalf("spec: %d %v", resp.StatusCode, err)
-	}
-	if spec.OpenAPI != "3.0.3" || spec.Paths["/me"] == nil {
-		t.Fatalf("spec content: %+v", spec)
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 || !strings.HasPrefix(string(body), "openapi: 3.0.3") || !strings.Contains(string(body), "/me:") {
+		t.Fatalf("spec: %d %.80s", resp.StatusCode, body)
 	}
 }

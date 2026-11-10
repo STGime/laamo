@@ -10,6 +10,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/auth"
 	"github.com/STGime/laamo/backend/internal/config"
 	"github.com/STGime/laamo/backend/internal/store"
+	"github.com/STGime/laamo/packages/openapi"
 )
 
 // BaseURL is where the API is mounted (servers.url in the spec).
@@ -65,22 +66,18 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/", routes)
 	// The contract itself, for API tools (Postman, Bruno, Insomnia import it).
-	mux.HandleFunc("GET "+BaseURL+"/openapi.json", s.serveSpec)
+	mux.HandleFunc("GET "+BaseURL+"/openapi.yaml", serveSpec)
 
 	public := func(r *http.Request) bool {
-		return r.Method == http.MethodGet && (r.URL.Path == BaseURL+"/healthz" || r.URL.Path == BaseURL+"/openapi.json")
+		return r.Method == http.MethodGet && (r.URL.Path == BaseURL+"/healthz" || r.URL.Path == BaseURL+"/openapi.yaml")
 	}
 	return http.MaxBytesHandler(auth.Middleware(s.auth, public, WriteError)(mux), maxBody)
 }
 
-func (s *Server) serveSpec(w http.ResponseWriter, _ *http.Request) {
-	spec, err := GetSwagger()
-	if err != nil {
-		WriteError(w, http.StatusInternalServerError, "internal", "spec unavailable")
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(spec)
+// serveSpec serves the contract as written (embedded at build time).
+func serveSpec(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/yaml")
+	_, _ = w.Write(openapi.Spec)
 }
 
 // WriteError writes the spec's Error schema.

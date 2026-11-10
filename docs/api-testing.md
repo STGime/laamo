@@ -34,14 +34,14 @@ curl -X PATCH -H "$A" -H 'Content-Type: application/json' \
   -d '{"profile":{"city":"Leipzig","business":"bakery"}}' localhost:8787/api/workspaces/<id>
 ```
 
-**API tools:** import `http://localhost:8787/api/openapi.json` into Postman, Bruno or Insomnia, set the auth to Bearer Token, and paste `$TOKEN`. Or use `docs/api.http` in VS Code (REST Client) or JetBrains.
+**API tools:** import `http://localhost:8787/api/openapi.yaml` into Postman, Bruno or Insomnia, set the auth to Bearer Token, and paste `$TOKEN`. Or use `docs/api.http` in VS Code (REST Client) or JetBrains.
 
 ## What exists so far
 
 | Endpoint | What it does |
 |---|---|
 | `GET /api/healthz` | Service health (no token needed) |
-| `GET /api/openapi.json` | The contract (no token needed) |
+| `GET /api/openapi.yaml` | The contract (no token needed) |
 | `GET /api/me` | You and your workspaces (empty for a new user) |
 | `POST /api/workspaces` | Create a workspace. You become the owner; the included brain is set up too. At most 5 per user. |
 | `GET /api/workspaces/{id}` | One of your workspaces. Someone else's gives 404. |
