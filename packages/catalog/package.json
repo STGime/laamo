@@ -7,12 +7,16 @@
 	"exports": {
 		".": "./index.ts",
 		"./bricks.json": "./bricks.json",
-		"./templates/*": "./templates/*"
+		"./templates/*": "./templates/*",
+		"./validate": "./validate.ts"
 	},
 	"scripts": {
-		"test": "node validate.mjs"
+		"test": "node validate.mjs && vitest run",
+		"check": "tsc -p tsconfig.json"
 	},
 	"devDependencies": {
-		"ajv": "8.17.1"
+		"ajv": "8.17.1",
+		"vitest": "^5.1.0",
+		"typescript": "^6.0.3"
 	}
 }

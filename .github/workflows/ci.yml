@@ -46,6 +46,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @laamo/catalog test
+      - run: pnpm --filter @laamo/catalog check
       - name: Generated API client is up to date
         run: pnpm --filter @laamo/web gen:api && git diff --exit-code -- apps/web/src/lib/api
       - run: pnpm --filter @laamo/web lint

@@ -593,3 +593,23 @@ func TestStartRunRules(t *testing.T) {
 		t.Fatal("StartRun with the same id must return the same run")
 	}
 }
+
+// A pill without a value ends the run with a Problem card that says which.
+func TestMissingValueEndsTheRun(t *testing.T) {
+	e := newEnv(t, morningBriefing())
+	e.eng.Bricks["think.summarize"] = engine.BrickFunc(func(context.Context, *engine.RunContext, []engine.Card, engine.Config) ([]engine.Card, error) {
+		return nil, fmt.Errorf("What to write: %w", &missingErr{})
+	})
+	r := e.run(e.start("manual", false))
+	if r.Status != store.RunFailed {
+		t.Fatalf("status %s", r.Status)
+	}
+	if f := e.feed(r.ID); len(f) != 1 || !strings.Contains(*f[0].Body, "{my offer} isn't set") {
+		t.Fatalf("feed: %+v", f)
+	}
+}
+
+type missingErr struct{}
+
+func (*missingErr) Error() string { return "{my offer} isn't set yet" }
+func (*missingErr) Unwrap() error { return engine.ErrMissingValue }

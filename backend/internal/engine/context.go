@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/store"
 )
 
@@ -56,13 +57,19 @@ const TestModeMaxCards = 3
 // ErrLimit is wrapped by errors that stop a run because a limit was hit.
 var ErrLimit = errors.New("limit reached")
 
+// ErrMissingValue is wrapped by errors for a pill without a value ({email}
+// on a card that has none, an unset {my city}). The run fails with a Problem
+// card saying what's missing; retrying wouldn't help.
+var ErrMissingValue = errors.New("missing value")
+
 // RunContext is everything a brick needs that isn't a card.
 type RunContext struct {
 	Run       store.Run
 	Helper    store.Helper
 	Workspace store.Workspace
-	StepID    string // the current step (run_steps.id)
-	BrickID   string // the current brick's id in the stack, e.g. "b3"
+	StepID    string         // the current step (run_steps.id)
+	BrickID   string         // the current brick's id in the stack, e.g. "b3"
+	Brick     *catalog.Brick // the current brick's catalog entry
 
 	// TestMode: at most 3 cards, and Do bricks send to the user instead of
 	// anyone else (each Do brick checks this).
