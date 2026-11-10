@@ -34,17 +34,17 @@ task migrate:status    # local files vs applied versions
 ## Cron jobs
 
 Eurobase cron jobs are platform config, not SQL, so they live in `cron.json` and are
-created or updated by `scripts/sync-cron.sh` (part of `task migrate`). Current jobs:
+created or updated by `scripts/sync-cron.sh` (part of `task migrate`). Removing a job from `cron.json` does not delete it on Eurobase; set `"enabled": false` instead. Current jobs:
 
 - `enqueue-due-triggers`: every minute, calls `enqueue_due_triggers()` as the service role.
 
-## Queue functions (0005)
+## Queue functions (0005, fixes in 0006)
 
 | Function | Called by | Returns |
 | --- | --- | --- |
-| `claim_jobs(worker, n)` | worker, ~1/s when idle | jsonb array of claimed jobs (SKIP LOCKED, 5 min lease, reclaims expired leases, fails exhausted ones) |
+| `claim_jobs(worker, n)` | worker, ~1/s when idle | jsonb array of claimed jobs (SKIP LOCKED, 5 min lease, reclaims expired leases, fails jobs with no attempts left, never claims past `max_attempts`) |
 | `insert_cards(rows)` | worker, per brick | `[{id, card_id}]`; one transaction per call, keep under 1 MB |
-| `enqueue_due_triggers()` | cron, every minute | `{enqueued, skipped}`; queues `run` jobs and advances `next_run_at` |
+| `enqueue_due_triggers()` | cron, every minute | `{enqueued, skipped, errored, errors}`; queues `run` jobs and advances `next_run_at`. A trigger whose config or workspace timezone fails is switched off (`next_run_at = NULL`) and listed in `errors`, so it can't block the others |
 | `next_schedule_time(config, tz, from_ts)` | API when saving a trigger, and the scheduler | next run strictly after `from_ts`, or NULL |
 
 Schedule trigger config: `{"freq": "daily" | "weekdays" | "weekly", "time": "HH:MM", "days": ["mon", …]}` in the workspace timezone.

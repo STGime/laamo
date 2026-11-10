@@ -14,12 +14,13 @@ printf 'apikey: %s\nContent-Type: application/json\n' "$EUROBASE_PRIVATE_KEY" > 
 body_file="$(mktemp)"; trap 'rm -f "$hdr" "$body_file"' EXIT
 
 api() { # method path [body] → prints the HTTP status; response body in $body_file
-	curl -sS -o "$body_file" -w '%{http_code}' -X "$1" -H @"$hdr" "$url/v1/schedules$2" ${3:+--data "$3"}
+	curl -sS --connect-timeout 10 --max-time 30 -o "$body_file" -w '%{http_code}' \
+		-X "$1" -H @"$hdr" "$url/v1/schedules$2" ${3:+--data "$3"}
 }
 
-count=$(jq length "$root/migrations/cron.json")
-for i in $(seq 0 $((count - 1))); do
-	job=$(jq -c ".[$i]" "$root/migrations/cron.json")
+# Jobs removed from cron.json are not deleted on Eurobase; set "enabled": false instead.
+# One job per line; an empty list runs no iterations (BSD seq 0 -1 would count down).
+while IFS= read -r job; do
 	name=$(jq -r .name <<<"$job")
 
 	status=$(api POST "" "$job")
@@ -33,4 +34,4 @@ for i in $(seq 0 $((count - 1))); do
 		echo "✗ create $name failed ($status): $(cat "$body_file")" >&2
 		exit 1
 	fi
-done
+done < <(jq -c '.[]' "$root/migrations/cron.json")

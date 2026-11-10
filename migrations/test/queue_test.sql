@@ -69,7 +69,7 @@ DO $$
 DECLARE res jsonb; j record;
 BEGIN
   res := enqueue_due_triggers();
-  ASSERT res = '{"enqueued": 1, "skipped": 1}'::jsonb, 'enqueue result: ' || res;
+  ASSERT res @> '{"enqueued": 1, "skipped": 1, "errored": 0}'::jsonb, 'enqueue result: ' || res::text;
 
   SELECT * INTO j FROM jobs;
   ASSERT j.kind = 'run' AND j.status = 'queued', 'one queued run job';
@@ -87,8 +87,36 @@ BEGIN
 
   -- second call in the same minute does nothing
   res := enqueue_due_triggers();
-  ASSERT res = '{"enqueued": 0, "skipped": 0}'::jsonb, 'idempotent within the minute: ' || res;
+  ASSERT res @> '{"enqueued": 0, "skipped": 0, "errored": 0}'::jsonb, 'idempotent within the minute: ' || res::text;
   ASSERT (SELECT count(*) FROM jobs) = 1, 'still one job';
+END $$;
+
+-- A bad trigger (unknown freq) or a bad workspace timezone must not block the others.
+INSERT INTO triggers (id, workspace_id, user_id, helper_id, type, config, next_run_at) VALUES
+  ('aaaaaaaa-5555-0000-0000-000000000005', 'aaaaaaaa-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001',
+   'aaaaaaaa-2222-0000-0000-000000000001', 'schedule', '{"freq":"hourly"}', now() - interval '2 minutes'),
+  ('aaaaaaaa-5555-0000-0000-000000000006', 'aaaaaaaa-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001',
+   'aaaaaaaa-2222-0000-0000-000000000001', 'schedule', '{"freq":"daily","time":"09:00"}', now() - interval '1 minute');
+DO $$
+DECLARE res jsonb;
+BEGIN
+  res := enqueue_due_triggers();
+  ASSERT res @> '{"enqueued": 1, "errored": 1}'::jsonb, 'bad trigger isolated: ' || res::text;
+  ASSERT res->'errors'->0->>'trigger_id' = 'aaaaaaaa-5555-0000-0000-000000000005', 'error names the trigger';
+  ASSERT (SELECT next_run_at IS NULL FROM triggers WHERE id = 'aaaaaaaa-5555-0000-0000-000000000005'),
+    'bad trigger switched off';
+  ASSERT (SELECT count(*) FROM jobs WHERE payload->>'trigger_id' = 'aaaaaaaa-5555-0000-0000-000000000005') = 0,
+    'no job for the bad trigger';
+
+  -- bad timezone on the workspace
+  UPDATE workspaces SET timezone = 'Mars/Olympus' WHERE id = 'aaaaaaaa-1111-0000-0000-000000000001';
+  UPDATE triggers SET next_run_at = now() - interval '1 minute' WHERE id = 'aaaaaaaa-5555-0000-0000-000000000006';
+  res := enqueue_due_triggers();
+  ASSERT res @> '{"enqueued": 0, "errored": 1}'::jsonb, 'bad timezone isolated: ' || res::text;
+  UPDATE workspaces SET timezone = 'Europe/Berlin' WHERE id = 'aaaaaaaa-1111-0000-0000-000000000001';
+
+  DELETE FROM jobs WHERE payload->>'trigger_id' = 'aaaaaaaa-5555-0000-0000-000000000006';
+  ASSERT (SELECT count(*) FROM jobs) = 1, 'back to one job';
 END $$;
 
 -- ---- claim_jobs -------------------------------------------------------------
@@ -98,7 +126,7 @@ BEGIN
   INSERT INTO jobs (kind, run_after) VALUES ('later', now() + interval '1 hour');
 
   c := claim_jobs('w1', 10);
-  ASSERT jsonb_array_length(c) = 1, 'claims only the due job: ' || c;
+  ASSERT jsonb_array_length(c) = 1, 'claims only the due job: ' || c::text;
   ASSERT c->0->>'status' = 'running' AND c->0->>'claimed_by' = 'w1', 'claimed by w1';
   ASSERT (c->0->>'attempts')::int = 1, 'attempts incremented';
   ASSERT (c->0->>'lease_until')::timestamptz > now(), 'lease set';
@@ -115,6 +143,11 @@ BEGIN
   UPDATE jobs SET lease_until = now() - interval '1 second', attempts = max_attempts WHERE claimed_by = 'w2';
   ASSERT jsonb_array_length(claim_jobs('w3', 10)) = 0, 'exhausted job not reclaimed';
   ASSERT (SELECT status FROM jobs WHERE kind = 'run') = 'failed', 'exhausted job marked failed';
+
+  -- re-queued after its last attempt → failed, not claimed past max_attempts
+  INSERT INTO jobs (kind, attempts, max_attempts) VALUES ('requeued', 3, 3);
+  ASSERT jsonb_array_length(claim_jobs('w3', 10)) = 0, 'requeued exhausted job not claimed';
+  ASSERT (SELECT status FROM jobs WHERE kind = 'requeued') = 'failed', 'requeued exhausted job marked failed';
 
   BEGIN
     PERFORM claim_jobs('w1', 0);
@@ -140,7 +173,7 @@ BEGIN
       'run_id', 'aaaaaaaa-4444-0000-0000-000000000001', 'step_id', 'aaaaaaaa-6666-0000-0000-000000000001',
       'card_id', 'cccccccc-0000-0000-0000-000000000002', 'kind', 'web_result')
   ));
-  ASSERT jsonb_array_length(res) = 2, 'two cards inserted: ' || res;
+  ASSERT jsonb_array_length(res) = 2, 'two cards inserted: ' || res::text;
   ASSERT res->0->>'card_id' = 'cccccccc-0000-0000-0000-000000000001', 'input order kept';
   ASSERT (SELECT array_agg("position" ORDER BY "position") FROM cards) = ARRAY[0, 1], 'positions default to input order';
   ASSERT (SELECT data->>'title' FROM cards WHERE card_id = 'cccccccc-0000-0000-0000-000000000001') = 'Bakery news', 'data stored';

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Applies migrations/*.sql to a throwaway Postgres that mimics a Eurobase tenant,
-# then runs the RLS tests in migrations/test/rls_test.sql.
+# then runs the RLS, queue and concurrency tests (migrations/test/).
 # Needs Docker. Usage: scripts/test-migrations.sh
 set -euo pipefail
 
@@ -17,7 +17,6 @@ for _ in $(seq 1 30); do
 	sleep 1
 done
 sleep 1
-
 
 run() { docker exec -i "$name" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres "$@"; }
 
