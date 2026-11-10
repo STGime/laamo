@@ -1,8 +1,11 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Laamo API
   version: 0.1.0
-  description: Contract between the Go api and the web app. Code generation comes in issue #11.
+  description: |
+    Contract between the Go api (backend/internal/api) and the web app
+    (apps/web/src/lib/api). Both sides are generated from this file:
+    run `task gen` after changing it. CI fails if generated code is stale.
 servers:
   - url: /api
 paths:
@@ -10,6 +13,7 @@ paths:
     get:
       operationId: getHealth
       summary: Service health
+      tags: [system]
       responses:
         '200':
           description: OK
@@ -32,3 +36,14 @@ components:
         eurobase:
           type: string
           enum: [reachable, unreachable, not configured, error]
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          description: Human-readable message (English)
+        code:
+          type: string
+          description: Stable machine code, e.g. unauthorized, not_found
+          example: unauthorized

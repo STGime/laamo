@@ -29,6 +29,8 @@ jobs:
         with:
           version: v2.15.0
           working-directory: backend
+      - name: Generated API code is up to date
+        run: go generate ./internal/api && git diff --exit-code -- internal/api
       - run: go test -race ./...
       - run: go build ./cmd/...
 
@@ -44,6 +46,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @laamo/catalog test
+      - name: Generated API client is up to date
+        run: pnpm --filter @laamo/web gen:api && git diff --exit-code -- apps/web/src/lib/api
       - run: pnpm --filter @laamo/web lint
       - run: pnpm --filter @laamo/web check
       - run: pnpm --filter @laamo/web test

@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/STGime/laamo/backend/internal/api"
 	"github.com/STGime/laamo/backend/internal/config"
 )
 
@@ -25,7 +25,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              cfg.APIAddr,
-		Handler:           routes(cfg),
+		Handler:           api.NewServer(cfg, log).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -44,41 +44,4 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
-}
-
-func routes(cfg config.Config) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"status":   "ok",
-			"env":      cfg.Env,
-			"eurobase": eurobaseStatus(r.Context(), cfg),
-		})
-	})
-	return mux
-}
-
-// eurobaseStatus reports whether the Eurobase project is configured and reachable.
-func eurobaseStatus(ctx context.Context, cfg config.Config) string {
-	if cfg.EurobaseSecretKey == "" {
-		return "not configured"
-	}
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.EurobaseURL, nil)
-	if err != nil {
-		return "error"
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "unreachable"
-	}
-	_ = resp.Body.Close()
-	return "reachable"
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }

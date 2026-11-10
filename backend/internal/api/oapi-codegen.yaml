@@ -1,0 +1,12 @@
+# Generates the Go server (net/http ServeMux, strict handlers), models and a
+# client (used in tests) from packages/openapi/openapi.yaml.
+package: api
+output: gen.go
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true
+  client: true
+  embedded-spec: true
+output-options:
+  skip-prune: true
