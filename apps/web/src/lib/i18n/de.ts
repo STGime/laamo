@@ -155,9 +155,9 @@ export const de: Record<Key, string> = {
 	'places.connecting': 'Sende Testnachricht…',
 	'places.connectHint':
 		'Wir senden eine Testnachricht. Der Link wird verschlüsselt gespeichert und nie wieder angezeigt.',
-	'places.guide.discord.1': 'Öffne in Discord die Servereinstellungen → Integrationen → Webhooks.',
-	'places.guide.discord.2':
-		'Tippe auf „Neuer Webhook“ und wähle den Kanal, in den Laamo schreiben soll.',
+	'places.guide.discord.1':
+		'Zeig in Discord auf den Kanal, in den Laamo schreiben soll, und klick auf das Zahnrad („Kanal bearbeiten“).',
+	'places.guide.discord.2': 'Öffne „Integrationen“ → „Webhooks“ → „Neuer Webhook“.',
 	'places.guide.discord.3': 'Tippe auf „Webhook-URL kopieren“ und füge sie unten ein.',
 	'places.guide.slack.1':
 		'Öffne api.slack.com/apps → Create New App → From scratch und wähle deinen Workspace.',

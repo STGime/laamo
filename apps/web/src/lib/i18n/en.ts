@@ -150,8 +150,9 @@ export const en = {
 	'places.connecting': 'Sending a test message…',
 	'places.connectHint':
 		'We send one test message. The link is stored encrypted and never shown again.',
-	'places.guide.discord.1': 'In Discord, open your server settings → Integrations → Webhooks.',
-	'places.guide.discord.2': 'Tap “New Webhook” and pick the channel Laamo should post to.',
+	'places.guide.discord.1':
+		'In Discord, point at the channel Laamo should post to and click the gear (“Edit Channel”).',
+	'places.guide.discord.2': 'Open “Integrations” → “Webhooks” → “New Webhook”.',
 	'places.guide.discord.3': 'Tap “Copy Webhook URL” and paste it below.',
 	'places.guide.slack.1':
 		'Open api.slack.com/apps → Create New App → From scratch, and pick your workspace.',
