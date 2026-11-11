@@ -234,8 +234,8 @@ func TestRunToTheEnd(t *testing.T) {
 	if len(feed) != 1 || feed[0].Type != "result" || feed[0].Body == nil || *feed[0].Body != "3 news for Leipzig" {
 		t.Fatalf("feed: %+v", feed)
 	}
-	if !strings.HasPrefix(feed[0].Title, "Morning Briefing") {
-		t.Fatalf("title: %s", feed[0].Title)
+	if feed[0].Title != "Done" || feed[0].StepID == nil || feed[0].Payload["cards"] == nil {
+		t.Fatalf("result card: %+v", feed[0])
 	}
 
 	// Executing a finished run again does nothing.

@@ -25,15 +25,19 @@ function save(token: string | null) {
 
 type Status = 'loading' | 'signedOut' | 'signedIn' | 'offline';
 
-let token = $state<string | null>(load());
+const stored = load();
+let token = $state<string | null>(stored);
 let me = $state<Schemas['Me'] | null>(null);
-let status = $state<Status>(token ? 'loading' : 'signedOut');
+let status = $state<Status>(stored ? 'loading' : 'signedOut');
 let workspaceId = $state<string | null>(null);
 
 /** The API client, sending the current token. */
 export const api = createApi({ token: () => token });
 
 export const session = {
+	get token() {
+		return token;
+	},
 	get status() {
 		return status;
 	},

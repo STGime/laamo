@@ -224,6 +224,16 @@ type FeedCard struct {
 	CreatedAt   time.Time      `json:"created_at,omitzero"`
 }
 
+// FeedFilter selects Feed cards. Empty Types/States mean any.
+type FeedFilter struct {
+	WorkspaceID string
+	Types       []string
+	States      []string
+	NotStates   []string
+	Before      *time.Time // created_at before (paging)
+	Limit       int        // 0 = all
+}
+
 type FeedCardPatch struct {
 	State     *string        `json:"state,omitempty"`
 	Decision  map[string]any `json:"decision,omitempty"`

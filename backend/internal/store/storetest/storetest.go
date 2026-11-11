@@ -317,6 +317,30 @@ func testFeed(t *testing.T, newStore New) {
 	if got2.WaitingOnCardID != nil {
 		t.Fatalf("waiting_on_card_id not cleared: %v", *got2.WaitingOnCardID)
 	}
+
+	// Listing: newest first, by type and state, paged by created_at.
+	res := store.FeedCard{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, RunID: &r.ID, Type: "result", Title: "Done"}
+	must(t, s.CreateFeedCard(ctx, &res))
+	gone := store.FeedCard{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, Type: "problem", Title: "Old", State: "dismissed"}
+	must(t, s.CreateFeedCard(ctx, &gone))
+	all, err := s.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: fx.WorkspaceID, NotStates: []string{"dismissed"}})
+	must(t, err)
+	if len(all) != 3 || all[0].ID != res.ID || all[2].ID != c.ID {
+		t.Fatalf("feed: %d cards, first %s", len(all), all[0].Title)
+	}
+	needs, err := s.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: fx.WorkspaceID, Types: []string{"approval", "pick", "question"}, States: []string{"open"}})
+	must(t, err)
+	if len(needs) != 1 || needs[0].ID != ask.ID {
+		t.Fatalf("needs me: %+v", needs)
+	}
+	older, err := s.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: fx.WorkspaceID, Before: &res.CreatedAt, NotStates: []string{"dismissed"}, Limit: 1})
+	must(t, err)
+	if len(older) != 1 || older[0].ID != ask.ID {
+		t.Fatalf("page before the result: %+v", older)
+	}
+	if other, _ := s.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: store.NewID()}); len(other) != 0 {
+		t.Fatal("another workspace sees cards")
+	}
 }
 
 func testLists(t *testing.T, newStore New) {

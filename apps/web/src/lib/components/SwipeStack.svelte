@@ -8,13 +8,13 @@
 
 	let {
 		items,
-		card,
+		item,
 		ondecide,
 		keepLabel = t('swipe.keep'),
 		skipLabel = t('swipe.skip')
 	}: {
 		items: T[];
-		card: Snippet<[T]>;
+		item: Snippet<[T]>;
 		ondecide: (item: T, keep: boolean) => void;
 		keepLabel?: string;
 		skipLabel?: string;
@@ -93,7 +93,7 @@
 		>
 			<span class="stamp keep" style:opacity={Math.max(0, Math.min(1, dx / 80))}>{keepLabel}</span>
 			<span class="stamp skip" style:opacity={Math.max(0, Math.min(1, -dx / 80))}>{skipLabel}</span>
-			{@render card(top)}
+			{@render item(top)}
 		</div>
 		<p class="count">{t('swipe.left', { n: left })}</p>
 		<div class="actions">

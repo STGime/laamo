@@ -111,6 +111,68 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /workspaces/{workspaceId}/feed:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: listFeed
+      summary: The Feed, newest first, with the Needs me count and the brain allowance
+      description: |
+        Live updates: `GET /api/workspaces/{workspaceId}/events` streams Server-Sent Events
+        (`feed` with a FeedCard id, `run` with a run id and status, `reload` after a gap). Send the
+        bearer token as a header (read the stream with fetch; EventSource can't send headers).
+      tags: [feed]
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [all, needs_me, results]
+            default: all
+        - name: before
+          in: query
+          description: Paging; the created_at of the last card you have
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /feed-cards/{feedCardId}/dismiss:
+    parameters:
+      - $ref: '#/components/parameters/FeedCardId'
+    post:
+      operationId: dismissFeedCard
+      summary: Hide a Result or Problem card (or a decided or expired one) from the Feed
+      tags: [feed]
+      responses:
+        '200':
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedCard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /feed-cards/{feedCardId}:
     parameters:
       - $ref: '#/components/parameters/FeedCardId'
@@ -350,6 +412,8 @@ components:
         run_id:
           type: string
           format: uuid
+        helper:
+          $ref: '#/components/schemas/HelperRef'
         type:
           type: string
           enum: [result, approval, pick, question, problem]
@@ -442,3 +506,44 @@ components:
         answer:
           type: string
           maxLength: 2000
+    HelperRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        avatar:
+          type: string
+          description: An emoji
+    FeedPage:
+      type: object
+      required: [cards, needs_me, brain]
+      properties:
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedCard'
+        needs_me:
+          type: integer
+          description: Open cards waiting for you (the badge)
+        next_before:
+          type: string
+          format: date-time
+          description: Pass as `before` for the next page; missing on the last page
+        brain:
+          $ref: '#/components/schemas/BrainMeter'
+    BrainMeter:
+      type: object
+      required: [mode, allowance_credits, credits_left]
+      properties:
+        mode:
+          type: string
+          enum: [included, byok]
+        allowance_credits:
+          type: number
+          description: Included credits per month (1 credit ≈ €0.001 of AI)
+        credits_left:
+          type: number

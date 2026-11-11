@@ -78,6 +78,49 @@ export interface paths {
 		patch: operations['updateWorkspace'];
 		trace?: never;
 	};
+	'/workspaces/{workspaceId}/feed': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		/**
+		 * The Feed, newest first, with the Needs me count and the brain allowance
+		 * @description Live updates: `GET /api/workspaces/{workspaceId}/events` streams Server-Sent Events
+		 *     (`feed` with a FeedCard id, `run` with a run id and status, `reload` after a gap). Send the
+		 *     bearer token as a header (read the stream with fetch; EventSource can't send headers).
+		 */
+		get: operations['listFeed'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/feed-cards/{feedCardId}/dismiss': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				feedCardId: components['parameters']['FeedCardId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Hide a Result or Problem card (or a decided or expired one) from the Feed */
+		post: operations['dismissFeedCard'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/feed-cards/{feedCardId}': {
 		parameters: {
 			query?: never;
@@ -215,6 +258,7 @@ export interface components {
 			helper_id?: string;
 			/** Format: uuid */
 			run_id?: string;
+			helper?: components['schemas']['HelperRef'];
 			/** @enum {string} */
 			type: 'result' | 'approval' | 'pick' | 'question' | 'problem';
 			title: string;
@@ -270,6 +314,31 @@ export interface components {
 			};
 			picked?: string[];
 			answer?: string;
+		};
+		HelperRef: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			/** @description An emoji */
+			avatar?: string;
+		};
+		FeedPage: {
+			cards: components['schemas']['FeedCard'][];
+			/** @description Open cards waiting for you (the badge) */
+			needs_me: number;
+			/**
+			 * Format: date-time
+			 * @description Pass as `before` for the next page; missing on the last page
+			 */
+			next_before?: string;
+			brain: components['schemas']['BrainMeter'];
+		};
+		BrainMeter: {
+			/** @enum {string} */
+			mode: 'included' | 'byok';
+			/** @description Included credits per month (1 credit ≈ €0.001 of AI) */
+			allowance_credits: number;
+			credits_left: number;
 		};
 	};
 	responses: {
@@ -448,6 +517,60 @@ export interface operations {
 			401: components['responses']['Unauthorized'];
 			403: components['responses']['Forbidden'];
 			404: components['responses']['NotFound'];
+		};
+	};
+	listFeed: {
+		parameters: {
+			query?: {
+				filter?: 'all' | 'needs_me' | 'results';
+				/** @description Paging; the created_at of the last card you have */
+				before?: string;
+				limit?: number;
+			};
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FeedPage'];
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	dismissFeedCard: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				feedCardId: components['parameters']['FeedCardId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Dismissed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FeedCard'];
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+			409: components['responses']['Conflict'];
 		};
 	};
 	getFeedCard: {

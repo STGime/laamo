@@ -657,9 +657,10 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 		*r = updated
 	}
 
-	h, _ := e.Store.GetHelper(ctx, r.HelperID)
 	ws, _ := e.Store.GetWorkspace(ctx, r.WorkspaceID)
 	de := ws.Locale == "de"
+	// The Feed shows the helper's name and avatar above the title (the API
+	// joins them), so titles say what happened, not who.
 	card := store.FeedCard{WorkspaceID: r.WorkspaceID, UserID: r.UserID, HelperID: &r.HelperID, RunID: &r.ID,
 		Payload: map[string]any{"status": o.status, "test": r.TestMode}}
 	switch {
@@ -668,8 +669,16 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 	case o.status == store.RunDone:
 		card.Type, card.Title = "result", pick(de, "Done", "Fertig")
 		if rc != nil {
-			if body := e.resultBody(ctx, r); body != "" {
-				card.Body = &body
+			res := e.result(ctx, r, de)
+			if res.body != "" {
+				card.Body = &res.body
+			}
+			if res.title != "" {
+				card.Title = res.title
+			}
+			if res.stepID != "" {
+				card.StepID = &res.stepID
+				card.Payload["cards"] = res.n
 			}
 		}
 	default:
@@ -677,11 +686,8 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 		if o.status == store.RunStopped {
 			card.Title = pick(de, "Stopped for safety", "Zur Sicherheit gestoppt")
 		}
-		msg := cmpOr(o.problem, "Please try again later.")
+		msg := cmpOr(o.problem, pick(de, "Please try again later.", "Bitte versuch es später noch mal."))
 		card.Body = &msg
-	}
-	if h.Name != "" {
-		card.Title = h.Name + ": " + card.Title
 	}
 	if err := e.Store.CreateFeedCard(ctx, &card); err != nil {
 		e.log().Error("feed card", "run", r.ID, "err", err)
@@ -689,31 +695,57 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 	e.log().Info("run finished", "run", r.ID, "status", o.status, "err", o.err)
 }
 
-// resultBody summarises the last pile: a summary text, or a count.
-func (e *Engine) resultBody(ctx context.Context, r *store.Run) string {
+type result struct {
+	title, body, stepID string
+	n                   int
+}
+
+// result describes the last pile for the Result card: a single summary as
+// the body; several cards as a count title and their first titles.
+func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
 	steps, err := e.Store.ListSteps(ctx, r.ID)
 	if err != nil || len(steps) == 0 {
-		return ""
+		return result{}
 	}
-	last := steps[len(steps)-1]
-	for _, s := range slices.Backward(steps) {
+	var last *store.Step
+	for i, s := range slices.Backward(steps) {
 		if s.Status == "done" {
-			last = s
+			last = &steps[i]
 			break
 		}
 	}
-	cards, err := e.Store.ListCards(ctx, last.ID)
-	if err != nil {
-		return ""
+	if last == nil {
+		return result{}
 	}
-	if len(cards) == 1 {
-		for _, f := range []string{"summary", "body", "title"} {
-			if s, ok := cards[0].Data[f].(string); ok && s != "" {
-				return truncate(s, 500)
+	cards, err := e.Store.ListCards(ctx, last.ID)
+	if err != nil || len(cards) == 0 {
+		return result{}
+	}
+	text := func(c store.Card, fields ...string) string {
+		for _, f := range fields {
+			if s, ok := c.Data[f].(string); ok && strings.TrimSpace(s) != "" {
+				return strings.TrimSpace(s)
 			}
 		}
+		return ""
 	}
-	return fmt.Sprintf("%d cards", len(cards))
+	res := result{stepID: last.ID, n: len(cards)}
+	if len(cards) == 1 {
+		res.body = truncate(text(cards[0], "summary", "body", "title", "name"), 500)
+		return res
+	}
+	res.title = fmt.Sprintf(pick(de, "%d new cards", "%d neue Karten"), len(cards))
+	var lines []string
+	for _, c := range cards[:min(3, len(cards))] {
+		if t := text(c, "title", "name", "subject", "summary"); t != "" {
+			lines = append(lines, "• "+truncate(t, 120))
+		}
+	}
+	if len(cards) > 3 {
+		lines = append(lines, fmt.Sprintf(pick(de, "and %d more", "und %d weitere"), len(cards)-3))
+	}
+	res.body = strings.Join(lines, "\n")
+	return res
 }
 
 func pick(de bool, en, deText string) string {

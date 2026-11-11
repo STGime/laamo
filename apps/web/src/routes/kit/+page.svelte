@@ -52,7 +52,7 @@
 <section>
 	<h2>Let me pick</h2>
 	<SwipeStack items={leads} ondecide={(l, keep) => keep && (kept = [...kept, l.name])}>
-		{#snippet card(l)}
+		{#snippet item(l)}
 			<h3 class="display">{l.name}</h3>
 			<p>{l.note}</p>
 		{/snippet}

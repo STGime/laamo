@@ -460,6 +460,26 @@ func (s *Store) ListCards(_ context.Context, stepID string) ([]store.Card, error
 
 // ---- feed ----
 
+func (s *Store) ListFeedCards(_ context.Context, f store.FeedFilter) ([]store.FeedCard, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.FeedCard
+	for _, c := range s.feed {
+		if c.WorkspaceID != f.WorkspaceID ||
+			(len(f.Types) > 0 && !slices.Contains(f.Types, c.Type)) ||
+			(len(f.States) > 0 && !slices.Contains(f.States, c.State)) ||
+			slices.Contains(f.NotStates, c.State) ||
+			(f.Before != nil && !c.CreatedAt.Before(*f.Before)) {
+			continue
+		}
+		out = append(out, clone(c))
+	}
+	slices.SortFunc(out, func(a, b store.FeedCard) int {
+		return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(b.ID, a.ID))
+	})
+	return limit(out, f.Limit), nil
+}
+
 func (s *Store) CreateFeedCard(_ context.Context, c *store.FeedCard) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

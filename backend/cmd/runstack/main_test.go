@@ -17,7 +17,7 @@ func TestMorningBriefingOffline(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
 	got := out.String()
-	for _, want := range []string{"✓ b5", "DONE", "Feed: Morning Briefing: Done", "printed, not sent", "Flour prices"} {
+	for _, want := range []string{"✓ b5", "DONE", "Feed: Morning Briefing · Done", "printed, not sent", "Flour prices"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output lacks %q:\n%s", want, got)
 		}

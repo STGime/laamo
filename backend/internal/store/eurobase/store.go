@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"time"
 
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -215,6 +216,23 @@ func (s *Store) CreateFeedCard(ctx context.Context, c *store.FeedCard) error {
 
 func (s *Store) GetFeedCard(ctx context.Context, id string) (store.FeedCard, error) {
 	return getRow[store.FeedCard](ctx, s, "feed_cards", id)
+}
+
+func (s *Store) ListFeedCards(ctx context.Context, f store.FeedFilter) ([]store.FeedCard, error) {
+	q := eb.NewQuery().Eq("workspace_id", f.WorkspaceID).Order("created_at", true).Order("id", true)
+	if len(f.Types) > 0 {
+		q.In("type", f.Types...)
+	}
+	if len(f.States) > 0 {
+		q.In("state", f.States...)
+	}
+	for _, st := range f.NotStates {
+		q.Neq("state", st)
+	}
+	if f.Before != nil {
+		q.Lt("created_at", f.Before.UTC().Format(time.RFC3339Nano))
+	}
+	return listRows[store.FeedCard](ctx, s, "feed_cards", q, f.Limit)
 }
 
 func (s *Store) UpdateFeedCard(ctx context.Context, id string, p store.FeedCardPatch) (store.FeedCard, error) {

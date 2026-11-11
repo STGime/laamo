@@ -1,6 +1,7 @@
 // Command runstack runs a stack (or a Shelf template) locally and prints the
-// pile after every brick, with cost. Everything stays in memory: nothing is
-// written to Eurobase.
+// pile after every brick, with cost. By default everything stays in memory;
+// with -workspace the run is written to that Eurobase workspace, so its
+// Feed cards show up in the app (and Ask me cards wait for you there).
 //
 //	runstack [flags] stack-or-template.json
 //
@@ -17,11 +18,12 @@
 //	                 answers -reply), skip, or stop (leave the run waiting)
 //	-reply text      the answer to Ask me something
 //	-test            test mode (3 cards, Do bricks to you)
+//	-workspace id    run in this Eurobase workspace (implies -live and
+//	                 -decide stop; the worker resumes after you decide)
 package main
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -44,7 +46,6 @@ import (
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
-	"github.com/STGime/laamo/backend/internal/store/memory"
 	"github.com/STGime/laamo/backend/internal/web"
 )
 
@@ -64,6 +65,8 @@ type options struct {
 	reply   string
 	test    bool
 	sets    setFlags
+	// workspace: write to this real workspace instead of memory.
+	workspace string
 }
 
 func main() {
@@ -74,7 +77,8 @@ func main() {
 	flag.StringVar(&o.lang, "lang", "en", "workspace language (en, de)")
 	flag.StringVar(&o.tz, "tz", "Europe/Berlin", "workspace timezone")
 	flag.StringVar(&o.answer, "answer", "", "the Tap Go answer ({answer})")
-	flag.StringVar(&o.decide, "decide", "approve", "Ask me cards: approve, skip or stop")
+	flag.StringVar(&o.decide, "decide", "", "Ask me cards: approve, skip or stop (default: approve; stop with -workspace)")
+	flag.StringVar(&o.workspace, "workspace", "", "run in this Eurobase workspace (cards show up in the app)")
 	flag.StringVar(&o.reply, "reply", "", "the answer to Ask me something")
 	flag.BoolVar(&o.test, "test", false, "test mode")
 	flag.Var(&o.sets, "set", "brick setting, e.g. b2.query=news (repeatable)")
@@ -98,12 +102,28 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 	if o.lang != "en" && o.lang != "de" {
 		return fmt.Errorf("-lang %q: use en or de", o.lang)
 	}
+	if o.workspace != "" {
+		o.live = true
+		if o.decide == "" {
+			o.decide = "stop"
+		}
+	}
+	if o.decide == "" {
+		o.decide = "approve"
+	}
 	if o.profile == "" { // the default About me facts, in the workspace language
 		o.profile = map[string]string{"en": "business=bakery,city=Leipzig", "de": "business=Bäckerei,city=Leipzig"}[o.lang]
 	}
 	raw, err := os.ReadFile(path) //nolint:gosec // G304: a dev tool reading the file it was given
 	if err != nil {
 		return err
+	}
+	env, err := setup(ctx, o, raw, path)
+	if err != nil {
+		return err
+	}
+	if o.workspace != "" {
+		o.lang = env.ws.Locale // the workspace's language, About me and brain apply
 	}
 	stack, chatFills, err := loadStack(raw, o.lang)
 	if err != nil {
@@ -114,21 +134,16 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 	}
 
 	cat := catalog.Default()
-	st := memory.New()
-	profile := map[string]any{}
-	for _, kv := range strings.Split(o.profile, ",") {
-		if k, v, ok := strings.Cut(kv, "="); ok && strings.TrimSpace(k) != "" {
-			profile[strings.TrimSpace(k)] = strings.TrimSpace(v)
-		}
+	st, ws, user, keys := env.st, env.ws, env.ws.UserID, env.keys
+	needsChat := slices.ContainsFunc(stack.Bricks, func(b catalog.StackBrick) bool { return b.Type == "do.chat" })
+	if o.workspace != "" && needsChat && o.webhook == "" {
+		return errors.New("this stack posts to chat: with -workspace, pass -webhook (a real Discord or Slack webhook)")
 	}
-	user := store.NewID()
-	ws := st.PutWorkspace(store.Workspace{UserID: user, Name: "runstack", Timezone: o.tz, Locale: o.lang, Profile: profile})
-	st.PutBrain(store.Brain{WorkspaceID: ws.ID, UserID: user, AllowanceCredits: 500})
+	if needsChat && keys == nil {
+		return errors.New("this stack posts to chat: set LAAMO_MASTER_KEYS (see docs/security/secrets.md)")
+	}
 
 	// A chat place for Post to chat, encrypted like in production.
-	keyBytes := make([]byte, 32)
-	_, _ = rand.Read(keyBytes)
-	keys, _ := crypto.ParseKeyring("dev:"+base64.StdEncoding.EncodeToString(keyBytes), "")
 	place := store.Place{ID: store.NewID(), WorkspaceID: ws.ID, UserID: user, Type: "discord", Label: "runstack"}
 	webhook := "https://discord.com/api/webhooks/0/print"
 	if o.webhook != "" {
@@ -140,13 +155,15 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 			return err
 		}
 	}
-	sealed, err := keys.Encrypt([]byte(webhook), crypto.AAD("places", place.ID, "secret"))
-	if err != nil {
-		return err
-	}
-	place.SecretCiphertext = new(base64.StdEncoding.EncodeToString(sealed))
-	if err := st.CreatePlace(ctx, &place); err != nil {
-		return err
+	if needsChat {
+		sealed, err := keys.Encrypt([]byte(webhook), crypto.AAD("places", place.ID, "secret"))
+		if err != nil {
+			return err
+		}
+		place.SecretCiphertext = new(base64.StdEncoding.EncodeToString(sealed))
+		if err := st.CreatePlace(ctx, &place); err != nil {
+			return err
+		}
 	}
 	for i := range stack.Bricks {
 		sb := &stack.Bricks[i]
@@ -170,12 +187,12 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 		return err
 	}
 	stackJSON, _ := json.Marshal(stack)
-	h := st.PutHelper(store.Helper{WorkspaceID: ws.ID, UserID: user, Name: helperName(raw, path), Status: "active"})
-	v := st.PutHelperVersion(store.HelperVersion{WorkspaceID: ws.ID, UserID: user, HelperID: h.ID, Version: 1, Stack: stackJSON})
-	h.CurrentVersionID = &v.ID
-	st.PutHelper(h)
+	h, err := env.helper(ctx, helperName(raw, path), helperAvatar(raw), stackJSON)
+	if err != nil {
+		return err
+	}
 
-	eng := &engine.Engine{Store: st, Catalog: cat, Bricks: bricks.All(deps), Brain: brain, Blobs: &engine.MemoryBlobs{}, Resolve: tmpl.Config,
+	eng := &engine.Engine{Store: st, Catalog: cat, Bricks: bricks.All(deps), Brain: brain, Blobs: env.blobs, Resolve: tmpl.Config,
 		Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	data := map[string]any{}
 	if o.answer != "" {
@@ -192,6 +209,9 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 	mode := "offline fixtures"
 	if o.live {
 		mode = "live"
+	}
+	if o.workspace != "" {
+		mode = "live, in workspace " + ws.Name
 	}
 	_, _ = fmt.Fprintf(w, "▶ %s (%s, %s)\n\n", h.Name, mode, o.lang)
 	start := time.Now()
@@ -211,11 +231,26 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 			_, _ = fmt.Fprintf(w, "! the run would be retried: %v\n", err)
 		}
 	}
-	return report(ctx, w, st, cat, stack, r.ID, o.lang, time.Since(start), place)
+	if err := report(ctx, w, st, cat, stack, r.ID, o.lang, time.Since(start), place); err != nil {
+		if cur, _ := st.GetRun(ctx, r.ID); o.workspace != "" && cur.Status == store.RunWaiting {
+			_, _ = fmt.Fprintln(w, "\n⏸ Waiting for you: answer the card in the app's Feed. With `task dev` running, the worker goes on.")
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func helperOf(ctx context.Context, st store.Store, f store.FeedCard) string {
+	if f.HelperID == nil {
+		return ""
+	}
+	h, _ := st.GetHelper(ctx, *f.HelperID)
+	return h.Name
 }
 
 // decide answers the Feed card a waiting run waits on, like the app would.
-func decide(ctx context.Context, w io.Writer, st *memory.Store, r store.Run, o options) error {
+func decide(ctx context.Context, w io.Writer, st store.Store, r store.Run, o options) error {
 	fc, err := st.GetFeedCard(ctx, *r.WaitingOnCardID)
 	if err != nil {
 		return err
@@ -326,7 +361,7 @@ func applySets(st *catalog.Stack, sets []string) error {
 }
 
 // services returns real or fixture services.
-func services(o options, w io.Writer, st *memory.Store, keys *crypto.Keyring) (bricks.Deps, *llm.Brain, error) {
+func services(o options, w io.Writer, st store.Store, keys *crypto.Keyring) (bricks.Deps, *llm.Brain, error) {
 	deps := bricks.Deps{Store: st, Keys: keys, Chat: printSender{w}, SearchCostEUR: 0.005}
 	if !o.live {
 		deps.Search, deps.Pages = fixtureSearch{}, fixturePages{}
@@ -354,7 +389,7 @@ func services(o options, w io.Writer, st *memory.Store, keys *crypto.Keyring) (b
 }
 
 // report prints every step's pile and the totals.
-func report(ctx context.Context, w io.Writer, st *memory.Store, cat *catalog.Catalog, stack catalog.Stack, runID, lang string,
+func report(ctx context.Context, w io.Writer, st store.Store, cat *catalog.Catalog, stack catalog.Stack, runID, lang string,
 	took time.Duration, place store.Place) error {
 	r, err := st.GetRun(ctx, runID)
 	if err != nil {
@@ -392,9 +427,10 @@ func report(ctx context.Context, w io.Writer, st *memory.Store, cat *catalog.Cat
 		}
 	}
 	_, _ = fmt.Fprintf(w, "\n%s · €%.4f · %d+%d AI tokens · %s\n", strings.ToUpper(r.Status), float64(r.CostEUR), r.TokensIn, r.TokensOut, took.Round(time.Millisecond))
-	for _, f := range st.FeedCards() {
+	feed, _ := st.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: r.WorkspaceID, Limit: 50})
+	for _, f := range slices.Backward(feed) {
 		if f.RunID != nil && *f.RunID == runID {
-			_, _ = fmt.Fprintf(w, "Feed: %s", f.Title)
+			_, _ = fmt.Fprintf(w, "Feed: %s · %s", helperOf(ctx, st, f), f.Title)
 			if f.Body != nil {
 				_, _ = fmt.Fprintf(w, "\n  %s", strings.ReplaceAll(*f.Body, "\n", "\n  "))
 			}
