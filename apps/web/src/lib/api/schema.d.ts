@@ -230,9 +230,21 @@ export interface components {
 		};
 		Workspace: components['schemas']['WorkspaceSummary'] & {
 			profile: components['schemas']['Profile'];
+			needs?: components['schemas']['Needs'];
 			/** Format: date-time */
 			created_at: string;
 		};
+		/** @description What you want help with (onboarding); pre-sorts the Shelf */
+		Needs: components['schemas']['Need'][];
+		/** @enum {string} */
+		Need:
+			| 'find_customers'
+			| 'stay_up_to_date'
+			| 'sort_emails'
+			| 'book_meetings'
+			| 'watch_competitors'
+			| 'plan_events'
+			| 'post_social';
 		NewWorkspace: {
 			/** @example Bäckerei Krause */
 			name: string;
@@ -242,12 +254,15 @@ export interface components {
 			 */
 			timezone?: string;
 			locale?: components['schemas']['Locale'];
+			profile?: components['schemas']['Profile'];
+			needs?: components['schemas']['Needs'];
 		};
 		WorkspaceUpdate: {
 			name?: string;
 			timezone?: string;
 			locale?: components['schemas']['Locale'];
 			profile?: components['schemas']['Profile'];
+			needs?: components['schemas']['Needs'];
 		};
 		FeedCard: {
 			/** Format: uuid */

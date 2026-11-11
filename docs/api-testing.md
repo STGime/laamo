@@ -60,7 +60,7 @@ Errors are always `{"error": "...", "code": "..."}`, with code `bad_request`, `u
 ## The Feed in the app, with real runs
 
 1. Start everything: `task dev` (api on :8787, worker, web on :5173).
-2. Get a token for your test user: `scripts/dev-token.sh you@example.com`. Paste it on the app's sign-in screen; this dev-only screen is replaced by onboarding in #32.
+2. Sign in: open http://localhost:5173, tap "Make my first helper", enter your email and click the link in the email (see "Sign-in setup" below). Or, without email, paste a token from `scripts/dev-token.sh you@example.com` on the dev screen (`/signin`).
 3. Run a helper into your workspace (the id comes from `GET /api/me`):
 
    ```sh
@@ -72,3 +72,21 @@ Errors are always `{"error": "...", "code": "..."}`, with code `bad_request`, `u
    Cards appear in the Feed live. Answer an Ask me card in the app: the API queues the run, and the worker carries on. With `-workspace`, runstack uses real search and AI, the workspace's language, About me facts and brain allowance. A stack that posts to chat also needs `-webhook` and `LAAMO_MASTER_KEYS`.
 
 Live updates come from `GET /api/workspaces/{id}/events` (Server-Sent Events). The api holds one Eurobase realtime connection and forwards each member only their workspace's events.
+
+## Sign-in setup (Eurobase auth settings)
+
+The app signs in with magic links, straight from the browser to Eurobase auth using the project's **public** key, read from `EUROBASE_URL` and `EUROBASE_PUBLIC_KEY` in the repo's `.env` at build time.
+
+1. A new email gets an account with a random password nobody sees (an existing email just fails).
+2. The app requests a magic link to `<origin>/auth/callback`.
+3. Clicking the link signs in.
+
+New and returning people see the same screens.
+
+The Eurobase project's auth settings need:
+
+- **Magic link enabled** and **email confirmation off**. The link itself proves the email; with confirmation on, people would get two emails.
+- **redirect_urls**, exact matches: `http://localhost:5173/auth/callback`, and later `https://laamo.app/auth/callback`.
+- **cors_origins**: `http://localhost:5173`, and later `https://laamo.app`.
+
+The magic link email uses Eurobase's default template (English). A German Laamo template can be set per project.

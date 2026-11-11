@@ -9,24 +9,33 @@
 
 	let { children } = $props();
 
-	// Screens that work signed out.
-	const open = (path: string) => path === '/signin' || path === '/kit';
+	// Screens that work signed out (and the dev ones).
+	const OPEN = ['/', '/start', '/auth/callback', '/signin', '/kit'];
+	// Screens without the tab bar.
+	const BARE = ['/', '/start', '/auth/callback', '/signin', '/welcome'];
+	const path = $derived(page.url.pathname);
+	const open = $derived(OPEN.includes(path));
 
 	$effect(() => {
 		session.refresh();
 	});
 	$effect(() => {
-		if (session.status === 'signedOut' && !open(page.url.pathname))
-			goto('/signin', { replaceState: true });
+		const s = session.status;
+		if (s === 'signedOut' && !open) goto('/', { replaceState: true });
+		if (s !== 'signedIn' || path === '/auth/callback') return;
+		const hasWorkspace = (session.me?.workspaces.length ?? 0) > 0;
+		if (!hasWorkspace && path !== '/welcome') goto('/welcome', { replaceState: true });
+		else if (hasWorkspace && (path === '/' || path === '/start' || path === '/welcome'))
+			goto('/feed', { replaceState: true });
 	});
-	const showTabs = $derived(session.status === 'signedIn' && page.url.pathname !== '/signin');
+	const showTabs = $derived(session.status === 'signedIn' && !BARE.includes(path));
 </script>
 
 <div class="app" class:tabs={showTabs}>
-	{#if session.status === 'offline' && !open(page.url.pathname)}
+	{#if session.status === 'offline' && !open}
 		<p class="offline">{t('error.offline')}</p>
 	{/if}
-	{#if session.status === 'signedIn' || open(page.url.pathname)}
+	{#if session.status === 'signedIn' || open}
 		{@render children()}
 	{:else if session.status === 'loading'}
 		<p class="loading">{t('loading')}</p>

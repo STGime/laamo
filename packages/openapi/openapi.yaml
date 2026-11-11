@@ -365,9 +365,21 @@ components:
           properties:
             profile:
               $ref: '#/components/schemas/Profile'
+            needs:
+              $ref: '#/components/schemas/Needs'
             created_at:
               type: string
               format: date-time
+    Needs:
+      type: array
+      description: What you want help with (onboarding); pre-sorts the Shelf
+      maxItems: 3
+      uniqueItems: true
+      items:
+        $ref: '#/components/schemas/Need'
+    Need:
+      type: string
+      enum: [find_customers, stay_up_to_date, sort_emails, book_meetings, watch_competitors, plan_events, post_social]
     NewWorkspace:
       type: object
       required: [name]
@@ -383,6 +395,10 @@ components:
           example: Europe/Berlin
         locale:
           $ref: '#/components/schemas/Locale'
+        profile:
+          $ref: '#/components/schemas/Profile'
+        needs:
+          $ref: '#/components/schemas/Needs'
     WorkspaceUpdate:
       type: object
       properties:
@@ -396,6 +412,8 @@ components:
           $ref: '#/components/schemas/Locale'
         profile:
           $ref: '#/components/schemas/Profile'
+        needs:
+          $ref: '#/components/schemas/Needs'
     FeedCard:
       type: object
       required: [id, workspace_id, type, title, payload, state, created_at]

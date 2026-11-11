@@ -282,6 +282,39 @@ func (e Locale) Valid() bool {
 	}
 }
 
+// Defines values for Need.
+const (
+	BookMeetings     Need = "book_meetings"
+	FindCustomers    Need = "find_customers"
+	PlanEvents       Need = "plan_events"
+	PostSocial       Need = "post_social"
+	SortEmails       Need = "sort_emails"
+	StayUpToDate     Need = "stay_up_to_date"
+	WatchCompetitors Need = "watch_competitors"
+)
+
+// Valid indicates whether the value is a known member of the Need enum.
+func (e Need) Valid() bool {
+	switch e {
+	case BookMeetings:
+		return true
+	case FindCustomers:
+		return true
+	case PlanEvents:
+		return true
+	case PostSocial:
+		return true
+	case SortEmails:
+		return true
+	case StayUpToDate:
+		return true
+	case WatchCompetitors:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Plan.
 const (
 	Business Plan = "business"
@@ -498,12 +531,26 @@ type Me struct {
 	Workspaces []WorkspaceSummary `json:"workspaces"`
 }
 
+// Need defines model for Need.
+type Need string
+
+// Needs What you want help with (onboarding); pre-sorts the Shelf
+type Needs = []Need
+
 // NewWorkspace defines model for NewWorkspace.
 type NewWorkspace struct {
 	Locale *Locale `json:"locale,omitempty"`
 
 	// Name Example: Bäckerei Krause
 	Name string `json:"name"`
+
+	// Needs What you want help with (onboarding); pre-sorts the Shelf
+	Needs *Needs `json:"needs,omitempty"`
+
+	// Profile About me facts by key (see packages/catalog/bricks.json `profile`), used as {my city} etc.
+	//
+	// Example: {"business":"bakery","city":"Berlin"}
+	Profile *Profile `json:"profile,omitempty"`
 
 	// Timezone IANA name; default Europe/Berlin (the web app sends the browser's)
 	//
@@ -534,7 +581,10 @@ type Workspace struct {
 	Id        openapi_types.UUID `json:"id"`
 	Locale    Locale             `json:"locale"`
 	Name      string             `json:"name"`
-	Plan      Plan               `json:"plan"`
+
+	// Needs What you want help with (onboarding); pre-sorts the Shelf
+	Needs *Needs `json:"needs,omitempty"`
+	Plan  Plan   `json:"plan"`
 
 	// Profile About me facts by key (see packages/catalog/bricks.json `profile`), used as {my city} etc.
 	//
@@ -562,6 +612,9 @@ type WorkspaceSummary struct {
 type WorkspaceUpdate struct {
 	Locale *Locale `json:"locale,omitempty"`
 	Name   *string `json:"name,omitempty"`
+
+	// Needs What you want help with (onboarding); pre-sorts the Shelf
+	Needs *Needs `json:"needs,omitempty"`
 
 	// Profile About me facts by key (see packages/catalog/bricks.json `profile`), used as {my city} etc.
 	//
