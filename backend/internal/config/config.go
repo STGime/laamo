@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // The laamo dev project on Eurobase (not secret: it's in every token).
@@ -21,6 +22,9 @@ type Config struct {
 	EurobasePublicKey string
 	EurobaseSecretKey string // server side only
 	BraveSearchAPIKey string
+	BraveRPS          float64 // Brave calls per second (free plan: 1)
+	SearchCostEUR     float64 // per search, for the usage ledger
+	SearchCacheDir    string  // dev only: cache search results here ("" = off)
 	// Master keys for secrets at rest ("v1:base64,v2:base64"), see
 	// internal/crypto and docs/security/secrets.md. Server side only.
 	MasterKeys      string
@@ -50,12 +54,17 @@ func Load() (Config, error) {
 		EurobaseProjectID: os.Getenv("EUROBASE_PROJECT_ID"),
 		// BRAVESEARCH_PUBLIC_KEY is accepted for older local .env files.
 		BraveSearchAPIKey: firstNonEmpty(os.Getenv("BRAVE_SEARCH_API_KEY"), os.Getenv("BRAVESEARCH_PUBLIC_KEY")),
+		BraveRPS:          getfloat("BRAVE_RPS", 1),
+		SearchCostEUR:     getfloat("SEARCH_COST_EUR", 0.005),
 		MasterKeys:        os.Getenv("LAAMO_MASTER_KEYS"),
 		MasterKeyActive:   os.Getenv("LAAMO_MASTER_KEY_ACTIVE"),
 		LLMBaseURL:        getenv("LLM_BASE_URL", DefaultLLMBaseURL),
 		LLMAPIKey:         firstNonEmpty(os.Getenv("LLM_API_KEY"), os.Getenv("FAL_KEY"), os.Getenv("FAL_AI_API_KEY")),
 		LLMAuth:           getenv("LLM_AUTH", "Key"),
 		LLMModel:          getenv("LLM_MODEL", DefaultLLMModel),
+	}
+	if c.Env == "dev" {
+		c.SearchCacheDir = getenv("SEARCH_CACHE_DIR", ".cache/search")
 	}
 	if c.EurobaseProjectID == "" && c.Env == "dev" && c.EurobaseURL == DevEurobaseURL {
 		c.EurobaseProjectID = DevProjectID
@@ -77,6 +86,13 @@ func Load() (Config, error) {
 func getenv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+func getfloat(key string, def float64) float64 {
+	if f, err := strconv.ParseFloat(os.Getenv(key), 64); err == nil {
+		return f
 	}
 	return def
 }

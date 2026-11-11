@@ -79,6 +79,35 @@ type HelperVersion struct {
 	CreatedAt    time.Time       `json:"created_at,omitzero"`
 }
 
+// Trigger types.
+const (
+	TriggerSchedule = "schedule"
+	TriggerManual   = "manual"
+	TriggerEmail    = "email"
+	TriggerWatch    = "watch"
+	TriggerWebhook  = "webhook"
+)
+
+// Trigger is what starts a helper's runs (scheduler, inbound email, …).
+type Trigger struct {
+	ID             string         `json:"id"`
+	WorkspaceID    string         `json:"workspace_id"`
+	UserID         string         `json:"user_id"`
+	HelperID       string         `json:"helper_id"`
+	Type           string         `json:"type"`
+	Config         map[string]any `json:"config,omitzero"`
+	NextRunAt      *time.Time     `json:"next_run_at,omitempty"`
+	InboundAddress *string        `json:"inbound_address,omitempty"`
+	WebhookToken   *string        `json:"webhook_token,omitempty"`
+	CreatedAt      time.Time      `json:"created_at,omitzero"`
+	UpdatedAt      time.Time      `json:"updated_at,omitzero"`
+}
+
+type TriggerPatch struct {
+	Config    map[string]any       `json:"config,omitempty"`
+	NextRunAt *Nullable[time.Time] `json:"next_run_at,omitempty"`
+}
+
 // Run statuses.
 const (
 	RunQueued  = "queued"
@@ -238,6 +267,23 @@ type UsageEntry struct {
 	BrainCredits Num       `json:"brain_credits,omitzero"`
 	EstCostEUR   Num       `json:"est_cost_eur,omitzero"`
 	CreatedAt    time.Time `json:"created_at,omitzero"`
+}
+
+// Place is where helpers tell the user things (a Discord or Slack webhook,
+// a Telegram chat, Email me, Posta).
+type Place struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	UserID      string `json:"user_id"`
+	Type        string `json:"type"` // discord, slack, teams, telegram, email, posta
+	Label       string `json:"label"`
+	// SecretCiphertext: base64 of an internal/crypto envelope sealed for
+	// crypto.AAD("places", id, "secret"). Never returned to the app.
+	SecretCiphertext *string        `json:"secret_ciphertext,omitempty"`
+	SecretLast4      *string        `json:"secret_last4,omitempty"`
+	Meta             map[string]any `json:"meta,omitzero"`
+	VerifiedAt       *time.Time     `json:"verified_at,omitempty"`
+	CreatedAt        time.Time      `json:"created_at,omitzero"`
 }
 
 // Brain is a workspace's AI: the included model with a monthly allowance,

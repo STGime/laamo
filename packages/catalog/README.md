@@ -71,6 +71,10 @@ A setup question either:
 - asks for an About me fact (`{"profile": "business"}`). It's skipped when the profile already has the fact, and the stack uses `{my business}`.
 - fills brick settings for this helper (`fills: [{"brick": "b5", "setting": "place"}]`). Settings filled this way don't count as missing when the template is validated.
 
+Text settings in a template's stack (a search query, Keep's criteria, …) can be written in both languages: `"query": {"en": "{my business} {my city} news", "de": "{my business} {my city} Neuigkeiten"}`. When the helper is created, the workspace language is picked (`Template.StackFor(lang)` in Go), so a saved helper always holds plain text. A localized setting needs both `en` and `de`.
+
+Every `{my …}` pill in a template needs a setup question that asks for that fact, so a new user is never stopped by a missing value. Both rules, and that the stack validates in each language, are checked by the Go tests.
+
 `required` must match what the stack needs; the Go tests check that.
 
 Note for #38: as written in the product plan, Weekend Scout (Search → Keep → Pick → Put in my calendar) doesn't validate. Search results have no date or time, so it needs a Pull out details (date, time, place) step before the calendar.

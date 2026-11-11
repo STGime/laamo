@@ -12,15 +12,20 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/STGime/laamo/backend/internal/bricks"
 	"github.com/STGime/laamo/backend/internal/catalog"
+	"github.com/STGime/laamo/backend/internal/chat"
 	"github.com/STGime/laamo/backend/internal/config"
+	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/engine"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/queue"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
+	"github.com/STGime/laamo/backend/internal/search"
+	"github.com/STGime/laamo/backend/internal/store"
 	sebs "github.com/STGime/laamo/backend/internal/store/eurobase"
 )
 
@@ -52,7 +57,7 @@ func run(log *slog.Logger) error {
 	eng := &engine.Engine{
 		Store:   st,
 		Catalog: catalog.Default(),
-		Bricks:  bricks.All(),
+		Bricks:  bricks.All(brickDeps(cfg, log, st)),
 		Brain: &llm.Brain{
 			Chat:  &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel},
 			Model: cfg.LLMModel,
@@ -77,6 +82,25 @@ func run(log *slog.Logger) error {
 		},
 	}
 	return w.Run(ctx)
+}
+
+func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps {
+	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}}
+	if keys, err := crypto.ParseKeyring(cfg.MasterKeys, cfg.MasterKeyActive); err == nil {
+		d.Keys = keys
+	} else {
+		log.Warn("no usable LAAMO_MASTER_KEYS: Post to chat is off", "err", err)
+	}
+	if cfg.BraveSearchAPIKey == "" {
+		log.Warn("no BRAVE_SEARCH_API_KEY: Search the web is off")
+		return d
+	}
+	var p search.Provider = &search.Brave{APIKey: cfg.BraveSearchAPIKey, Limit: search.NewLimiter(cfg.BraveRPS)}
+	if cfg.SearchCacheDir != "" {
+		p = &search.Cached{Provider: p, Dir: cfg.SearchCacheDir, TTL: 24 * time.Hour}
+	}
+	d.Search = p
+	return d
 }
 
 // handlers maps job kinds to handlers.

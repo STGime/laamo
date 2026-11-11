@@ -188,7 +188,7 @@ func (c *Catalog) Validate(st Stack, opts Options) []Issue {
 		issues = append(issues, c.validateCheck(b, sb, i, cfg, s)...)
 
 		// Apply the brick's output to the state.
-		adds, open := b.addsFor(cfg)
+		adds, open := b.AddsFor(cfg)
 		switch b.ShapeFor(cfg) {
 		case ShapeStart, ShapeExpand, ShapeCombine:
 			s.fields, s.open = map[string]bool{}, open
@@ -208,7 +208,9 @@ func (c *Catalog) Validate(st Stack, opts Options) []Issue {
 	return issues
 }
 
-func (b *Brick) addsFor(cfg map[string]any) (fields []string, open bool) {
+// AddsFor returns the fields the brick adds with this config, and whether
+// unknown fields may appear too (e.g. a List's columns).
+func (b *Brick) AddsFor(cfg map[string]any) (fields []string, open bool) {
 	fields = slices.Clone(b.Adds)
 	for _, r := range b.AddsIf {
 		if r.If.Matches(cfg) {

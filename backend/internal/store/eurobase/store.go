@@ -248,6 +248,35 @@ func (s *Store) ListRows(ctx context.Context, listID string, limit int) ([]store
 	return listRows[store.ListRow](ctx, s, "list_rows", q, limit)
 }
 
+// ---- places ----
+
+func (s *Store) CreatePlace(ctx context.Context, p *store.Place) error {
+	return insertRow(ctx, s, "places", &p.ID, p)
+}
+
+func (s *Store) GetPlace(ctx context.Context, id string) (store.Place, error) {
+	return getRow[store.Place](ctx, s, "places", id)
+}
+
+// ---- triggers ----
+
+func (s *Store) HelperTriggers(ctx context.Context, helperID string) ([]store.Trigger, error) {
+	q := eb.NewQuery().Eq("helper_id", helperID).Order("created_at", false).Order("id", false)
+	return listRows[store.Trigger](ctx, s, "triggers", q, 0)
+}
+
+func (s *Store) CreateTrigger(ctx context.Context, t *store.Trigger) error {
+	return insertRow(ctx, s, "triggers", &t.ID, t)
+}
+
+func (s *Store) UpdateTrigger(ctx context.Context, id string, p store.TriggerPatch) (store.Trigger, error) {
+	return updateRow[store.Trigger](ctx, s, "triggers", id, p)
+}
+
+func (s *Store) DeleteTrigger(ctx context.Context, id string) error {
+	return mapErr(s.c.Delete(ctx, "triggers", id))
+}
+
 // ---- brains ----
 
 func (s *Store) GetBrain(ctx context.Context, workspaceID string) (store.Brain, error) {

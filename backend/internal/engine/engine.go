@@ -318,7 +318,7 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 	shape := b.ShapeFor(cfg)
 	out, err := e.Bricks[sb.Type].Run(ctx, rc, clonePile(in), cfg)
 	if err == nil {
-		out, err = checkShape(shape, in, out)
+		out, err = CheckShape(shape, in, out)
 	}
 	if err == nil && rc.TestMode && len(out) > TestModeMaxCards {
 		out = out[:TestModeMaxCards]
@@ -358,8 +358,10 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 
 var errShape = errors.New("brick returned the wrong kind of pile")
 
-// checkShape enforces the catalog shape and fills in ids and parents.
-func checkShape(shape string, in, out []Card) ([]Card, error) {
+// CheckShape enforces a catalog shape on a brick's output and fills in ids
+// and parents of new cards. The engine calls it after every brick; brick
+// contract tests use it too.
+func CheckShape(shape string, in, out []Card) ([]Card, error) {
 	inIDs := make(map[string]bool, len(in))
 	for _, c := range in {
 		inIDs[c.ID] = true
