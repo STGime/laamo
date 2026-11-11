@@ -81,11 +81,11 @@ type RunContext struct {
 	TestMode bool
 	// lastBrick is the stack index of the last brick (test-mode result cap).
 	lastBrick int
-	Limits   Limits
-	Blobs    Blobs
-	Brain    *llm.Brain // the AI for Think bricks: rc.Brain.Ask(ctx, rc, req)
-	Log      *slog.Logger
-	Now      func() time.Time
+	Limits    Limits
+	Blobs     Blobs
+	Brain     *llm.Brain // the AI for Think bricks: rc.Brain.Ask(ctx, rc, req)
+	Log       *slog.Logger
+	Now       func() time.Time
 
 	usage store.UsageStore
 
