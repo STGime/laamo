@@ -17,6 +17,7 @@ tags:
   - name: system
   - name: demo
   - name: me
+  - name: places
   - name: workspaces
 paths:
   /healthz:
@@ -68,6 +69,81 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /workspaces/{workspaceId}/places:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: listPlaces
+      summary: Where your helpers can tell you things (chats)
+      tags: [places]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createPlace
+      summary: Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+      tags: [places]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewPlace'
+      responses:
+        '201':
+          description: Connected and verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /places/{placeId}:
+    parameters:
+      - $ref: '#/components/parameters/PlaceId'
+    delete:
+      operationId: deletePlace
+      summary: Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
+      tags: [places]
+      responses:
+        '204':
+          description: Removed
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /places/{placeId}/test:
+    parameters:
+      - $ref: '#/components/parameters/PlaceId'
+    post:
+      operationId: testPlace
+      summary: Send a test message to a chat
+      tags: [places]
+      responses:
+        '200':
+          description: Delivered; the place is verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '503':
           $ref: '#/components/responses/Unavailable'
   /me:
@@ -444,6 +520,13 @@ components:
       schema:
         type: string
         format: uuid
+    PlaceId:
+      name: placeId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     FeedCardId:
       name: feedCardId
       in: path
@@ -592,6 +675,56 @@ components:
           type: boolean
         seconds:
           type: number
+    PlaceType:
+      type: string
+      enum: [discord, slack, teams, telegram, email, posta]
+    Place:
+      type: object
+      required: [id, type, label, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/PlaceType'
+        label:
+          type: string
+        last4:
+          type: string
+          description: The webhook's last 4 characters, to tell chats apart (the URL itself is never returned)
+        used_by:
+          type: array
+          description: Names of the helpers that post here
+          items:
+            type: string
+        verified_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    PlaceList:
+      type: object
+      required: [places]
+      properties:
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
+    NewPlace:
+      type: object
+      required: [type, label, webhook_url]
+      properties:
+        type:
+          type: string
+          enum: [discord, slack]
+        label:
+          type: string
+          minLength: 1
+          maxLength: 60
+        webhook_url:
+          type: string
+          maxLength: 500
     Error:
       type: object
       required: [error, code]
@@ -602,7 +735,7 @@ components:
         code:
           type: string
           description: Stable machine code
-          enum: [bad_request, unauthorized, forbidden, not_found, conflict, auth_unavailable, rate_limited, unavailable, internal]
+          enum: [bad_request, unauthorized, forbidden, not_found, conflict, auth_unavailable, rate_limited, unavailable, webhook_invalid, webhook_gone, webhook_rejected, webhook_unreachable, internal]
     User:
       type: object
       required: [id, email]

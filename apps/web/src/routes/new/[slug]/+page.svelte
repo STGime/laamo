@@ -12,6 +12,9 @@
 
 	let tpl = $state<Schemas['ShelfTemplate'] | null>(null);
 	let answers = $state<Record<string, string>>({});
+	let places = $state<Schemas['Place'][]>([]);
+	// Chats this template can post to (Discord, Slack, …).
+	const usable = $derived(places.filter((p) => tpl?.places.includes(p.type) && p.verified_at));
 	// About me facts the user wants for this helper only.
 	let justHere = $state<string[]>([]);
 	let busy = $state(false);
@@ -27,7 +30,15 @@
 			.GET('/workspaces/{workspaceId}/templates', { params: { path: { workspaceId: ws.id } } })
 			.then(({ data }) => {
 				tpl = data?.templates.find((x) => x.slug === page.params.slug) ?? null;
-				for (const q of tpl?.questions ?? []) if (q.kind === 'place') answers[q.key] = 'feed';
+				// Back from connecting a chat: that chat is the answer.
+				const back = page.url.searchParams.get('place');
+				for (const q of tpl?.questions ?? [])
+					if (q.kind === 'place') answers[q.key] = back ?? 'feed';
+			});
+		api
+			.GET('/workspaces/{workspaceId}/places', { params: { path: { workspaceId: ws.id } } })
+			.then(({ data }) => {
+				places = data?.places ?? [];
 			});
 	});
 
@@ -40,6 +51,17 @@
 				.flatMap((q) => q.fills ?? [])
 		)
 	);
+	// …and one answered with a chat names it: "Post to Discord" (+ the Feed).
+	const toChat = $derived(
+		new Map(
+			(tpl?.questions ?? [])
+				.filter((q) => q.kind === 'place' && answers[q.key] !== 'feed')
+				.flatMap((q) => {
+					const p = places.find((x) => x.id === answers[q.key]);
+					return p ? (q.fills ?? []).map((id) => [id, p.label] as const) : [];
+				})
+		)
+	);
 	function fill(text: string): string {
 		return text.replace(
 			/\{my (\w+)\}/g,
@@ -50,7 +72,9 @@
 		(tpl?.bricks ?? []).map((b) =>
 			toFeed.has(b.id)
 				? { id: b.id, group: 'do', title: t('tpl.toFeed') }
-				: { id: b.id, group: b.group, title: fill(b.sentence) }
+				: toChat.has(b.id)
+					? { id: b.id, group: 'do', title: t('tpl.toChat', { name: toChat.get(b.id) ?? '' }) }
+					: { id: b.id, group: b.group, title: fill(b.sentence) }
 		)
 	);
 	// While the first run goes, the bricks light up; when it's done (or
@@ -122,7 +146,20 @@
 									aria-checked={answers[q.key] === 'feed'}
 									onclick={() => (answers[q.key] = 'feed')}>{t('tpl.feedOnly')}</button
 								>
+								{#each usable as p (p.id)}
+									<button
+										type="button"
+										role="radio"
+										aria-checked={answers[q.key] === p.id}
+										onclick={() => (answers[q.key] = p.id)}>{p.label}</button
+									>
+								{/each}
 							</div>
+							{#if session.workspace?.role === 'owner'}
+								<a class="add" href="/places/new?back={encodeURIComponent(`/new/${tpl.slug}`)}"
+									>+ {t('tpl.addChat')}</a
+								>
+							{/if}
 						{:else}
 							<input
 								id="q-{q.key}"
@@ -173,6 +210,14 @@
 {/if}
 
 <style>
+	.add {
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--tap-min);
+		color: inherit;
+		font-weight: 700;
+		text-decoration: none;
+	}
 	.just {
 		display: flex;
 		align-items: center;

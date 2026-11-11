@@ -314,6 +314,19 @@ func (s *Store) GetPlace(ctx context.Context, id string) (store.Place, error) {
 	return getRow[store.Place](ctx, s, "places", id)
 }
 
+func (s *Store) ListPlaces(ctx context.Context, workspaceID string) ([]store.Place, error) {
+	q := eb.NewQuery().Eq("workspace_id", workspaceID).Order("created_at", true).Order("id", true)
+	return listRows[store.Place](ctx, s, "places", q, 0)
+}
+
+func (s *Store) UpdatePlace(ctx context.Context, id string, p store.PlacePatch) (store.Place, error) {
+	return updateRow[store.Place](ctx, s, "places", id, p)
+}
+
+func (s *Store) DeletePlace(ctx context.Context, id string) error {
+	return mapErr(s.c.Delete(ctx, "places", id))
+}
+
 // ---- triggers ----
 
 func (s *Store) HelperTriggers(ctx context.Context, helperID string) ([]store.Trigger, error) {

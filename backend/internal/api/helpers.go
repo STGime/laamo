@@ -326,7 +326,17 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 		}
 		var stack catalog.Stack
 		if json.Unmarshal(v.Stack, &stack) == nil {
-			for _, b := range shelf.Describe(catalog.Default(), stack, w) {
+			// Post to chat names its chat, not the chat's id.
+			names := map[string]string{}
+			if ps, err := s.store.ListPlaces(ctx, w.ID); err == nil {
+				for _, p := range ps {
+					names[p.ID] = p.Label
+				}
+			}
+			for i, b := range shelf.Describe(catalog.Default(), stack, w) {
+				if id, _ := stack.Bricks[i].Config["place"].(string); names[id] != "" {
+					b.Sentence = strings.ReplaceAll(b.Sentence, id, names[id])
+				}
 				out.Bricks = append(out.Bricks, BrickPreview{Id: b.ID, Type: b.Type, Group: BrickPreviewGroup(b.Group), Sentence: b.Sentence})
 			}
 		}

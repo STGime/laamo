@@ -160,7 +160,7 @@ func header(rc *engine.RunContext) string {
 		h = ""
 	}
 	if rc.TestMode {
-		h = "🧪 Test · " + h
+		h = "Test · " + h
 	}
 	return h
 }

@@ -130,7 +130,7 @@ func TestPostEachAndTestMode(t *testing.T) {
 	if _, err := e.run(t, cards(3), map[string]any{"mode": "each"}); err != nil {
 		t.Fatal(err)
 	}
-	if len(e.sender.sent) != 3 || e.sender.sent[0].typ != "slack" || !strings.HasPrefix(e.sender.sent[0].text, "🧪 Test · **Morning Briefing**") {
+	if len(e.sender.sent) != 3 || e.sender.sent[0].typ != "slack" || !strings.HasPrefix(e.sender.sent[0].text, "Test · **Morning Briefing**") {
 		t.Fatalf("sent: %+v", e.sender.sent)
 	}
 }

@@ -38,7 +38,7 @@
 				</span>
 				<span class="uses">
 					{t('shelf.uses')}:
-					{#if tpl.brain}🧠 {t('shelf.brain')}{/if}{#if tpl.places.length}&nbsp;· 💬 {t(
+					{#if tpl.brain}{t('shelf.brain')}{/if}{#if tpl.places.length}&nbsp;· {t(
 							'shelf.chat'
 						)}{/if}
 				</span>
