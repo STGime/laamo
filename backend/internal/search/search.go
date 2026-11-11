@@ -6,6 +6,7 @@
 package search
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -66,21 +67,37 @@ type Brave struct {
 	Limit   *Limiter // shared across calls; nil = no limit
 }
 
+type braveItem struct {
+	Title       string `json:"title"`
+	URL         string `json:"url"`
+	Description string `json:"description"`
+	PageAge     string `json:"page_age"`
+	Profile     struct {
+		Name string `json:"name"`
+	} `json:"profile"`
+	MetaURL struct {
+		Hostname string `json:"hostname"`
+	} `json:"meta_url"`
+}
+
 type braveResponse struct {
 	Web struct {
-		Results []struct {
-			Title       string `json:"title"`
-			URL         string `json:"url"`
-			Description string `json:"description"`
-			PageAge     string `json:"page_age"`
-			Profile     struct {
-				Name string `json:"name"`
-			} `json:"profile"`
-		} `json:"results"`
+		Results []braveItem `json:"results"`
 	} `json:"web"`
 }
 
+// cacheVersion changes when result processing changes, so the dev cache
+// doesn't serve results shaped by older code.
+const cacheVersion = 3
+
 var tagRe = regexp.MustCompile(`<[^>]*>`)
+
+// isHomepage reports whether u is a site's front page (no path): fine when
+// looking for a business, noise when looking for news.
+func isHomepage(u string) bool {
+	p, err := url.Parse(u)
+	return err == nil && strings.Trim(p.Path, "/") == "" && p.RawQuery == ""
+}
 
 func (b *Brave) Search(ctx context.Context, q Query) ([]Result, error) {
 	if b.APIKey == "" {
@@ -102,18 +119,61 @@ func (b *Brave) Search(ctx context.Context, q Query) ([]Result, error) {
 	if len(q.Country) == 2 {
 		v.Set("country", q.Country)
 	}
+	// Fresh results come from news search: web results "updated today" are
+	// mostly portal front pages. No news: fall back to the web, without
+	// front pages.
+	fresh := q.Freshness == "day" || q.Freshness == "week"
+	if fresh {
+		var news struct {
+			Results []braveItem `json:"results"`
+		}
+		if err := b.get(ctx, "/news/search", v, &news); err != nil {
+			return nil, err
+		}
+		if out := results(news.Results, false, q.Count); len(out) > 0 {
+			return out, nil
+		}
+	}
+	var web braveResponse
+	if err := b.get(ctx, "/web/search", v, &web); err != nil {
+		return nil, err
+	}
+	return results(web.Web.Results, fresh, q.Count), nil
+}
+
+func results(items []braveItem, skipHomepages bool, count int) []Result {
+	out := make([]Result, 0, len(items))
+	seen := map[string]bool{}
+	for _, r := range items {
+		if r.URL == "" || seen[r.URL] || (skipHomepages && isHomepage(r.URL)) {
+			continue
+		}
+		seen[r.URL] = true
+		res := Result{Title: clean(r.Title), URL: r.URL, Snippet: clean(r.Description), Source: cmp.Or(r.Profile.Name, r.MetaURL.Hostname)}
+		if t, err := time.Parse("2006-01-02T15:04:05", r.PageAge); err == nil {
+			res.PublishedAt = t.UTC()
+		}
+		out = append(out, res)
+	}
+	if count > 0 && len(out) > count {
+		out = out[:count]
+	}
+	return out
+}
+
+// get calls one Brave endpoint, retrying 429s.
+func (b *Brave) get(ctx context.Context, path string, v url.Values, out any) error {
 	base := b.BaseURL
 	if base == "" {
 		base = "https://api.search.brave.com/res/v1"
 	}
-
 	for attempt := 0; ; attempt++ {
 		if err := b.Limit.Wait(ctx); err != nil {
-			return nil, err
+			return err
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/web/search?"+v.Encode(), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path+"?"+v.Encode(), nil)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("X-Subscription-Token", b.APIKey)
@@ -123,35 +183,26 @@ func (b *Brave) Search(ctx context.Context, q Query) ([]Result, error) {
 		}
 		resp, err := hc.Do(req) //nolint:gosec // G704: fixed API host from config
 		if err != nil {
-			return nil, fmt.Errorf("search: %w", err)
+			return fmt.Errorf("search: %w", err)
 		}
 		body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 		_ = resp.Body.Close()
 		if err != nil {
-			return nil, fmt.Errorf("search: read: %w", err)
+			return fmt.Errorf("search: read: %w", err)
 		}
 		if resp.StatusCode == http.StatusTooManyRequests && attempt < 3 {
 			continue // the limiter spaces the next try
 		}
 		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-			return nil, fmt.Errorf("%w: Brave HTTP %d: %.200s", ErrRejected, resp.StatusCode, body)
+			return fmt.Errorf("%w: Brave HTTP %d: %.200s", ErrRejected, resp.StatusCode, body)
 		}
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("search: Brave HTTP %d: %.200s", resp.StatusCode, body)
+			return fmt.Errorf("search: Brave HTTP %d: %.200s", resp.StatusCode, body)
 		}
-		var br braveResponse
-		if err := json.Unmarshal(body, &br); err != nil {
-			return nil, fmt.Errorf("search: decode: %w", err)
+		if err := json.Unmarshal(body, out); err != nil {
+			return fmt.Errorf("search: decode: %w", err)
 		}
-		out := make([]Result, 0, len(br.Web.Results))
-		for _, r := range br.Web.Results {
-			res := Result{Title: clean(r.Title), URL: r.URL, Snippet: clean(r.Description), Source: r.Profile.Name}
-			if t, err := time.Parse("2006-01-02T15:04:05", r.PageAge); err == nil {
-				res.PublishedAt = t.UTC()
-			}
-			out = append(out, res)
-		}
-		return out, nil
+		return nil
 	}
 }
 
@@ -226,7 +277,10 @@ type Cached struct {
 
 // Search serves a cached result for the same query, or asks the provider.
 func (c *Cached) Search(ctx context.Context, q Query) ([]Result, error) {
-	key, _ := json.Marshal(q)
+	key, _ := json.Marshal(struct {
+		V int
+		Q Query
+	}{cacheVersion, q})
 	sum := sha256.Sum256(key)
 	path := filepath.Join(c.Dir, hex.EncodeToString(sum[:16])+".json")
 	if info, err := os.Stat(path); err == nil && (c.TTL == 0 || time.Since(info.ModTime()) < c.TTL) {

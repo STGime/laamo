@@ -246,6 +246,7 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		rc.Run = r
 	}
 
+	rc.lastBrick = len(stack.Bricks) - 1
 	pile, err := e.loadPile(ctx, r)
 	if err != nil {
 		return err
@@ -292,6 +293,11 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 			return err
 		}
 
+		// Test mode: at most 3 cards reach a Do brick and the Feed. Look and
+		// Think bricks see everything, or a filter has nothing to choose from.
+		if rc.TestMode && len(pile) > TestModeMaxCards && b.ShapeFor(b.Config(sb.Config)) == catalog.ShapeAct {
+			pile = pile[:TestModeMaxCards]
+		}
 		out, stepErr := e.runStep(ctx, rc, &r, steps, i, sb, b, pile)
 		if stepErr != nil {
 			var se *stepError
@@ -361,8 +367,8 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 	if err == nil && len(held) > 0 {
 		out = mergeHeld(in, held, out)
 	}
-	if err == nil && rc.TestMode && len(out) > TestModeMaxCards {
-		out = out[:TestModeMaxCards]
+	if err == nil && rc.TestMode && i == rc.lastBrick && len(out) > TestModeMaxCards {
+		out = out[:TestModeMaxCards] // what the Feed shows
 	}
 	if err == nil {
 		err = e.saveCards(ctx, rc, step, out)

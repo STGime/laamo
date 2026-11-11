@@ -44,7 +44,7 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 		var out struct {
 			Cards []score `json:"cards"`
 		}
-		system := fmt.Sprintf(`You judge cards for a small business owner. Score each card from 0 (useless) to 10 (exactly what they want) by how well it matches what they want. Give a reason of at most 12 words in %s. %s Format: {"cards":[{"id": string, "score": number, "reason": string}]} with one entry for every card id.`, lang, guard)
+		system := fmt.Sprintf(`You judge cards for a small business owner. Score each card from 0 (useless) to 10 (exactly what they want) by how well it matches what they want. Judge only by what the card itself says: if it names a place, check it against the place they want; a card about somewhere else or something else scores 3 or lower. A news portal's front page or a list of unrelated headlines scores 0. Give a reason of at most 12 words in %s that states a fact from the card. %s Format: {"cards":[{"id": string, "score": number, "reason": string}]} with one entry for every card id.`, lang, guard)
 		user := fmt.Sprintf("What they want: %q\n%s", criteria, cardsJSON(batch))
 		ids := idSet(batch)
 		err := rc.Brain.AskJSON(ctx, rc, llm.Request{System: system, Messages: []llm.Message{{Role: "user", Content: user}}}, &out,

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -21,6 +22,10 @@ func braveServer(t *testing.T, statuses ...int) (*httptest.Server, *atomic.Int32
 	var n atomic.Int32
 	var lastQuery atomic.Value
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/news/search" && r.Header.Get("X-Subscription-Token") == "brave-test" {
+			_, _ = w.Write([]byte(`{"results":[]}`)) // no news: tests use the web fallback
+			return
+		}
 		i := int(n.Add(1)) - 1
 		lastQuery.Store(r.URL.RawQuery)
 		if r.URL.Path != "/web/search" || r.Header.Get("X-Subscription-Token") != "brave-test" {
@@ -119,5 +124,43 @@ func TestCache(t *testing.T) {
 	}
 	if _, err := c.Search(ctx, Query{Q: "bäckerei", Count: 5}); err != nil || n.Load() != 2 {
 		t.Fatalf("different query must miss the cache: %d calls", n.Load())
+	}
+}
+
+// Fresh searches use news search; with no news they fall back to the web,
+// without portal front pages. Other searches are plain web searches.
+func TestBraveNewsFirst(t *testing.T) {
+	news := `{"results":[{"title":"Burgerladen eröffnet","url":"https://www.rbb24.de/berlin/burger-123.html","description":"Neu in Kreuzberg","meta_url":{"hostname":"www.rbb24.de"}}]}`
+	web := `{"web":{"results":[{"title":"B.Z. – Die Stimme Berlins","url":"https://www.bz-berlin.de/","description":"News"},
+	{"title":"Burger Test","url":"https://www.tip-berlin.de/essen/burger/","description":"Die besten Burger"}]}}`
+	var paths []string
+	noNews := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		switch {
+		case r.URL.Path == "/news/search" && noNews:
+			_, _ = w.Write([]byte(`{"results":[]}`))
+		case r.URL.Path == "/news/search":
+			_, _ = w.Write([]byte(news))
+		default:
+			_, _ = w.Write([]byte(web))
+		}
+	}))
+	defer srv.Close()
+	b := &Brave{APIKey: "k", BaseURL: srv.URL}
+	ctx := context.Background()
+	res, err := b.Search(ctx, Query{Q: "burger berlin", Count: 10, Freshness: "day"})
+	if err != nil || len(res) != 1 || res[0].Source != "www.rbb24.de" || !slices.Equal(paths, []string{"/news/search"}) {
+		t.Fatalf("news: %+v %v %v", res, err, paths)
+	}
+	noNews, paths = true, nil
+	res, _ = b.Search(ctx, Query{Q: "burger berlin", Count: 10, Freshness: "week"})
+	if len(res) != 1 || res[0].URL != "https://www.tip-berlin.de/essen/burger/" || len(paths) != 2 {
+		t.Fatalf("fallback: %+v %v", res, paths)
+	}
+	paths = nil
+	res, _ = b.Search(ctx, Query{Q: "bäckerei krause website", Count: 10})
+	if len(res) != 2 || !slices.Equal(paths, []string{"/web/search"}) {
+		t.Fatalf("not fresh: %+v %v", res, paths)
 	}
 }
