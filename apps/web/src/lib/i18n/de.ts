@@ -158,7 +158,8 @@ export const de: Record<Key, string> = {
 	'places.guide.discord.1':
 		'Zeig in Discord auf den Kanal, in den Laamo schreiben soll, und klick auf das Zahnrad („Kanal bearbeiten“).',
 	'places.guide.discord.2': 'Öffne „Integrationen“ → „Webhooks“ → „Neuer Webhook“.',
-	'places.guide.discord.3': 'Tippe auf „Webhook-URL kopieren“ und füge sie unten ein.',
+	'places.guide.discord.3':
+		'Öffne den neuen Webhook, klick auf „Webhook-URL kopieren“ und füge sie unten ein.',
 	'places.guide.slack.1':
 		'Öffne api.slack.com/apps → Create New App → From scratch und wähle deinen Workspace.',
 	'places.guide.slack.2':

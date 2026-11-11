@@ -153,7 +153,7 @@ export const en = {
 	'places.guide.discord.1':
 		'In Discord, point at the channel Laamo should post to and click the gear (“Edit Channel”).',
 	'places.guide.discord.2': 'Open “Integrations” → “Webhooks” → “New Webhook”.',
-	'places.guide.discord.3': 'Tap “Copy Webhook URL” and paste it below.',
+	'places.guide.discord.3': 'Open the new webhook, click “Copy Webhook URL” and paste it below.',
 	'places.guide.slack.1':
 		'Open api.slack.com/apps → Create New App → From scratch, and pick your workspace.',
 	'places.guide.slack.2':
