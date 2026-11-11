@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -321,6 +322,48 @@ func (s *Store) CreateHelper(_ context.Context, h *store.Helper, v *store.Helper
 	*v = s.PutHelperVersion(*v)
 	h.CurrentVersionID = &v.ID
 	*h = s.PutHelper(*h)
+	return nil
+}
+
+func (s *Store) UpdateHelper(_ context.Context, id string, p store.HelperPatch) (store.Helper, error) {
+	if p.Status != nil && *p.Status != "active" && *p.Status != "paused" && *p.Status != "draft" {
+		return store.Helper{}, fmt.Errorf("%w: status %q", store.ErrInvalid, *p.Status)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	h, ok := s.helpers[id]
+	if !ok {
+		return store.Helper{}, store.ErrNotFound
+	}
+	h, err := store.ApplyPatch(h, p)
+	if err != nil {
+		return h, err
+	}
+	h.UpdatedAt = s.now()
+	s.helpers[id] = clone(h)
+	return h, nil
+}
+
+// DeleteHelper cascades like the database does.
+func (s *Store) DeleteHelper(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.helpers[id]; !ok {
+		return store.ErrNotFound
+	}
+	delete(s.helpers, id)
+	maps.DeleteFunc(s.versions, func(_ string, v store.HelperVersion) bool { return v.HelperID == id })
+	maps.DeleteFunc(s.triggers, func(_ string, t store.Trigger) bool { return t.HelperID == id })
+	runs := map[string]bool{}
+	maps.DeleteFunc(s.runs, func(rid string, r store.Run) bool {
+		if r.HelperID == id {
+			runs[rid] = true
+		}
+		return r.HelperID == id
+	})
+	maps.DeleteFunc(s.steps, func(_ string, st store.Step) bool { return runs[st.RunID] })
+	maps.DeleteFunc(s.cards, func(_ string, c store.Card) bool { return runs[c.RunID] })
+	maps.DeleteFunc(s.feed, func(_ string, f store.FeedCard) bool { return f.HelperID != nil && *f.HelperID == id })
 	return nil
 }
 

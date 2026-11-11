@@ -38,12 +38,14 @@
 	<ul class="list">
 		{#each helpers as h (h.id)}
 			<li>
-				<span class="avatar" aria-hidden="true">{h.avatar ?? '🧱'}</span>
-				<span class="text">
-					<span class="name display">{h.name}</span>
-					<span class="status">{t(`helpers.${h.status}` as Key)}</span>
-					{#if started === h.id}<span class="started">{t('helpers.started')}</span>{/if}
-				</span>
+				<a class="open" href="/helpers/{h.id}">
+					<span class="avatar" aria-hidden="true">{h.avatar ?? '🧱'}</span>
+					<span class="text">
+						<span class="name display">{h.name}</span>
+						<span class="status">{t(`helpers.${h.status}` as Key)} ›</span>
+						{#if started === h.id}<span class="started">{t('helpers.started')}</span>{/if}
+					</span>
+				</a>
 				<button
 					class="btn"
 					disabled={busy === h.id || h.status === 'draft'}
@@ -75,6 +77,15 @@
 		gap: var(--space-3);
 		padding: var(--space-4) var(--gutter);
 		border-bottom: var(--border);
+	}
+	.open {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		min-height: var(--tap-min);
+		color: inherit;
+		text-decoration: none;
 	}
 	.avatar {
 		font-size: 28px;

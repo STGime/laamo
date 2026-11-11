@@ -84,7 +84,40 @@ func TestShelfToFirstRun(t *testing.T) {
 	if hs.StatusCode() != 200 || len(hs.JSON200.Helpers) != 1 || hs.JSON200.Helpers[0].Name != "Morgen-Briefing" {
 		t.Fatalf("helpers %s", hs.Body)
 	}
+	// Two runs so far: the test run and Run now.
+	_ = run
+	// Manage it: details, a second copy, rename, pause, delete.
+	d := must(c.GetHelperWithResponse(ctx, wsID(h.ID)))
+	if d.StatusCode() != 200 || len(d.JSON200.Bricks) != 4 || len(d.JSON200.Runs) != 2 || d.JSON200.Helper.NextRunAt == nil ||
+		!strings.Contains(d.JSON200.Bricks[1].Sentence, "Bäckerei Leipzig Neuigkeiten") {
+		t.Fatalf("detail %d %s", d.StatusCode(), d.Body)
+	}
+	two := must(c.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "morning-briefing", Answers: map[string]string{"chat": "feed"}}))
+	if two.StatusCode() != 201 || two.JSON201.Helper.Name != "Morgen-Briefing (2)" {
+		t.Fatalf("second copy: %d %s", two.StatusCode(), two.Body)
+	}
+	paused := must(c.UpdateHelperWithResponse(ctx, wsID(h.ID), api.UpdateHelperJSONRequestBody{Name: new("Briefing Laden"),
+		Status: new(api.UpdateHelperJSONBodyStatus("paused"))}))
+	if paused.StatusCode() != 200 || paused.JSON200.Name != "Briefing Laden" || paused.JSON200.Status != "paused" || paused.JSON200.NextRunAt != nil {
+		t.Fatalf("pause: %d %s", paused.StatusCode(), paused.Body)
+	}
+	if bad := must(c.UpdateHelperWithResponse(ctx, wsID(h.ID), api.UpdateHelperJSONRequestBody{Name: new("  ")})); bad.StatusCode() != 400 {
+		t.Fatalf("blank name: %d", bad.StatusCode())
+	}
 	benC := e.client(t, "ben")
+	if r := must(benC.DeleteHelperWithResponse(ctx, wsID(h.ID))); r.StatusCode() != 404 {
+		t.Fatalf("ben deletes: %d", r.StatusCode())
+	}
+	if r := must(c.DeleteHelperWithResponse(ctx, wsID(h.ID))); r.StatusCode() != 204 {
+		t.Fatalf("delete: %d", r.StatusCode())
+	}
+	if r := must(c.GetHelperWithResponse(ctx, wsID(h.ID))); r.StatusCode() != 404 {
+		t.Fatalf("deleted helper: %d", r.StatusCode())
+	}
+	if _, err := st.GetRun(ctx, r.ID); err == nil {
+		t.Fatal("runs of a deleted helper remain")
+	}
+
 	if r := must(benC.StartRunWithResponse(ctx, wsID(h.ID), api.StartRunJSONRequestBody{})); r.StatusCode() != 404 {
 		t.Fatalf("ben runs: %d", r.StatusCode())
 	}

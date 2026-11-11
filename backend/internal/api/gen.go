@@ -293,19 +293,19 @@ func (e HealthEurobase) Valid() bool {
 
 // Defines values for HelperStatus.
 const (
-	Active HelperStatus = "active"
-	Draft  HelperStatus = "draft"
-	Paused HelperStatus = "paused"
+	HelperStatusActive HelperStatus = "active"
+	HelperStatusDraft  HelperStatus = "draft"
+	HelperStatusPaused HelperStatus = "paused"
 )
 
 // Valid indicates whether the value is a known member of the HelperStatus enum.
 func (e HelperStatus) Valid() bool {
 	switch e {
-	case Active:
+	case HelperStatusActive:
 		return true
-	case Draft:
+	case HelperStatusDraft:
 		return true
-	case Paused:
+	case HelperStatusPaused:
 		return true
 	default:
 		return false
@@ -402,6 +402,36 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Defines values for RunSummaryStatus.
+const (
+	Done    RunSummaryStatus = "done"
+	Failed  RunSummaryStatus = "failed"
+	Queued  RunSummaryStatus = "queued"
+	Running RunSummaryStatus = "running"
+	Stopped RunSummaryStatus = "stopped"
+	Waiting RunSummaryStatus = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the RunSummaryStatus enum.
+func (e RunSummaryStatus) Valid() bool {
+	switch e {
+	case Done:
+		return true
+	case Failed:
+		return true
+	case Queued:
+		return true
+	case Running:
+		return true
+	case Stopped:
+		return true
+	case Waiting:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetupQuestionKind.
 const (
 	List   SetupQuestionKind = "list"
@@ -423,6 +453,24 @@ func (e SetupQuestionKind) Valid() bool {
 	case Text:
 		return true
 	case Time:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateHelperJSONBodyStatus.
+const (
+	UpdateHelperJSONBodyStatusActive UpdateHelperJSONBodyStatus = "active"
+	UpdateHelperJSONBodyStatusPaused UpdateHelperJSONBodyStatus = "paused"
+)
+
+// Valid indicates whether the value is a known member of the UpdateHelperJSONBodyStatus enum.
+func (e UpdateHelperJSONBodyStatus) Valid() bool {
+	switch e {
+	case UpdateHelperJSONBodyStatusActive:
+		return true
+	case UpdateHelperJSONBodyStatusPaused:
 		return true
 	default:
 		return false
@@ -610,11 +658,23 @@ type Helper struct {
 	CreatedAt time.Time          `json:"created_at"`
 	Id        openapi_types.UUID `json:"id"`
 	Name      string             `json:"name"`
-	Status    HelperStatus       `json:"status"`
+
+	// NextRunAt When its schedule runs next (only when on and scheduled)
+	NextRunAt *time.Time   `json:"next_run_at,omitempty"`
+	Status    HelperStatus `json:"status"`
 }
 
 // HelperStatus defines model for Helper.Status.
 type HelperStatus string
+
+// HelperDetail defines model for HelperDetail.
+type HelperDetail struct {
+	Bricks []BrickPreview `json:"bricks"`
+	Helper Helper         `json:"helper"`
+
+	// Runs The last 10 runs, newest first
+	Runs []RunSummary `json:"runs"`
+}
 
 // HelperRef defines model for HelperRef.
 type HelperRef struct {
@@ -688,6 +748,20 @@ type Role string
 type RunStarted struct {
 	RunId openapi_types.UUID `json:"run_id"`
 }
+
+// RunSummary defines model for RunSummary.
+type RunSummary struct {
+	CostEur     float32            `json:"cost_eur"`
+	CreatedAt   time.Time          `json:"created_at"`
+	FinishedAt  *time.Time         `json:"finished_at,omitempty"`
+	Id          openapi_types.UUID `json:"id"`
+	Status      RunSummaryStatus   `json:"status"`
+	Test        bool               `json:"test"`
+	TriggerType string             `json:"trigger_type"`
+}
+
+// RunSummaryStatus defines model for RunSummary.Status.
+type RunSummaryStatus string
 
 // SetupQuestion defines model for SetupQuestion.
 type SetupQuestion struct {
@@ -787,6 +861,9 @@ type WorkspaceUpdate struct {
 // FeedCardId defines model for FeedCardId.
 type FeedCardId = openapi_types.UUID
 
+// HelperId defines model for HelperId.
+type HelperId = openapi_types.UUID
+
 // WorkspaceId defines model for WorkspaceId.
 type WorkspaceId = openapi_types.UUID
 
@@ -804,6 +881,15 @@ type NotFound = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// UpdateHelperJSONBody defines parameters for UpdateHelper.
+type UpdateHelperJSONBody struct {
+	Name   *string                     `json:"name,omitempty"`
+	Status *UpdateHelperJSONBodyStatus `json:"status,omitempty"`
+}
+
+// UpdateHelperJSONBodyStatus defines parameters for UpdateHelper.
+type UpdateHelperJSONBodyStatus string
 
 // StartRunJSONBody defines parameters for StartRun.
 type StartRunJSONBody struct {
@@ -826,6 +912,9 @@ type ListFeedParamsFilter string
 
 // DecideFeedCardJSONRequestBody defines body for DecideFeedCard for application/json ContentType.
 type DecideFeedCardJSONRequestBody = FeedDecision
+
+// UpdateHelperJSONRequestBody defines body for UpdateHelper for application/json ContentType.
+type UpdateHelperJSONRequestBody UpdateHelperJSONBody
 
 // StartRunJSONRequestBody defines body for StartRun for application/json ContentType.
 type StartRunJSONRequestBody StartRunJSONBody
@@ -950,19 +1039,43 @@ type ClientInterface interface {
 	// Corresponds with GET /healthz (the `GetHealth` operationId).
 	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteHelper Delete a helper with its runs and Feed cards
+	//
+	// Corresponds with DELETE /helpers/{helperId} (the `DeleteHelper` operationId).
+	DeleteHelper(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetHelper A helper with its bricks in plain words and its recent runs
+	//
+	// Corresponds with GET /helpers/{helperId} (the `GetHelper` operationId).
+	GetHelper(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateHelperWithBody Rename a helper, or switch it on or off
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
+	UpdateHelperWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateHelper Rename a helper, or switch it on or off
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
+	UpdateHelper(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// StartRunWithBody Run a helper now (Tap Go, or a test run with at most 3 cards)
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
-	StartRunWithBody(ctx context.Context, helperId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	StartRunWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
-	StartRun(ctx context.Context, helperId openapi_types.UUID, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	StartRun(ctx context.Context, helperId HelperId, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetMe The signed-in user and their workspaces
 	//
@@ -1133,12 +1246,76 @@ func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (
 	return c.Client.Do(req)
 }
 
+// DeleteHelper Delete a helper with its runs and Feed cards
+//
+// Corresponds with DELETE /helpers/{helperId} (the `DeleteHelper` operationId).
+func (c *Client) DeleteHelper(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteHelperRequest(c.Server, helperId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetHelper A helper with its bricks in plain words and its recent runs
+//
+// Corresponds with GET /helpers/{helperId} (the `GetHelper` operationId).
+func (c *Client) GetHelper(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetHelperRequest(c.Server, helperId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateHelperWithBody Rename a helper, or switch it on or off
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
+func (c *Client) UpdateHelperWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateHelperRequestWithBody(c.Server, helperId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateHelper Rename a helper, or switch it on or off
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
+func (c *Client) UpdateHelper(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateHelperRequest(c.Server, helperId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // StartRunWithBody Run a helper now (Tap Go, or a test run with at most 3 cards)
 //
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
-func (c *Client) StartRunWithBody(ctx context.Context, helperId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) StartRunWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStartRunRequestWithBody(c.Server, helperId, contentType, body)
 	if err != nil {
 		return nil, err
@@ -1155,7 +1332,7 @@ func (c *Client) StartRunWithBody(ctx context.Context, helperId openapi_types.UU
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
-func (c *Client) StartRun(ctx context.Context, helperId openapi_types.UUID, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) StartRun(ctx context.Context, helperId HelperId, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStartRunRequest(c.Server, helperId, body)
 	if err != nil {
 		return nil, err
@@ -1500,8 +1677,123 @@ func NewGetHealthRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewDeleteHelperRequest constructs an http.Request for the DeleteHelper method
+func NewDeleteHelperRequest(server string, helperId HelperId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetHelperRequest constructs an http.Request for the GetHelper method
+func NewGetHelperRequest(server string, helperId HelperId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateHelperRequest calls the generic UpdateHelper builder with application/json body
+func NewUpdateHelperRequest(server string, helperId HelperId, body UpdateHelperJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateHelperRequestWithBody(server, helperId, "application/json", bodyReader)
+}
+
+// NewUpdateHelperRequestWithBody constructs an http.Request for the UpdateHelper method, with any body, and a specified content type
+func NewUpdateHelperRequestWithBody(server string, helperId HelperId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewStartRunRequest calls the generic StartRun builder with application/json body
-func NewStartRunRequest(server string, helperId openapi_types.UUID, body StartRunJSONRequestBody) (*http.Request, error) {
+func NewStartRunRequest(server string, helperId HelperId, body StartRunJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
@@ -1512,7 +1804,7 @@ func NewStartRunRequest(server string, helperId openapi_types.UUID, body StartRu
 }
 
 // NewStartRunRequestWithBody constructs an http.Request for the StartRun method, with any body, and a specified content type
-func NewStartRunRequestWithBody(server string, helperId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+func NewStartRunRequestWithBody(server string, helperId HelperId, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -1982,19 +2274,47 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /healthz (the `GetHealth` operationId).
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
 
+	// DeleteHelperWithResponse Delete a helper with its runs and Feed cards
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /helpers/{helperId} (the `DeleteHelper` operationId).
+	DeleteHelperWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*DeleteHelperResponse, error)
+
+	// GetHelperWithResponse A helper with its bricks in plain words and its recent runs
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /helpers/{helperId} (the `GetHelper` operationId).
+	GetHelperWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*GetHelperResponse, error)
+
+	// UpdateHelperWithBodyWithResponse Rename a helper, or switch it on or off
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
+	UpdateHelperWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateHelperResponse, error)
+
+	// UpdateHelperWithResponse Rename a helper, or switch it on or off
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
+	UpdateHelperWithResponse(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateHelperResponse, error)
+
 	// StartRunWithBodyWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
-	StartRunWithBodyWithResponse(ctx context.Context, helperId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartRunResponse, error)
+	StartRunWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartRunResponse, error)
 
 	// StartRunWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
-	StartRunWithResponse(ctx context.Context, helperId openapi_types.UUID, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*StartRunResponse, error)
+	StartRunWithResponse(ctx context.Context, helperId HelperId, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*StartRunResponse, error)
 
 	// GetMeWithResponse The signed-in user and their workspaces
 	//
@@ -2309,6 +2629,171 @@ func (r GetHealthResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetHealthResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteHelperResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteHelperResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteHelperResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteHelperResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteHelperResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteHelperResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteHelperResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetHelperResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *HelperDetail
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetHelperResponse) GetJSON200() *HelperDetail {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetHelperResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetHelperResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetHelperResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetHelperResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetHelperResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetHelperResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateHelperResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Helper
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateHelperResponse) GetJSON200() *Helper {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r UpdateHelperResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateHelperResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateHelperResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateHelperResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateHelperResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateHelperResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateHelperResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -2912,12 +3397,64 @@ func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEdit
 	return ParseGetHealthResponse(rsp)
 }
 
+// DeleteHelperWithResponse Delete a helper with its runs and Feed cards
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /helpers/{helperId} (the `DeleteHelper` operationId).
+func (c *ClientWithResponses) DeleteHelperWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*DeleteHelperResponse, error) {
+	rsp, err := c.DeleteHelper(ctx, helperId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteHelperResponse(rsp)
+}
+
+// GetHelperWithResponse A helper with its bricks in plain words and its recent runs
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /helpers/{helperId} (the `GetHelper` operationId).
+func (c *ClientWithResponses) GetHelperWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*GetHelperResponse, error) {
+	rsp, err := c.GetHelper(ctx, helperId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetHelperResponse(rsp)
+}
+
+// UpdateHelperWithBodyWithResponse Rename a helper, or switch it on or off
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
+func (c *ClientWithResponses) UpdateHelperWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateHelperResponse, error) {
+	rsp, err := c.UpdateHelperWithBody(ctx, helperId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateHelperResponse(rsp)
+}
+
+// UpdateHelperWithResponse Rename a helper, or switch it on or off
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
+func (c *ClientWithResponses) UpdateHelperWithResponse(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateHelperResponse, error) {
+	rsp, err := c.UpdateHelper(ctx, helperId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateHelperResponse(rsp)
+}
+
 // StartRunWithBodyWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
-func (c *ClientWithResponses) StartRunWithBodyWithResponse(ctx context.Context, helperId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartRunResponse, error) {
+func (c *ClientWithResponses) StartRunWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartRunResponse, error) {
 	rsp, err := c.StartRunWithBody(ctx, helperId, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -2930,7 +3467,7 @@ func (c *ClientWithResponses) StartRunWithBodyWithResponse(ctx context.Context, 
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
-func (c *ClientWithResponses) StartRunWithResponse(ctx context.Context, helperId openapi_types.UUID, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*StartRunResponse, error) {
+func (c *ClientWithResponses) StartRunWithResponse(ctx context.Context, helperId HelperId, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*StartRunResponse, error) {
 	rsp, err := c.StartRun(ctx, helperId, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -3256,6 +3793,129 @@ func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteHelperResponse parses an HTTP response from a DeleteHelperWithResponse call
+func ParseDeleteHelperResponse(rsp *http.Response) (*DeleteHelperResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteHelperResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetHelperResponse parses an HTTP response from a GetHelperWithResponse call
+func ParseGetHelperResponse(rsp *http.Response) (*GetHelperResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetHelperResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest HelperDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateHelperResponse parses an HTTP response from a UpdateHelperWithResponse call
+func ParseUpdateHelperResponse(rsp *http.Response) (*UpdateHelperResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateHelperResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Helper
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
@@ -3661,9 +4321,18 @@ type ServerInterface interface {
 	// GetHealth Service health
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
+	// DeleteHelper Delete a helper with its runs and Feed cards
+	// (DELETE /helpers/{helperId})
+	DeleteHelper(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// GetHelper A helper with its bricks in plain words and its recent runs
+	// (GET /helpers/{helperId})
+	GetHelper(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// UpdateHelper Rename a helper, or switch it on or off
+	// (PATCH /helpers/{helperId})
+	UpdateHelper(w http.ResponseWriter, r *http.Request, helperId HelperId)
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	// (POST /helpers/{helperId}/runs)
-	StartRun(w http.ResponseWriter, r *http.Request, helperId openapi_types.UUID)
+	StartRun(w http.ResponseWriter, r *http.Request, helperId HelperId)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
@@ -3791,6 +4460,84 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteHelper operation middleware
+func (siw *ServerInterfaceWrapper) DeleteHelper(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteHelper(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetHelper operation middleware
+func (siw *ServerInterfaceWrapper) GetHelper(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetHelper(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateHelper operation middleware
+func (siw *ServerInterfaceWrapper) UpdateHelper(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateHelper(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StartRun operation middleware
 func (siw *ServerInterfaceWrapper) StartRun(w http.ResponseWriter, r *http.Request) {
 
@@ -3798,7 +4545,7 @@ func (siw *ServerInterfaceWrapper) StartRun(w http.ResponseWriter, r *http.Reque
 	_ = err
 
 	// ------------- Path parameter "helperId" -------------
-	var helperId openapi_types.UUID
+	var helperId HelperId
 
 	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
 	if err != nil {
@@ -4172,6 +4919,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/templates", wrapper.ListTemplates)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/helpers", wrapper.ListHelpers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/helpers", wrapper.CreateHelper)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/helpers/{helperId}", wrapper.DeleteHelper)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}", wrapper.GetHelper)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/helpers/{helperId}", wrapper.UpdateHelper)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/runs", wrapper.StartRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/feed-cards/{feedCardId}/dismiss", wrapper.DismissFeedCard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/feed-cards/{feedCardId}", wrapper.GetFeedCard)
@@ -4404,8 +5154,167 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	return err
 }
 
+type DeleteHelperRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+}
+
+type DeleteHelperResponseObject interface {
+	VisitDeleteHelperResponse(w http.ResponseWriter) error
+}
+
+type DeleteHelper204Response struct {
+}
+
+func (response DeleteHelper204Response) VisitDeleteHelperResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteHelper401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteHelper401JSONResponse) VisitDeleteHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteHelper404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteHelper404JSONResponse) VisitDeleteHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHelperRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+}
+
+type GetHelperResponseObject interface {
+	VisitGetHelperResponse(w http.ResponseWriter) error
+}
+
+type GetHelper200JSONResponse HelperDetail
+
+func (response GetHelper200JSONResponse) VisitGetHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHelper401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetHelper401JSONResponse) VisitGetHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHelper404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetHelper404JSONResponse) VisitGetHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateHelperRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+	Body     *UpdateHelperJSONRequestBody
+}
+
+type UpdateHelperResponseObject interface {
+	VisitUpdateHelperResponse(w http.ResponseWriter) error
+}
+
+type UpdateHelper200JSONResponse Helper
+
+func (response UpdateHelper200JSONResponse) VisitUpdateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateHelper400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateHelper400JSONResponse) VisitUpdateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateHelper401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateHelper401JSONResponse) VisitUpdateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateHelper404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateHelper404JSONResponse) VisitUpdateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type StartRunRequestObject struct {
-	HelperId openapi_types.UUID `json:"helperId"`
+	HelperId HelperId `json:"helperId"`
 	Body     *StartRunJSONRequestBody
 }
 
@@ -4917,6 +5826,15 @@ type StrictServerInterface interface {
 	// GetHealth Service health
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
+	// DeleteHelper Delete a helper with its runs and Feed cards
+	// (DELETE /helpers/{helperId})
+	DeleteHelper(ctx context.Context, request DeleteHelperRequestObject) (DeleteHelperResponseObject, error)
+	// GetHelper A helper with its bricks in plain words and its recent runs
+	// (GET /helpers/{helperId})
+	GetHelper(ctx context.Context, request GetHelperRequestObject) (GetHelperResponseObject, error)
+	// UpdateHelper Rename a helper, or switch it on or off
+	// (PATCH /helpers/{helperId})
+	UpdateHelper(ctx context.Context, request UpdateHelperRequestObject) (UpdateHelperResponseObject, error)
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	// (POST /helpers/{helperId}/runs)
 	StartRun(ctx context.Context, request StartRunRequestObject) (StartRunResponseObject, error)
@@ -5094,8 +6012,93 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteHelper operation middleware
+func (sh *strictHandler) DeleteHelper(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request DeleteHelperRequestObject
+
+	request.HelperId = helperId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteHelper(ctx, request.(DeleteHelperRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteHelper")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteHelperResponseObject); ok {
+		if err := validResponse.VisitDeleteHelperResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetHelper operation middleware
+func (sh *strictHandler) GetHelper(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request GetHelperRequestObject
+
+	request.HelperId = helperId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetHelper(ctx, request.(GetHelperRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetHelper")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetHelperResponseObject); ok {
+		if err := validResponse.VisitGetHelperResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateHelper operation middleware
+func (sh *strictHandler) UpdateHelper(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request UpdateHelperRequestObject
+
+	request.HelperId = helperId
+
+	var body UpdateHelperJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateHelper(ctx, request.(UpdateHelperRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateHelper")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateHelperResponseObject); ok {
+		if err := validResponse.VisitUpdateHelperResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // StartRun operation middleware
-func (sh *strictHandler) StartRun(w http.ResponseWriter, r *http.Request, helperId openapi_types.UUID) {
+func (sh *strictHandler) StartRun(w http.ResponseWriter, r *http.Request, helperId HelperId) {
 	var request StartRunRequestObject
 
 	request.HelperId = helperId

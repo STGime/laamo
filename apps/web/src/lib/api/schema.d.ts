@@ -145,12 +145,33 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/helpers/{helperId}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		/** A helper with its bricks in plain words and its recent runs */
+		get: operations['getHelper'];
+		put?: never;
+		post?: never;
+		/** Delete a helper with its runs and Feed cards */
+		delete: operations['deleteHelper'];
+		options?: never;
+		head?: never;
+		/** Rename a helper, or switch it on or off */
+		patch: operations['updateHelper'];
+		trace?: never;
+	};
 	'/helpers/{helperId}/runs': {
 		parameters: {
 			query?: never;
 			header?: never;
 			path: {
-				helperId: string;
+				helperId: components['parameters']['HelperId'];
 			};
 			cookie?: never;
 		};
@@ -469,8 +490,32 @@ export interface components {
 			avatar?: string;
 			/** @enum {string} */
 			status: 'draft' | 'active' | 'paused';
+			/**
+			 * Format: date-time
+			 * @description When its schedule runs next (only when on and scheduled)
+			 */
+			next_run_at?: string;
 			/** Format: date-time */
 			created_at: string;
+		};
+		HelperDetail: {
+			helper: components['schemas']['Helper'];
+			bricks: components['schemas']['BrickPreview'][];
+			/** @description The last 10 runs, newest first */
+			runs: components['schemas']['RunSummary'][];
+		};
+		RunSummary: {
+			/** Format: uuid */
+			id: string;
+			/** @enum {string} */
+			status: 'queued' | 'running' | 'waiting' | 'done' | 'failed' | 'stopped';
+			trigger_type: string;
+			test: boolean;
+			/** Format: date-time */
+			created_at: string;
+			/** Format: date-time */
+			finished_at?: string;
+			cost_eur: number;
 		};
 		CreatedHelper: {
 			helper: components['schemas']['Helper'];
@@ -530,6 +575,7 @@ export interface components {
 		};
 	};
 	parameters: {
+		HelperId: string;
 		FeedCardId: string;
 		WorkspaceId: string;
 	};
@@ -770,12 +816,91 @@ export interface operations {
 			404: components['responses']['NotFound'];
 		};
 	};
+	getHelper: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HelperDetail'];
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	deleteHelper: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	updateHelper: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': {
+					name?: string;
+					/** @enum {string} */
+					status?: 'active' | 'paused';
+				};
+			};
+		};
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Helper'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
 	startRun: {
 		parameters: {
 			query?: never;
 			header?: never;
 			path: {
-				helperId: string;
+				helperId: components['parameters']['HelperId'];
 			};
 			cookie?: never;
 		};

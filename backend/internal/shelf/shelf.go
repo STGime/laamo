@@ -63,14 +63,7 @@ func Preview(cat *catalog.Catalog, t catalog.Template, ws store.Workspace) View 
 	lang := ws.Locale
 	v := View{Template: t, Name: t.Name.In(lang), Promise: t.Promise.In(lang)}
 	stack := t.StackFor(lang)
-	for _, sb := range stack.Bricks {
-		b, _ := cat.Brick(sb.Type)
-		group := ""
-		if b != nil {
-			group = b.Group
-		}
-		v.Bricks = append(v.Bricks, Brick{ID: sb.ID, Type: sb.Type, Group: group, Sentence: fillProfile(cat.Sentence(sb, lang), ws.Profile)})
-	}
+	v.Bricks = Describe(cat, stack, ws)
 	for _, q := range t.SetupQuestions {
 		if q.Profile != "" {
 			if known(ws.Profile, q.Profile) {
@@ -100,6 +93,21 @@ func Preview(cat *catalog.Catalog, t catalog.Template, ws store.Workspace) View 
 		v.Match = len(ws.Needs) - i // the first need ranks highest
 	}
 	return v
+}
+
+// Describe puts a stack's bricks in plain words for a workspace, with known
+// About me facts filled in.
+func Describe(cat *catalog.Catalog, stack catalog.Stack, ws store.Workspace) []Brick {
+	out := make([]Brick, 0, len(stack.Bricks))
+	for _, sb := range stack.Bricks {
+		b, _ := cat.Brick(sb.Type)
+		group := ""
+		if b != nil {
+			group = b.Group
+		}
+		out = append(out, Brick{ID: sb.ID, Type: sb.Type, Group: group, Sentence: fillProfile(cat.Sentence(sb, ws.Locale), ws.Profile)})
+	}
+	return out
 }
 
 // Sort orders templates for a workspace: matching needs first (in the

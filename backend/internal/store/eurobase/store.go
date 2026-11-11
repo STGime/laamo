@@ -125,6 +125,14 @@ func (s *Store) CreateHelper(ctx context.Context, h *store.Helper, v *store.Help
 	return err
 }
 
+func (s *Store) UpdateHelper(ctx context.Context, id string, p store.HelperPatch) (store.Helper, error) {
+	return updateRow[store.Helper](ctx, s, "helpers", id, p)
+}
+
+func (s *Store) DeleteHelper(ctx context.Context, id string) error {
+	return mapErr(s.c.Delete(ctx, "helpers", id)) // the database cascades the rest
+}
+
 func (s *Store) ListHelpers(ctx context.Context, workspaceID string) ([]store.Helper, error) {
 	q := eb.NewQuery().Eq("workspace_id", workspaceID).Order("created_at", true).Order("id", true)
 	return listRows[store.Helper](ctx, s, "helpers", q, 0)

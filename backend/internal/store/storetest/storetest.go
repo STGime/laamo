@@ -370,6 +370,16 @@ func testHelpers(t *testing.T, newStore New) {
 	if other, _ := s.ListHelpers(ctx, store.NewID()); len(other) != 0 {
 		t.Fatal("another workspace sees helpers")
 	}
+
+	got, err = s.UpdateHelper(ctx, h.ID, store.HelperPatch{Name: new("Morgen-Briefing (Laden)"), Status: new("paused")})
+	must(t, err)
+	eq(t, "renamed", got.Name, "Morgen-Briefing (Laden)")
+	eq(t, "paused", got.Status, "paused")
+	isErr(t, "update unknown", get(s.UpdateHelper(ctx, store.NewID(), store.HelperPatch{Name: new("x")})), store.ErrNotFound)
+
+	must(t, s.DeleteHelper(ctx, h.ID))
+	isErr(t, "deleted helper", get(s.GetHelper(ctx, h.ID)), store.ErrNotFound)
+	isErr(t, "deleted version", get(s.GetHelperVersion(ctx, v.ID)), store.ErrNotFound)
 }
 
 func testLists(t *testing.T, newStore New) {

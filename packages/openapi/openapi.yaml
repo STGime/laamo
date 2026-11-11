@@ -227,14 +227,69 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /helpers/{helperId}:
+    parameters:
+      - $ref: '#/components/parameters/HelperId'
+    get:
+      operationId: getHelper
+      summary: A helper with its bricks in plain words and its recent runs
+      tags: [helpers]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelperDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateHelper
+      summary: Rename a helper, or switch it on or off
+      tags: [helpers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                status:
+                  type: string
+                  enum: [active, paused]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Helper'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteHelper
+      summary: Delete a helper with its runs and Feed cards
+      tags: [helpers]
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /helpers/{helperId}/runs:
     parameters:
-      - name: helperId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+      - $ref: '#/components/parameters/HelperId'
     post:
       operationId: startRun
       summary: Run a helper now (Tap Go, or a test run with at most 3 cards)
@@ -342,6 +397,13 @@ components:
       bearerFormat: JWT
       description: Eurobase end-user access token (ES256)
   parameters:
+    HelperId:
+      name: helperId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     FeedCardId:
       name: feedCardId
       in: path
@@ -776,9 +838,50 @@ components:
         status:
           type: string
           enum: [draft, active, paused]
+        next_run_at:
+          type: string
+          format: date-time
+          description: When its schedule runs next (only when on and scheduled)
         created_at:
           type: string
           format: date-time
+    HelperDetail:
+      type: object
+      required: [helper, bricks, runs]
+      properties:
+        helper:
+          $ref: '#/components/schemas/Helper'
+        bricks:
+          type: array
+          items:
+            $ref: '#/components/schemas/BrickPreview'
+        runs:
+          type: array
+          description: The last 10 runs, newest first
+          items:
+            $ref: '#/components/schemas/RunSummary'
+    RunSummary:
+      type: object
+      required: [id, status, trigger_type, test, created_at, cost_eur]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, running, waiting, done, failed, stopped]
+        trigger_type:
+          type: string
+        test:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        cost_eur:
+          type: number
     CreatedHelper:
       type: object
       required: [helper]

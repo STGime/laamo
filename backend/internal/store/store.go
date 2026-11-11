@@ -75,6 +75,10 @@ type HelperStore interface {
 	CreateHelper(ctx context.Context, h *Helper, v *HelperVersion) error
 	// ListHelpers returns a workspace's helpers, newest first.
 	ListHelpers(ctx context.Context, workspaceID string) ([]Helper, error)
+	UpdateHelper(ctx context.Context, id string, p HelperPatch) (Helper, error)
+	// DeleteHelper removes a helper with its versions, triggers, runs and
+	// Feed cards.
+	DeleteHelper(ctx context.Context, id string) error
 }
 
 type RunStore interface {

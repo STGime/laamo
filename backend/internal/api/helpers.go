@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/engine"
@@ -136,7 +139,11 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 
 	raw, _ := json.Marshal(stack)
 	u, _ := user(ctx)
-	h := store.Helper{WorkspaceID: w.ID, UserID: w.UserID, Name: t.Name.In(w.Locale), Status: "active", CreatedVia: "shelf"}
+	existing, err := s.store.ListHelpers(ctx, w.ID)
+	if err != nil {
+		return nil, err
+	}
+	h := store.Helper{WorkspaceID: w.ID, UserID: w.UserID, Name: uniqueName(t.Name.In(w.Locale), existing), Status: "active", CreatedVia: "shelf"}
 	if t.Avatar != "" {
 		h.Avatar = new(t.Avatar)
 	}
@@ -210,4 +217,138 @@ func (s *Server) startRun(ctx context.Context, helperID, trigger string, data ma
 	}
 	s.log.Info("run queued", "run", r.ID, "helper", helperID, "trigger", trigger)
 	return r.ID, nil
+}
+
+// helper loads a helper the signed-in user may see (members of its
+// workspace); ok=false is a 404 either way.
+func (s *Server) helper(ctx context.Context, id string) (store.Helper, bool, error) {
+	h, err := s.store.GetHelper(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return h, false, nil
+	}
+	if err != nil {
+		return h, false, err
+	}
+	_, _, ok, err := s.member(ctx, h.WorkspaceID)
+	return h, ok, err
+}
+
+var helperNotFound = apiErr(ErrorCodeNotFound, "helper not found")
+
+func (s *Server) nextRun(ctx context.Context, h store.Helper) *time.Time {
+	if h.Status != "active" {
+		return nil
+	}
+	trs, err := s.store.HelperTriggers(ctx, h.ID)
+	if err != nil {
+		return nil
+	}
+	var next *time.Time
+	for _, t := range trs {
+		if t.NextRunAt != nil && (next == nil || t.NextRunAt.Before(*next)) {
+			next = t.NextRunAt
+		}
+	}
+	return next
+}
+
+func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (GetHelperResponseObject, error) {
+	h, ok, err := s.helper(ctx, req.HelperId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return GetHelper404JSONResponse{NotFoundJSONResponse(helperNotFound)}, nil
+	}
+	w, err := s.store.GetWorkspace(ctx, h.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	out := HelperDetail{Helper: helperOut(h), Bricks: []BrickPreview{}, Runs: []RunSummary{}}
+	out.Helper.NextRunAt = s.nextRun(ctx, h)
+	if h.CurrentVersionID != nil {
+		v, err := s.store.GetHelperVersion(ctx, *h.CurrentVersionID)
+		if err != nil {
+			return nil, err
+		}
+		var stack catalog.Stack
+		if json.Unmarshal(v.Stack, &stack) == nil {
+			for _, b := range shelf.Describe(catalog.Default(), stack, w) {
+				out.Bricks = append(out.Bricks, BrickPreview{Id: b.ID, Type: b.Type, Group: BrickPreviewGroup(b.Group), Sentence: b.Sentence})
+			}
+		}
+	}
+	runs, err := s.store.ListRuns(ctx, store.RunFilter{HelperID: h.ID, Limit: 10})
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range runs {
+		out.Runs = append(out.Runs, RunSummary{Id: uuid(r.ID), Status: RunSummaryStatus(r.Status), TriggerType: r.TriggerType,
+			Test: r.TestMode, CreatedAt: r.CreatedAt, FinishedAt: r.FinishedAt, CostEur: float32(r.CostEUR)})
+	}
+	return GetHelper200JSONResponse(out), nil
+}
+
+func (s *Server) UpdateHelper(ctx context.Context, req UpdateHelperRequestObject) (UpdateHelperResponseObject, error) {
+	h, ok, err := s.helper(ctx, req.HelperId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return UpdateHelper404JSONResponse{NotFoundJSONResponse(helperNotFound)}, nil
+	}
+	var p store.HelperPatch
+	if req.Body.Name != nil {
+		name := strings.TrimSpace(*req.Body.Name)
+		if n := utf8.RuneCountInString(name); n < 1 || n > 80 {
+			return UpdateHelper400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "name must be 1 to 80 characters"))}, nil
+		}
+		p.Name = &name
+	}
+	if req.Body.Status != nil {
+		st := string(*req.Body.Status)
+		if h.Status == "draft" && st == "active" && h.CurrentVersionID == nil {
+			return UpdateHelper400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "this helper has no bricks yet"))}, nil
+		}
+		p.Status = &st
+	}
+	h, err = s.store.UpdateHelper(ctx, h.ID, p)
+	if err != nil {
+		return nil, err
+	}
+	out := helperOut(h)
+	out.NextRunAt = s.nextRun(ctx, h)
+	return UpdateHelper200JSONResponse(out), nil
+}
+
+func (s *Server) DeleteHelper(ctx context.Context, req DeleteHelperRequestObject) (DeleteHelperResponseObject, error) {
+	h, ok, err := s.helper(ctx, req.HelperId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return DeleteHelper404JSONResponse{NotFoundJSONResponse(helperNotFound)}, nil
+	}
+	if err := s.store.DeleteHelper(ctx, h.ID); err != nil {
+		return nil, err
+	}
+	s.log.Info("helper deleted", "helper", h.ID, "workspace", h.WorkspaceID)
+	return DeleteHelper204Response{}, nil
+}
+
+// uniqueName adds " (2)", " (3)", … when the workspace already has a helper
+// with this name.
+func uniqueName(name string, existing []store.Helper) string {
+	taken := map[string]bool{}
+	for _, h := range existing {
+		taken[h.Name] = true
+	}
+	if !taken[name] {
+		return name
+	}
+	for i := 2; ; i++ {
+		if n := fmt.Sprintf("%s (%d)", name, i); !taken[n] {
+			return n
+		}
+	}
 }
