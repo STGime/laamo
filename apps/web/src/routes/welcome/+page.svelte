@@ -47,7 +47,7 @@
 			return;
 		}
 		await session.refresh();
-		goto('/feed', { replaceState: true });
+		goto('/new', { replaceState: true }); // straight to the Shelf, sorted by these needs
 	}
 </script>
 

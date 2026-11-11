@@ -309,6 +309,36 @@ func (s *Store) GetHelperVersion(_ context.Context, id string) (store.HelperVers
 	return get(s, s.versions, id)
 }
 
+func (s *Store) CreateHelper(_ context.Context, h *store.Helper, v *store.HelperVersion) error {
+	if h.WorkspaceID == "" || h.UserID == "" || h.Name == "" {
+		return fmt.Errorf("%w: helper needs a workspace, owner and name", store.ErrInvalid)
+	}
+	*h = s.PutHelper(*h)
+	v.HelperID, v.WorkspaceID, v.UserID = h.ID, h.WorkspaceID, h.UserID
+	if v.Version == 0 {
+		v.Version = 1
+	}
+	*v = s.PutHelperVersion(*v)
+	h.CurrentVersionID = &v.ID
+	*h = s.PutHelper(*h)
+	return nil
+}
+
+func (s *Store) ListHelpers(_ context.Context, workspaceID string) ([]store.Helper, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.Helper
+	for _, h := range s.helpers {
+		if h.WorkspaceID == workspaceID {
+			out = append(out, clone(h))
+		}
+	}
+	slices.SortFunc(out, func(a, b store.Helper) int {
+		return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(b.ID, a.ID))
+	})
+	return out, nil
+}
+
 // ---- runs and steps ----
 
 func (s *Store) CreateRun(_ context.Context, r *store.Run) error {

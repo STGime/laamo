@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/STGime/laamo/backend/internal/queue"
+
 	"github.com/STGime/laamo/backend/internal/auth"
 	"github.com/STGime/laamo/backend/internal/config"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -26,6 +28,7 @@ type Server struct {
 	// resume queues a waiting run once its Feed card is decided.
 	resume func(ctx context.Context, runID string) error
 	events *Hub
+	queue  queue.Queue
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -41,6 +44,8 @@ type Deps struct {
 	Resume func(ctx context.Context, runID string) error
 	// Events feeds live updates (GET /api/workspaces/{id}/events). Optional.
 	Events *Hub
+	// Queue takes run jobs ("Run now", the first test run).
+	Queue queue.Queue
 }
 
 func NewServer(d Deps) *Server {
@@ -48,7 +53,7 @@ func NewServer(d Deps) *Server {
 		d.Log = slog.Default()
 	}
 	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log,
-		resume: d.Resume, events: d.Events}
+		resume: d.Resume, events: d.Events, queue: d.Queue}
 }
 
 // maxBody caps request bodies.

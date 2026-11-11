@@ -102,6 +102,68 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/workspaces/{workspaceId}/templates': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		/** The Shelf, sorted by your needs, in your language, with known About me facts filled in */
+		get: operations['listTemplates'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/workspaces/{workspaceId}/helpers': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		/** Your helpers, newest first */
+		get: operations['listHelpers'];
+		put?: never;
+		/**
+		 * Make a helper from a Shelf template, optionally running a test right away
+		 * @description Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+		 *     For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+		 */
+		post: operations['createHelper'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/helpers/{helperId}/runs': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: string;
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Run a helper now (Tap Go, or a test run with at most 3 cards) */
+		post: operations['startRun'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/feed-cards/{feedCardId}/dismiss': {
 		parameters: {
 			query?: never;
@@ -355,6 +417,70 @@ export interface components {
 			allowance_credits: number;
 			credits_left: number;
 		};
+		ShelfTemplate: {
+			/** @example morning-briefing */
+			slug: string;
+			name: string;
+			promise: string;
+			category: components['schemas']['Need'];
+			avatar: string;
+			bricks: components['schemas']['BrickPreview'][];
+			/** @description Only what's still open (known About me facts are skipped) */
+			questions: components['schemas']['SetupQuestion'][];
+			/** @description Uses the AI brain */
+			brain: boolean;
+			/** @description Chat place types any of which works (empty = none needed) */
+			places: string[];
+			paid: boolean;
+			/** @description How well it fits your needs (0 = not one of them) */
+			match: number;
+		};
+		BrickPreview: {
+			id: string;
+			type: string;
+			/** @enum {string} */
+			group: 'when' | 'look' | 'think' | 'do' | 'ask';
+			sentence: string;
+		};
+		SetupQuestion: {
+			key: string;
+			/** @enum {string} */
+			kind: 'text' | 'select' | 'place' | 'list' | 'time';
+			/** @description An About me fact (remembered for all helpers) */
+			profile: boolean;
+			text: string;
+			placeholder?: string;
+			/** @description Bricks this answer fills (for a place answered with `feed`, these are left out) */
+			fills?: string[];
+		};
+		NewHelper: {
+			/** @description Template slug */
+			template: string;
+			answers: {
+				[key: string]: string;
+			};
+			/** @description Start a test run right away */
+			run_test?: boolean;
+		};
+		Helper: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			avatar?: string;
+			/** @enum {string} */
+			status: 'draft' | 'active' | 'paused';
+			/** Format: date-time */
+			created_at: string;
+		};
+		CreatedHelper: {
+			helper: components['schemas']['Helper'];
+			/** Format: uuid */
+			run_id?: string;
+		};
+		RunStarted: {
+			/** Format: uuid */
+			run_id: string;
+		};
 	};
 	responses: {
 		/** @description The request is invalid; error says why */
@@ -561,6 +687,120 @@ export interface operations {
 			};
 			401: components['responses']['Unauthorized'];
 			404: components['responses']['NotFound'];
+		};
+	};
+	listTemplates: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						templates: components['schemas']['ShelfTemplate'][];
+					};
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	listHelpers: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						helpers: components['schemas']['Helper'][];
+					};
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	createHelper: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['NewHelper'];
+			};
+		};
+		responses: {
+			/** @description Created (and active) */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['CreatedHelper'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	startRun: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: {
+			content: {
+				'application/json': {
+					test?: boolean;
+					/** @description The answer to Tap Go's question ({answer}) */
+					answer?: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Started; follow it in the Feed */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RunStarted'];
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+			409: components['responses']['Conflict'];
 		};
 	};
 	dismissFeedCard: {

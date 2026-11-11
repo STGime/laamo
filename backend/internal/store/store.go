@@ -70,6 +70,11 @@ type WorkspaceStore interface {
 type HelperStore interface {
 	GetHelper(ctx context.Context, id string) (Helper, error)
 	GetHelperVersion(ctx context.Context, id string) (HelperVersion, error)
+	// CreateHelper stores a helper with its first version and points the
+	// helper at it. IDs are filled in.
+	CreateHelper(ctx context.Context, h *Helper, v *HelperVersion) error
+	// ListHelpers returns a workspace's helpers, newest first.
+	ListHelpers(ctx context.Context, workspaceID string) ([]Helper, error)
 }
 
 type RunStore interface {

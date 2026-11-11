@@ -39,6 +39,33 @@ func (e BrainMeterMode) Valid() bool {
 	}
 }
 
+// Defines values for BrickPreviewGroup.
+const (
+	Ask   BrickPreviewGroup = "ask"
+	Do    BrickPreviewGroup = "do"
+	Look  BrickPreviewGroup = "look"
+	Think BrickPreviewGroup = "think"
+	When  BrickPreviewGroup = "when"
+)
+
+// Valid indicates whether the value is a known member of the BrickPreviewGroup enum.
+func (e BrickPreviewGroup) Valid() bool {
+	switch e {
+	case Ask:
+		return true
+	case Do:
+		return true
+	case Look:
+		return true
+	case Think:
+		return true
+	case When:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CardTrust.
 const (
 	CardTrustApproved    CardTrust = "approved"
@@ -264,6 +291,27 @@ func (e HealthEurobase) Valid() bool {
 	}
 }
 
+// Defines values for HelperStatus.
+const (
+	Active HelperStatus = "active"
+	Draft  HelperStatus = "draft"
+	Paused HelperStatus = "paused"
+)
+
+// Valid indicates whether the value is a known member of the HelperStatus enum.
+func (e HelperStatus) Valid() bool {
+	switch e {
+	case Active:
+		return true
+	case Draft:
+		return true
+	case Paused:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Locale.
 const (
 	De Locale = "de"
@@ -354,6 +402,33 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Defines values for SetupQuestionKind.
+const (
+	List   SetupQuestionKind = "list"
+	Place  SetupQuestionKind = "place"
+	Select SetupQuestionKind = "select"
+	Text   SetupQuestionKind = "text"
+	Time   SetupQuestionKind = "time"
+)
+
+// Valid indicates whether the value is a known member of the SetupQuestionKind enum.
+func (e SetupQuestionKind) Valid() bool {
+	switch e {
+	case List:
+		return true
+	case Place:
+		return true
+	case Select:
+		return true
+	case Text:
+		return true
+	case Time:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListFeedParamsFilter.
 const (
 	All     ListFeedParamsFilter = "all"
@@ -386,6 +461,17 @@ type BrainMeter struct {
 // BrainMeterMode defines model for BrainMeter.Mode.
 type BrainMeterMode string
 
+// BrickPreview defines model for BrickPreview.
+type BrickPreview struct {
+	Group    BrickPreviewGroup `json:"group"`
+	Id       string            `json:"id"`
+	Sentence string            `json:"sentence"`
+	Type     string            `json:"type"`
+}
+
+// BrickPreviewGroup defines model for BrickPreview.Group.
+type BrickPreviewGroup string
+
 // Card defines model for Card.
 type Card struct {
 	Fields map[string]interface{} `json:"fields"`
@@ -405,6 +491,12 @@ type Card struct {
 
 // CardTrust defines model for Card.Trust.
 type CardTrust string
+
+// CreatedHelper defines model for CreatedHelper.
+type CreatedHelper struct {
+	Helper Helper              `json:"helper"`
+	RunId  *openapi_types.UUID `json:"run_id,omitempty"`
+}
 
 // Error defines model for Error.
 type Error struct {
@@ -512,6 +604,18 @@ type Health struct {
 // HealthEurobase defines model for Health.Eurobase.
 type HealthEurobase string
 
+// Helper defines model for Helper.
+type Helper struct {
+	Avatar    *string            `json:"avatar,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+	Status    HelperStatus       `json:"status"`
+}
+
+// HelperStatus defines model for Helper.Status.
+type HelperStatus string
+
 // HelperRef defines model for HelperRef.
 type HelperRef struct {
 	// Avatar An emoji
@@ -536,6 +640,17 @@ type Need string
 
 // Needs What you want help with (onboarding); pre-sorts the Shelf
 type Needs = []Need
+
+// NewHelper defines model for NewHelper.
+type NewHelper struct {
+	Answers map[string]string `json:"answers"`
+
+	// RunTest Start a test run right away
+	RunTest *bool `json:"run_test,omitempty"`
+
+	// Template Template slug
+	Template string `json:"template"`
+}
 
 // NewWorkspace defines model for NewWorkspace.
 type NewWorkspace struct {
@@ -568,6 +683,52 @@ type Profile map[string]string
 
 // Role defines model for Role.
 type Role string
+
+// RunStarted defines model for RunStarted.
+type RunStarted struct {
+	RunId openapi_types.UUID `json:"run_id"`
+}
+
+// SetupQuestion defines model for SetupQuestion.
+type SetupQuestion struct {
+	// Fills Bricks this answer fills (for a place answered with `feed`, these are left out)
+	Fills       *[]string         `json:"fills,omitempty"`
+	Key         string            `json:"key"`
+	Kind        SetupQuestionKind `json:"kind"`
+	Placeholder *string           `json:"placeholder,omitempty"`
+
+	// Profile An About me fact (remembered for all helpers)
+	Profile bool   `json:"profile"`
+	Text    string `json:"text"`
+}
+
+// SetupQuestionKind defines model for SetupQuestion.Kind.
+type SetupQuestionKind string
+
+// ShelfTemplate defines model for ShelfTemplate.
+type ShelfTemplate struct {
+	Avatar string `json:"avatar"`
+
+	// Brain Uses the AI brain
+	Brain    bool           `json:"brain"`
+	Bricks   []BrickPreview `json:"bricks"`
+	Category Need           `json:"category"`
+
+	// Match How well it fits your needs (0 = not one of them)
+	Match int    `json:"match"`
+	Name  string `json:"name"`
+	Paid  bool   `json:"paid"`
+
+	// Places Chat place types any of which works (empty = none needed)
+	Places  []string `json:"places"`
+	Promise string   `json:"promise"`
+
+	// Questions Only what's still open (known About me facts are skipped)
+	Questions []SetupQuestion `json:"questions"`
+
+	// Slug Example: morning-briefing
+	Slug string `json:"slug"`
+}
 
 // User defines model for User.
 type User struct {
@@ -644,6 +805,13 @@ type NotFound = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// StartRunJSONBody defines parameters for StartRun.
+type StartRunJSONBody struct {
+	// Answer The answer to Tap Go's question ({answer})
+	Answer *string `json:"answer,omitempty"`
+	Test   *bool   `json:"test,omitempty"`
+}
+
 // ListFeedParams defines parameters for ListFeed.
 type ListFeedParams struct {
 	Filter *ListFeedParamsFilter `form:"filter,omitempty" json:"filter,omitempty"`
@@ -659,11 +827,17 @@ type ListFeedParamsFilter string
 // DecideFeedCardJSONRequestBody defines body for DecideFeedCard for application/json ContentType.
 type DecideFeedCardJSONRequestBody = FeedDecision
 
+// StartRunJSONRequestBody defines body for StartRun for application/json ContentType.
+type StartRunJSONRequestBody StartRunJSONBody
+
 // CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
 type CreateWorkspaceJSONRequestBody = NewWorkspace
 
 // UpdateWorkspaceJSONRequestBody defines body for UpdateWorkspace for application/json ContentType.
 type UpdateWorkspaceJSONRequestBody = WorkspaceUpdate
+
+// CreateHelperJSONRequestBody defines body for CreateHelper for application/json ContentType.
+type CreateHelperJSONRequestBody = NewHelper
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -776,6 +950,20 @@ type ClientInterface interface {
 	// Corresponds with GET /healthz (the `GetHealth` operationId).
 	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// StartRunWithBody Run a helper now (Tap Go, or a test run with at most 3 cards)
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
+	StartRunWithBody(ctx context.Context, helperId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
+	StartRun(ctx context.Context, helperId openapi_types.UUID, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetMe The signed-in user and their workspaces
 	//
 	// Corresponds with GET /me (the `GetMe` operationId).
@@ -826,6 +1014,36 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /workspaces/{workspaceId}/feed (the `ListFeed` operationId).
 	ListFeed(ctx context.Context, workspaceId WorkspaceId, params *ListFeedParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListHelpers Your helpers, newest first
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/helpers (the `ListHelpers` operationId).
+	ListHelpers(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateHelperWithBody Make a helper from a Shelf template, optionally running a test right away
+	//
+	// Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+	// For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
+	CreateHelperWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateHelper Make a helper from a Shelf template, optionally running a test right away
+	//
+	// Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+	// For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
+	CreateHelper(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/templates (the `ListTemplates` operationId).
+	ListTemplates(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
@@ -905,6 +1123,40 @@ func (c *Client) DismissFeedCard(ctx context.Context, feedCardId FeedCardId, req
 // Corresponds with GET /healthz (the `GetHealth` operationId).
 func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetHealthRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartRunWithBody Run a helper now (Tap Go, or a test run with at most 3 cards)
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
+func (c *Client) StartRunWithBody(ctx context.Context, helperId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartRunRequestWithBody(c.Server, helperId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
+func (c *Client) StartRun(ctx context.Context, helperId openapi_types.UUID, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartRunRequest(c.Server, helperId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1026,6 +1278,76 @@ func (c *Client) UpdateWorkspace(ctx context.Context, workspaceId WorkspaceId, b
 // Corresponds with GET /workspaces/{workspaceId}/feed (the `ListFeed` operationId).
 func (c *Client) ListFeed(ctx context.Context, workspaceId WorkspaceId, params *ListFeedParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListFeedRequest(c.Server, workspaceId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListHelpers Your helpers, newest first
+//
+// Corresponds with GET /workspaces/{workspaceId}/helpers (the `ListHelpers` operationId).
+func (c *Client) ListHelpers(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHelpersRequest(c.Server, workspaceId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateHelperWithBody Make a helper from a Shelf template, optionally running a test right away
+//
+// Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+// For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
+func (c *Client) CreateHelperWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateHelperRequestWithBody(c.Server, workspaceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateHelper Make a helper from a Shelf template, optionally running a test right away
+//
+// Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+// For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
+func (c *Client) CreateHelper(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateHelperRequest(c.Server, workspaceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
+//
+// Corresponds with GET /workspaces/{workspaceId}/templates (the `ListTemplates` operationId).
+func (c *Client) ListTemplates(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTemplatesRequest(c.Server, workspaceId)
 	if err != nil {
 		return nil, err
 	}
@@ -1174,6 +1496,53 @@ func NewGetHealthRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewStartRunRequest calls the generic StartRun builder with application/json body
+func NewStartRunRequest(server string, helperId openapi_types.UUID, body StartRunJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStartRunRequestWithBody(server, helperId, "application/json", bodyReader)
+}
+
+// NewStartRunRequestWithBody constructs an http.Request for the StartRun method, with any body, and a specified content type
+func NewStartRunRequestWithBody(server string, helperId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s/runs", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -1411,6 +1780,121 @@ func NewListFeedRequest(server string, workspaceId WorkspaceId, params *ListFeed
 	return req, nil
 }
 
+// NewListHelpersRequest constructs an http.Request for the ListHelpers method
+func NewListHelpersRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/helpers", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateHelperRequest calls the generic CreateHelper builder with application/json body
+func NewCreateHelperRequest(server string, workspaceId WorkspaceId, body CreateHelperJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateHelperRequestWithBody(server, workspaceId, "application/json", bodyReader)
+}
+
+// NewCreateHelperRequestWithBody constructs an http.Request for the CreateHelper method, with any body, and a specified content type
+func NewCreateHelperRequestWithBody(server string, workspaceId WorkspaceId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/helpers", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListTemplatesRequest constructs an http.Request for the ListTemplates method
+func NewListTemplatesRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/templates", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -1498,6 +1982,20 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /healthz (the `GetHealth` operationId).
 	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
 
+	// StartRunWithBodyWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
+	StartRunWithBodyWithResponse(ctx context.Context, helperId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartRunResponse, error)
+
+	// StartRunWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
+	StartRunWithResponse(ctx context.Context, helperId openapi_types.UUID, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*StartRunResponse, error)
+
 	// GetMeWithResponse The signed-in user and their workspaces
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -1554,6 +2052,40 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /workspaces/{workspaceId}/feed (the `ListFeed` operationId).
 	ListFeedWithResponse(ctx context.Context, workspaceId WorkspaceId, params *ListFeedParams, reqEditors ...RequestEditorFn) (*ListFeedResponse, error)
+
+	// ListHelpersWithResponse Your helpers, newest first
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/helpers (the `ListHelpers` operationId).
+	ListHelpersWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListHelpersResponse, error)
+
+	// CreateHelperWithBodyWithResponse Make a helper from a Shelf template, optionally running a test right away
+	//
+	// Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+	// For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
+	CreateHelperWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateHelperResponse, error)
+
+	// CreateHelperWithResponse Make a helper from a Shelf template, optionally running a test right away
+	//
+	// Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+	// For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
+	CreateHelperWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateHelperResponse, error)
+
+	// ListTemplatesWithResponse The Shelf, sorted by your needs, in your language, with known About me facts filled in
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/templates (the `ListTemplates` operationId).
+	ListTemplatesWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListTemplatesResponse, error)
 }
 
 type GetFeedCardResponse struct {
@@ -1777,6 +2309,68 @@ func (r GetHealthResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetHealthResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartRunResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *RunStarted
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r StartRunResponse) GetJSON202() *RunStarted {
+	return r.JSON202
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r StartRunResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r StartRunResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r StartRunResponse) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetBody returns the raw response body bytes
+func (r StartRunResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartRunResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartRunResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartRunResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -2065,6 +2659,186 @@ func (r ListFeedResponse) ContentType() string {
 	return ""
 }
 
+type ListHelpersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Helpers []Helper `json:"helpers"`
+	}
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHelpersResponse) GetJSON200() *struct {
+	Helpers []Helper `json:"helpers"`
+} {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListHelpersResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListHelpersResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHelpersResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHelpersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHelpersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHelpersResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateHelperResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CreatedHelper
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateHelperResponse) GetJSON201() *CreatedHelper {
+	return r.JSON201
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r CreateHelperResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateHelperResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CreateHelperResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateHelperResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateHelperResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateHelperResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateHelperResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListTemplatesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Templates []ShelfTemplate `json:"templates"`
+	}
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListTemplatesResponse) GetJSON200() *struct {
+	Templates []ShelfTemplate `json:"templates"`
+} {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListTemplatesResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListTemplatesResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ListTemplatesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTemplatesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTemplatesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListTemplatesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // GetFeedCardWithResponse A Feed card, with the cards it asks about (Check first, Let me pick)
 //
 // Returns a wrapper object for the known response body format(s).
@@ -2136,6 +2910,32 @@ func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEdit
 		return nil, err
 	}
 	return ParseGetHealthResponse(rsp)
+}
+
+// StartRunWithBodyWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
+func (c *ClientWithResponses) StartRunWithBodyWithResponse(ctx context.Context, helperId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartRunResponse, error) {
+	rsp, err := c.StartRunWithBody(ctx, helperId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartRunResponse(rsp)
+}
+
+// StartRunWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
+func (c *ClientWithResponses) StartRunWithResponse(ctx context.Context, helperId openapi_types.UUID, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*StartRunResponse, error) {
+	rsp, err := c.StartRun(ctx, helperId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartRunResponse(rsp)
 }
 
 // GetMeWithResponse The signed-in user and their workspaces
@@ -2235,6 +3035,64 @@ func (c *ClientWithResponses) ListFeedWithResponse(ctx context.Context, workspac
 		return nil, err
 	}
 	return ParseListFeedResponse(rsp)
+}
+
+// ListHelpersWithResponse Your helpers, newest first
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /workspaces/{workspaceId}/helpers (the `ListHelpers` operationId).
+func (c *ClientWithResponses) ListHelpersWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListHelpersResponse, error) {
+	rsp, err := c.ListHelpers(ctx, workspaceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHelpersResponse(rsp)
+}
+
+// CreateHelperWithBodyWithResponse Make a helper from a Shelf template, optionally running a test right away
+//
+// Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+// For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
+func (c *ClientWithResponses) CreateHelperWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateHelperResponse, error) {
+	rsp, err := c.CreateHelperWithBody(ctx, workspaceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateHelperResponse(rsp)
+}
+
+// CreateHelperWithResponse Make a helper from a Shelf template, optionally running a test right away
+//
+// Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+// For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
+func (c *ClientWithResponses) CreateHelperWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateHelperResponse, error) {
+	rsp, err := c.CreateHelper(ctx, workspaceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateHelperResponse(rsp)
+}
+
+// ListTemplatesWithResponse The Shelf, sorted by your needs, in your language, with known About me facts filled in
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /workspaces/{workspaceId}/templates (the `ListTemplates` operationId).
+func (c *ClientWithResponses) ListTemplatesWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListTemplatesResponse, error) {
+	rsp, err := c.ListTemplates(ctx, workspaceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTemplatesResponse(rsp)
 }
 
 // ParseGetFeedCardResponse parses an HTTP response from a GetFeedCardWithResponse call
@@ -2398,6 +3256,53 @@ func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartRunResponse parses an HTTP response from a StartRunWithResponse call
+func ParseStartRunResponse(rsp *http.Response) (*StartRunResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartRunResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest RunStarted
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	}
 
@@ -2611,6 +3516,137 @@ func ParseListFeedResponse(rsp *http.Response) (*ListFeedResponse, error) {
 	return response, nil
 }
 
+// ParseListHelpersResponse parses an HTTP response from a ListHelpersWithResponse call
+func ParseListHelpersResponse(rsp *http.Response) (*ListHelpersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHelpersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Helpers []Helper `json:"helpers"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateHelperResponse parses an HTTP response from a CreateHelperWithResponse call
+func ParseCreateHelperResponse(rsp *http.Response) (*CreateHelperResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateHelperResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CreatedHelper
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListTemplatesResponse parses an HTTP response from a ListTemplatesWithResponse call
+func ParseListTemplatesResponse(rsp *http.Response) (*ListTemplatesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTemplatesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Templates []ShelfTemplate `json:"templates"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
@@ -2625,6 +3661,9 @@ type ServerInterface interface {
 	// GetHealth Service health
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
+	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
+	// (POST /helpers/{helperId}/runs)
+	StartRun(w http.ResponseWriter, r *http.Request, helperId openapi_types.UUID)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
@@ -2640,6 +3679,15 @@ type ServerInterface interface {
 	// ListFeed The Feed, newest first, with the Needs me count and the brain allowance
 	// (GET /workspaces/{workspaceId}/feed)
 	ListFeed(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, params ListFeedParams)
+	// ListHelpers Your helpers, newest first
+	// (GET /workspaces/{workspaceId}/helpers)
+	ListHelpers(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// CreateHelper Make a helper from a Shelf template, optionally running a test right away
+	// (POST /workspaces/{workspaceId}/helpers)
+	CreateHelper(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
+	// (GET /workspaces/{workspaceId}/templates)
+	ListTemplates(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -2734,6 +3782,32 @@ func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartRun operation middleware
+func (siw *ServerInterfaceWrapper) StartRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartRun(w, r, helperId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2891,6 +3965,84 @@ func (siw *ServerInterfaceWrapper) ListFeed(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListHelpers operation middleware
+func (siw *ServerInterfaceWrapper) ListHelpers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHelpers(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateHelper operation middleware
+func (siw *ServerInterfaceWrapper) CreateHelper(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateHelper(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTemplates operation middleware
+func (siw *ServerInterfaceWrapper) ListTemplates(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTemplates(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -3017,6 +4169,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}", wrapper.GetWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/workspaces/{workspaceId}", wrapper.UpdateWorkspace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/feed", wrapper.ListFeed)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/templates", wrapper.ListTemplates)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/helpers", wrapper.ListHelpers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/helpers", wrapper.CreateHelper)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/runs", wrapper.StartRun)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/feed-cards/{feedCardId}/dismiss", wrapper.DismissFeedCard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/feed-cards/{feedCardId}", wrapper.GetFeedCard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/feed-cards/{feedCardId}/decision", wrapper.DecideFeedCard)
@@ -3244,6 +4400,71 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartRunRequestObject struct {
+	HelperId openapi_types.UUID `json:"helperId"`
+	Body     *StartRunJSONRequestBody
+}
+
+type StartRunResponseObject interface {
+	VisitStartRunResponse(w http.ResponseWriter) error
+}
+
+type StartRun202JSONResponse RunStarted
+
+func (response StartRun202JSONResponse) VisitStartRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartRun401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StartRun401JSONResponse) VisitStartRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartRun404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response StartRun404JSONResponse) VisitStartRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartRun409JSONResponse struct{ ConflictJSONResponse }
+
+func (response StartRun409JSONResponse) VisitStartRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -3513,6 +4734,175 @@ func (response ListFeed404JSONResponse) VisitListFeedResponse(w http.ResponseWri
 	return err
 }
 
+type ListHelpersRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListHelpersResponseObject interface {
+	VisitListHelpersResponse(w http.ResponseWriter) error
+}
+
+type ListHelpers200JSONResponse struct {
+	Helpers []Helper `json:"helpers"`
+}
+
+func (response ListHelpers200JSONResponse) VisitListHelpersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListHelpers401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListHelpers401JSONResponse) VisitListHelpersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListHelpers404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListHelpers404JSONResponse) VisitListHelpersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHelperRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Body        *CreateHelperJSONRequestBody
+}
+
+type CreateHelperResponseObject interface {
+	VisitCreateHelperResponse(w http.ResponseWriter) error
+}
+
+type CreateHelper201JSONResponse CreatedHelper
+
+func (response CreateHelper201JSONResponse) VisitCreateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHelper400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateHelper400JSONResponse) VisitCreateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHelper401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateHelper401JSONResponse) VisitCreateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHelper404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateHelper404JSONResponse) VisitCreateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTemplatesRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListTemplatesResponseObject interface {
+	VisitListTemplatesResponse(w http.ResponseWriter) error
+}
+
+type ListTemplates200JSONResponse struct {
+	Templates []ShelfTemplate `json:"templates"`
+}
+
+func (response ListTemplates200JSONResponse) VisitListTemplatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTemplates401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListTemplates401JSONResponse) VisitListTemplatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTemplates404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListTemplates404JSONResponse) VisitListTemplatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
@@ -3527,6 +4917,9 @@ type StrictServerInterface interface {
 	// GetHealth Service health
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
+	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
+	// (POST /helpers/{helperId}/runs)
+	StartRun(ctx context.Context, request StartRunRequestObject) (StartRunResponseObject, error)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
@@ -3542,6 +4935,15 @@ type StrictServerInterface interface {
 	// ListFeed The Feed, newest first, with the Needs me count and the brain allowance
 	// (GET /workspaces/{workspaceId}/feed)
 	ListFeed(ctx context.Context, request ListFeedRequestObject) (ListFeedResponseObject, error)
+	// ListHelpers Your helpers, newest first
+	// (GET /workspaces/{workspaceId}/helpers)
+	ListHelpers(ctx context.Context, request ListHelpersRequestObject) (ListHelpersResponseObject, error)
+	// CreateHelper Make a helper from a Shelf template, optionally running a test right away
+	// (POST /workspaces/{workspaceId}/helpers)
+	CreateHelper(ctx context.Context, request CreateHelperRequestObject) (CreateHelperResponseObject, error)
+	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
+	// (GET /workspaces/{workspaceId}/templates)
+	ListTemplates(ctx context.Context, request ListTemplatesRequestObject) (ListTemplatesResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -3692,6 +5094,42 @@ func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// StartRun operation middleware
+func (sh *strictHandler) StartRun(w http.ResponseWriter, r *http.Request, helperId openapi_types.UUID) {
+	var request StartRunRequestObject
+
+	request.HelperId = helperId
+
+	var body StartRunJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartRun(ctx, request.(StartRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartRunResponseObject); ok {
+		if err := validResponse.VisitStartRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetMe operation middleware
 func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	var request GetMeRequestObject
@@ -3826,6 +5264,91 @@ func (sh *strictHandler) ListFeed(w http.ResponseWriter, r *http.Request, worksp
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListFeedResponseObject); ok {
 		if err := validResponse.VisitListFeedResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListHelpers operation middleware
+func (sh *strictHandler) ListHelpers(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListHelpersRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListHelpers(ctx, request.(ListHelpersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListHelpers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListHelpersResponseObject); ok {
+		if err := validResponse.VisitListHelpersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateHelper operation middleware
+func (sh *strictHandler) CreateHelper(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request CreateHelperRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	var body CreateHelperJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateHelper(ctx, request.(CreateHelperRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateHelper")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateHelperResponseObject); ok {
+		if err := validResponse.VisitCreateHelperResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTemplates operation middleware
+func (sh *strictHandler) ListTemplates(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListTemplatesRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTemplates(ctx, request.(ListTemplatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTemplates")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTemplatesResponseObject); ok {
+		if err := validResponse.VisitListTemplatesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

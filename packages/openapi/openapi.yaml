@@ -153,6 +153,117 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /workspaces/{workspaceId}/templates:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: listTemplates
+      summary: The Shelf, sorted by your needs, in your language, with known About me facts filled in
+      tags: [shelf]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [templates]
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShelfTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /workspaces/{workspaceId}/helpers:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: listHelpers
+      summary: Your helpers, newest first
+      tags: [helpers]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [helpers]
+                properties:
+                  helpers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Helper'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createHelper
+      summary: Make a helper from a Shelf template, optionally running a test right away
+      description: |
+        Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+        For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+      tags: [helpers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewHelper'
+      responses:
+        '201':
+          description: Created (and active)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedHelper'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /helpers/{helperId}/runs:
+    parameters:
+      - name: helperId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: startRun
+      summary: Run a helper now (Tap Go, or a test run with at most 3 cards)
+      tags: [helpers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                test:
+                  type: boolean
+                answer:
+                  type: string
+                  maxLength: 500
+                  description: The answer to Tap Go's question ({answer})
+      responses:
+        '202':
+          description: Started; follow it in the Feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStarted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /feed-cards/{feedCardId}/dismiss:
     parameters:
       - $ref: '#/components/parameters/FeedCardId'
@@ -565,3 +676,122 @@ components:
           description: Included credits per month (1 credit ≈ €0.001 of AI)
         credits_left:
           type: number
+    ShelfTemplate:
+      type: object
+      required: [slug, name, promise, category, avatar, bricks, questions, brain, places, paid, match]
+      properties:
+        slug:
+          type: string
+          example: morning-briefing
+        name:
+          type: string
+        promise:
+          type: string
+        category:
+          $ref: '#/components/schemas/Need'
+        avatar:
+          type: string
+        bricks:
+          type: array
+          items:
+            $ref: '#/components/schemas/BrickPreview'
+        questions:
+          type: array
+          description: Only what's still open (known About me facts are skipped)
+          items:
+            $ref: '#/components/schemas/SetupQuestion'
+        brain:
+          type: boolean
+          description: Uses the AI brain
+        places:
+          type: array
+          description: Chat place types any of which works (empty = none needed)
+          items:
+            type: string
+        paid:
+          type: boolean
+        match:
+          type: integer
+          description: How well it fits your needs (0 = not one of them)
+    BrickPreview:
+      type: object
+      required: [id, type, group, sentence]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        group:
+          type: string
+          enum: [when, look, think, do, ask]
+        sentence:
+          type: string
+    SetupQuestion:
+      type: object
+      required: [key, kind, profile, text]
+      properties:
+        key:
+          type: string
+        kind:
+          type: string
+          enum: [text, select, place, list, time]
+        profile:
+          type: boolean
+          description: An About me fact (remembered for all helpers)
+        text:
+          type: string
+        placeholder:
+          type: string
+        fills:
+          type: array
+          description: Bricks this answer fills (for a place answered with `feed`, these are left out)
+          items:
+            type: string
+    NewHelper:
+      type: object
+      required: [template, answers]
+      properties:
+        template:
+          type: string
+          description: Template slug
+        answers:
+          type: object
+          additionalProperties:
+            type: string
+            maxLength: 2000
+        run_test:
+          type: boolean
+          description: Start a test run right away
+    Helper:
+      type: object
+      required: [id, name, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        avatar:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, paused]
+        created_at:
+          type: string
+          format: date-time
+    CreatedHelper:
+      type: object
+      required: [helper]
+      properties:
+        helper:
+          $ref: '#/components/schemas/Helper'
+        run_id:
+          type: string
+          format: uuid
+    RunStarted:
+      type: object
+      required: [run_id]
+      properties:
+        run_id:
+          type: string
+          format: uuid

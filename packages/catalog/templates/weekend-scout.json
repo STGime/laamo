@@ -1,0 +1,51 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "weekend-scout",
+  "name": { "en": "Weekend Scout", "de": "Wochenend-Scout" },
+  "promise": {
+    "en": "Every Thursday at 18:00, things to do in your city this weekend. Swipe to keep the ones you like.",
+    "de": "Jeden Donnerstag um 18:00 Tipps fürs Wochenende in deiner Stadt. Wisch dir die raus, die dir gefallen."
+  },
+  "category": "plan_events",
+  "avatar": "🎟️",
+  "sort_order": 20,
+  "setup_questions": [{ "profile": "city" }],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.every",
+        "config": { "freq": "weekly", "days": ["thu"], "time": "18:00" }
+      },
+      {
+        "id": "b2",
+        "type": "look.search",
+        "config": {
+          "query": {
+            "en": "events this weekend in {my city}",
+            "de": "Veranstaltungen am Wochenende in {my city}"
+          },
+          "count": 10,
+          "freshness": "week"
+        }
+      },
+      {
+        "id": "b3",
+        "type": "think.keep",
+        "config": {
+          "criteria": {
+            "en": "are real events in {my city} this weekend, with a date",
+            "de": "echte Veranstaltungen in {my city} an diesem Wochenende mit Datum sind"
+          },
+          "max": 6,
+          "sort": "best"
+        }
+      },
+      { "id": "b4", "type": "ask.pick", "config": { "max_show": 6 } }
+    ],
+    "limits": { "max_cards": 30, "max_external_emails": 0, "max_cost_eur": 0.1 }
+  },
+  "required": { "brain": true }
+}
