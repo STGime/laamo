@@ -21,6 +21,40 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/demo/challenge': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** A proof-of-work challenge for one demo run (no account needed) */
+		get: operations['getDemoChallenge'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/demo/runs': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Run a sample helper without an account (Test mode, nothing saved or sent) */
+		post: operations['runDemo'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/me': {
 		parameters: {
 			query?: never;
@@ -260,6 +294,41 @@ export interface components {
 			/** @enum {string} */
 			eurobase: 'reachable' | 'unreachable' | 'not configured' | 'error';
 		};
+		DemoChallenge: {
+			token: string;
+			bits: number;
+		};
+		DemoRequest: {
+			/** @enum {string} */
+			template: 'morning-briefing' | 'weekend-scout';
+			lang?: components['schemas']['Locale'];
+			/** @description Morning Briefing only */
+			business?: string;
+			city: string;
+			timezone?: string;
+			token: string;
+			nonce: string;
+		};
+		DemoLink: {
+			title: string;
+			url: string;
+		};
+		DemoCard: {
+			title: string;
+			summary: string;
+			url: string;
+		};
+		DemoResult: {
+			template: string;
+			name: string;
+			avatar: string;
+			title: string;
+			body: string;
+			links: components['schemas']['DemoLink'][];
+			cards: components['schemas']['DemoCard'][];
+			cached: boolean;
+			seconds?: number;
+		};
 		Error: {
 			/** @description Human-readable message (English) */
 			error: string;
@@ -274,6 +343,8 @@ export interface components {
 				| 'not_found'
 				| 'conflict'
 				| 'auth_unavailable'
+				| 'rate_limited'
+				| 'unavailable'
 				| 'internal';
 		};
 		User: {
@@ -589,6 +660,24 @@ export interface components {
 				'application/json': components['schemas']['Error'];
 			};
 		};
+		/** @description Too many requests; try again later */
+		TooManyRequests: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['Error'];
+			};
+		};
+		/** @description Not available right now */
+		Unavailable: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['Error'];
+			};
+		};
 		/** @description Not found, or not yours */
 		NotFound: {
 			headers: {
@@ -628,6 +717,53 @@ export interface operations {
 					'application/json': components['schemas']['Health'];
 				};
 			};
+		};
+	};
+	getDemoChallenge: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Find a nonce so that sha256(token + ":" + nonce) starts with `bits` zero bits */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['DemoChallenge'];
+				};
+			};
+		};
+	};
+	runDemo: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['DemoRequest'];
+			};
+		};
+		responses: {
+			/** @description The result card */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['DemoResult'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			429: components['responses']['TooManyRequests'];
+			503: components['responses']['Unavailable'];
 		};
 	};
 	getMe: {

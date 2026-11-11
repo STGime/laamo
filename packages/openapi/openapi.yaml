@@ -15,6 +15,7 @@ security:
   - bearerAuth: []
 tags:
   - name: system
+  - name: demo
   - name: me
   - name: workspaces
 paths:
@@ -31,6 +32,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+  /demo/challenge:
+    get:
+      operationId: getDemoChallenge
+      summary: A proof-of-work challenge for one demo run (no account needed)
+      tags: [demo]
+      security: []
+      responses:
+        '200':
+          description: Find a nonce so that sha256(token + ":" + nonce) starts with `bits` zero bits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoChallenge'
+  /demo/runs:
+    post:
+      operationId: runDemo
+      summary: Run a sample helper without an account (Test mode, nothing saved or sent)
+      tags: [demo]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemoRequest'
+      responses:
+        '200':
+          description: The result card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /me:
     get:
       operationId: getMe
@@ -444,6 +483,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Too many requests; try again later
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unavailable:
+      description: Not available right now
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     NotFound:
       description: Not found, or not yours
       content:
@@ -464,6 +515,83 @@ components:
         eurobase:
           type: string
           enum: [reachable, unreachable, not configured, error]
+    DemoChallenge:
+      type: object
+      required: [token, bits]
+      properties:
+        token:
+          type: string
+        bits:
+          type: integer
+    DemoRequest:
+      type: object
+      required: [template, city, token, nonce]
+      properties:
+        template:
+          type: string
+          enum: [morning-briefing, weekend-scout]
+        lang:
+          $ref: '#/components/schemas/Locale'
+        business:
+          type: string
+          maxLength: 60
+          description: Morning Briefing only
+        city:
+          type: string
+          maxLength: 60
+        timezone:
+          type: string
+          maxLength: 64
+        token:
+          type: string
+          maxLength: 200
+        nonce:
+          type: string
+          maxLength: 20
+    DemoLink:
+      type: object
+      required: [title, url]
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+    DemoCard:
+      type: object
+      required: [title, summary, url]
+      properties:
+        title:
+          type: string
+        summary:
+          type: string
+        url:
+          type: string
+    DemoResult:
+      type: object
+      required: [template, name, avatar, title, body, links, cards, cached]
+      properties:
+        template:
+          type: string
+        name:
+          type: string
+        avatar:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemoLink'
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemoCard'
+        cached:
+          type: boolean
+        seconds:
+          type: number
     Error:
       type: object
       required: [error, code]
@@ -474,7 +602,7 @@ components:
         code:
           type: string
           description: Stable machine code
-          enum: [bad_request, unauthorized, forbidden, not_found, conflict, auth_unavailable, internal]
+          enum: [bad_request, unauthorized, forbidden, not_found, conflict, auth_unavailable, rate_limited, unavailable, internal]
     User:
       type: object
       required: [id, email]

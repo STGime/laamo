@@ -36,6 +36,12 @@ type Config struct {
 	LLMAPIKey  string // server side only
 	LLMAuth    string // Key (fal.ai) or Bearer
 	LLMModel   string
+	// The public demo (#75): signs proof-of-work challenges. Empty = a
+	// random key per process (fine for one api instance).
+	DemoSecret string
+	// TrustProxy: take the client IP from X-Forwarded-For (set behind the
+	// load balancer, never when the api is reachable directly).
+	TrustProxy bool
 }
 
 const (
@@ -62,6 +68,8 @@ func Load() (Config, error) {
 		LLMAPIKey:         firstNonEmpty(os.Getenv("LLM_API_KEY"), os.Getenv("FAL_KEY"), os.Getenv("FAL_AI_API_KEY")),
 		LLMAuth:           getenv("LLM_AUTH", "Key"),
 		LLMModel:          getenv("LLM_MODEL", DefaultLLMModel),
+		DemoSecret:        os.Getenv("LAAMO_DEMO_SECRET"),
+		TrustProxy:        os.Getenv("LAAMO_TRUST_PROXY") == "1",
 	}
 	if c.Env == "dev" {
 		c.SearchCacheDir = getenv("SEARCH_CACHE_DIR", ".cache/search")

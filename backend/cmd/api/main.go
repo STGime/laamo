@@ -15,11 +15,18 @@ import (
 
 	"github.com/STGime/laamo/backend/internal/api"
 	"github.com/STGime/laamo/backend/internal/auth"
+	"github.com/STGime/laamo/backend/internal/bricks"
+	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/config"
+	"github.com/STGime/laamo/backend/internal/demo"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
+	"github.com/STGime/laamo/backend/internal/llm"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	"github.com/STGime/laamo/backend/internal/realtime"
+	"github.com/STGime/laamo/backend/internal/search"
+	"github.com/STGime/laamo/backend/internal/store"
 	sebs "github.com/STGime/laamo/backend/internal/store/eurobase"
+	"github.com/STGime/laamo/backend/internal/web"
 )
 
 func main() {
@@ -50,6 +57,7 @@ func main() {
 		},
 		Events: events,
 		Queue:  qeb.New(client),
+		Demo:   demoService(cfg, log),
 	})
 
 	srv := &http.Server{
@@ -72,4 +80,30 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
+}
+
+// demoService runs sample helpers for visitors (#75). It needs the AI and
+// search keys; without them the demo is off.
+func demoService(cfg config.Config, log *slog.Logger) *demo.Service {
+	if cfg.LLMAPIKey == "" || cfg.BraveSearchAPIKey == "" {
+		log.Warn("the public demo is off: it needs an LLM key and BRAVE_SEARCH_API_KEY")
+		return nil
+	}
+	if cfg.DemoSecret == "" && cfg.Env != "dev" {
+		log.Warn("no LAAMO_DEMO_SECRET: demo challenges only work on this api instance")
+	}
+	var p search.Provider = &search.Brave{APIKey: cfg.BraveSearchAPIKey, Limit: search.NewLimiter(cfg.BraveRPS)}
+	if cfg.SearchCacheDir != "" {
+		p = &search.Cached{Provider: p, Dir: cfg.SearchCacheDir, TTL: 24 * time.Hour}
+	}
+	return &demo.Service{
+		Catalog: catalog.Default(),
+		Chat:    &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel},
+		Model:   cfg.LLMModel,
+		Secret:  []byte(cfg.DemoSecret),
+		Log:     log,
+		Deps: func(st store.Store) bricks.Deps {
+			return bricks.Deps{Search: p, SearchCostEUR: cfg.SearchCostEUR, Store: st, Pages: &web.Fetcher{}}
+		},
+	}
 }
