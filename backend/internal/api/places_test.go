@@ -80,6 +80,19 @@ func TestPlaces(t *testing.T) {
 	if tr := must(ben.TestPlaceWithResponse(ctx, r.JSON201.Id)); tr.StatusCode() != 200 || len(fc.sent) != 2 || !strings.HasPrefix(fc.sent[1], hook) {
 		t.Fatalf("test again: %d %v", tr.StatusCode(), fc.sent)
 	}
+	// A helper posting there: its brick names the chat, and the chat lists it.
+	h := must(anna.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "morning-briefing",
+		Answers: map[string]string{"business": "Bäckerei", "city": "Leipzig", "chat": r.JSON201.Id.String()}}))
+	if h.StatusCode() != 201 {
+		t.Fatalf("helper: %d %s", h.StatusCode(), h.Body)
+	}
+	d := must(anna.GetHelperWithResponse(ctx, h.JSON201.Helper.Id)).JSON200
+	if last := d.Bricks[len(d.Bricks)-1].Sentence; !strings.Contains(last, "Team") || strings.Contains(last, r.JSON201.Id.String()) {
+		t.Fatalf("chat brick: %q", last)
+	}
+	if l := must(anna.ListPlacesWithResponse(ctx, wsID(ws.ID))); len(*l.JSON200.Places[0].UsedBy) != 1 {
+		t.Fatalf("used by: %s", l.Body)
+	}
 	if d := must(ben.DeletePlaceWithResponse(ctx, r.JSON201.Id)); d.StatusCode() != 403 {
 		t.Fatalf("member deletes: %d", d.StatusCode())
 	}

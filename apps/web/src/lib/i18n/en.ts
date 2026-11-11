@@ -226,6 +226,7 @@ export const en = {
 	'pill.tone': 'your tone',
 	'pill.signature': 'your signature',
 	'tpl.toFeed': 'Put the result in my Feed',
+	'tpl.toChat': 'Post to {name} and my Feed',
 	'feed.sources': 'Sources',
 	'feed.empty.waiting': 'Your helpers put what they find here. Nothing yet.',
 	'feed.empty.runOne': 'Run a helper now',

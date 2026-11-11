@@ -51,6 +51,17 @@
 				.flatMap((q) => q.fills ?? [])
 		)
 	);
+	// …and one answered with a chat names it: "Post to Discord" (+ the Feed).
+	const toChat = $derived(
+		new Map(
+			(tpl?.questions ?? [])
+				.filter((q) => q.kind === 'place' && answers[q.key] !== 'feed')
+				.flatMap((q) => {
+					const p = places.find((x) => x.id === answers[q.key]);
+					return p ? (q.fills ?? []).map((id) => [id, p.label] as const) : [];
+				})
+		)
+	);
 	function fill(text: string): string {
 		return text.replace(
 			/\{my (\w+)\}/g,
@@ -61,7 +72,9 @@
 		(tpl?.bricks ?? []).map((b) =>
 			toFeed.has(b.id)
 				? { id: b.id, group: 'do', title: t('tpl.toFeed') }
-				: { id: b.id, group: b.group, title: fill(b.sentence) }
+				: toChat.has(b.id)
+					? { id: b.id, group: 'do', title: t('tpl.toChat', { name: toChat.get(b.id) ?? '' }) }
+					: { id: b.id, group: b.group, title: fill(b.sentence) }
 		)
 	);
 	// While the first run goes, the bricks light up; when it's done (or

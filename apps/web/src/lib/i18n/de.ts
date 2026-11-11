@@ -234,6 +234,7 @@ export const de: Record<Key, string> = {
 	'pill.tone': 'dein Ton',
 	'pill.signature': 'deine Signatur',
 	'tpl.toFeed': 'Ergebnis in meinen Feed legen',
+	'tpl.toChat': 'In {name} und meinen Feed posten',
 	'feed.sources': 'Quellen',
 	'feed.empty.waiting': 'Hier landet, was deine Helfer finden. Noch ist nichts da.',
 	'feed.empty.runOne': 'Jetzt einen Helfer ausführen',
