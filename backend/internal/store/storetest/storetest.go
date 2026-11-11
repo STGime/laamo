@@ -34,6 +34,7 @@ func Run(t *testing.T, newStore New) {
 	t.Run("Steps", func(t *testing.T) { testSteps(t, newStore) })
 	t.Run("Cards", func(t *testing.T) { testCards(t, newStore) })
 	t.Run("FeedCards", func(t *testing.T) { testFeed(t, newStore) })
+	t.Run("Helpers", func(t *testing.T) { testHelpers(t, newStore) })
 	t.Run("Lists", func(t *testing.T) { testLists(t, newStore) })
 	t.Run("Usage", func(t *testing.T) { testUsage(t, newStore) })
 	t.Run("Outbound", func(t *testing.T) { testOutbound(t, newStore) })
@@ -341,6 +342,44 @@ func testFeed(t *testing.T, newStore New) {
 	if other, _ := s.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: store.NewID()}); len(other) != 0 {
 		t.Fatal("another workspace sees cards")
 	}
+}
+
+func testHelpers(t *testing.T, newStore New) {
+	s, fx := newStore(t)
+	ctx := context.Background()
+	h := store.Helper{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, Name: "Morgen-Briefing", Avatar: new("📰"),
+		Status: "active", CreatedVia: "shelf"}
+	v := store.HelperVersion{Stack: json.RawMessage(`{"schema":1,"bricks":[]}`)}
+	must(t, s.CreateHelper(ctx, &h, &v))
+	if h.ID == "" || v.ID == "" || h.CurrentVersionID == nil || *h.CurrentVersionID != v.ID || v.HelperID != h.ID || v.Version != 1 {
+		t.Fatalf("helper %+v version %+v", h, v)
+	}
+	got, err := s.GetHelper(ctx, h.ID)
+	must(t, err)
+	eq(t, "status", got.Status, "active")
+	eq(t, "created via", got.CreatedVia, "shelf")
+	gv, err := s.GetHelperVersion(ctx, v.ID)
+	must(t, err)
+	eq(t, "version helper", gv.HelperID, h.ID)
+
+	list, err := s.ListHelpers(ctx, fx.WorkspaceID)
+	must(t, err)
+	if len(list) == 0 || list[0].ID != h.ID {
+		t.Fatalf("list: %+v", list)
+	}
+	if other, _ := s.ListHelpers(ctx, store.NewID()); len(other) != 0 {
+		t.Fatal("another workspace sees helpers")
+	}
+
+	got, err = s.UpdateHelper(ctx, h.ID, store.HelperPatch{Name: new("Morgen-Briefing (Laden)"), Status: new("paused")})
+	must(t, err)
+	eq(t, "renamed", got.Name, "Morgen-Briefing (Laden)")
+	eq(t, "paused", got.Status, "paused")
+	isErr(t, "update unknown", get(s.UpdateHelper(ctx, store.NewID(), store.HelperPatch{Name: new("x")})), store.ErrNotFound)
+
+	must(t, s.DeleteHelper(ctx, h.ID))
+	isErr(t, "deleted helper", get(s.GetHelper(ctx, h.ID)), store.ErrNotFound)
+	isErr(t, "deleted version", get(s.GetHelperVersion(ctx, v.ID)), store.ErrNotFound)
 }
 
 func testLists(t *testing.T, newStore New) {

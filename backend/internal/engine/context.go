@@ -55,7 +55,8 @@ var DefaultLimits = Limits{MaxCards: 50, MaxExternalEmails: 10, MaxCostEUR: 0.5}
 // MaxRunTokens caps the AI tokens one run may use, on top of the cost limit.
 const MaxRunTokens = 200_000
 
-// TestModeMaxCards: in a test run, piles are cut to this many cards.
+// TestModeMaxCards: in a test run, at most this many cards reach a Do brick
+// and the run's result. Look and Think bricks still see the whole pile.
 const TestModeMaxCards = 3
 
 // ErrLimit is wrapped by errors that stop a run because a limit was hit.
@@ -78,11 +79,13 @@ type RunContext struct {
 	// TestMode: at most 3 cards, and Do bricks send to the user instead of
 	// anyone else (each Do brick checks this).
 	TestMode bool
-	Limits   Limits
-	Blobs    Blobs
-	Brain    *llm.Brain // the AI for Think bricks: rc.Brain.Ask(ctx, rc, req)
-	Log      *slog.Logger
-	Now      func() time.Time
+	// lastBrick is the stack index of the last brick (test-mode result cap).
+	lastBrick int
+	Limits    Limits
+	Blobs     Blobs
+	Brain     *llm.Brain // the AI for Think bricks: rc.Brain.Ask(ctx, rc, req)
+	Log       *slog.Logger
+	Now       func() time.Time
 
 	usage store.UsageStore
 

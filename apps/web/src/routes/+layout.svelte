@@ -25,7 +25,7 @@
 		if (s !== 'signedIn' || path === '/auth/callback') return;
 		const hasWorkspace = (session.me?.workspaces.length ?? 0) > 0;
 		if (!hasWorkspace && path !== '/welcome') goto('/welcome', { replaceState: true });
-		else if (hasWorkspace && (path === '/' || path === '/start' || path === '/welcome'))
+		else if (hasWorkspace && (path === '/' || path === '/start'))
 			goto('/feed', { replaceState: true });
 	});
 	const showTabs = $derived(session.status === 'signedIn' && !BARE.includes(path));

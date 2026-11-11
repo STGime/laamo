@@ -281,6 +281,11 @@ func (f *Fake) route(r *http.Request) response {
 			return errBody(http.StatusNotFound, "row not found")
 		}
 		f.rows[tbl] = slices.Delete(f.rows[tbl], i, i+1)
+		if tbl == "helpers" { // ON DELETE CASCADE, like the migrations
+			for _, child := range []string{"helper_versions", "triggers", "runs", "feed_cards"} {
+				f.rows[child] = slices.DeleteFunc(f.rows[child], func(r Row) bool { return r["helper_id"] == parts[1] })
+			}
+		}
 		return response{status: http.StatusNoContent}
 	}
 	return errBody(http.StatusMethodNotAllowed, "method not allowed")

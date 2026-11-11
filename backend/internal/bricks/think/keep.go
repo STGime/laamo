@@ -34,8 +34,12 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 	criteria := strings.TrimSpace(resolved.String("criteria"))
 	lang := language(rc, "")
 
+	// "about" comes first: having the model say what each card is about
+	// before it scores makes a small model notice when it's about somewhere
+	// or something else.
 	type score struct {
 		ID     string  `json:"id"`
+		About  string  `json:"about"`
 		Score  float64 `json:"score"`
 		Reason string  `json:"reason"`
 	}
@@ -44,7 +48,12 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 		var out struct {
 			Cards []score `json:"cards"`
 		}
-		system := fmt.Sprintf(`You judge cards for a small business owner. Score each card from 0 (useless) to 10 (exactly what they want) by how well it matches what they want. Give a reason of at most 12 words in %s. %s Format: {"cards":[{"id": string, "score": number, "reason": string}]} with one entry for every card id.`, lang, guard)
+		system := fmt.Sprintf(`You judge cards for a small business owner. For each card, first write "about": what the card is about and where (city, region, country, or "unknown"), from the card's own words. Then score how useful it is for what they want:
+9-10: exactly what they want.
+6-8: clearly useful: the right topic and place, or news for their whole industry or country that affects them.
+3-5: loosely related: the right topic but a far-away city or another country, or the right place but barely about their business.
+0-2: unrelated, a news portal's front page, or a list of headlines.
+Give a reason of at most 12 words in %s that states a fact from the card. %s Format: {"cards":[{"id": string, "about": string, "score": number, "reason": string}]} with one entry for every card id.`, lang, guard)
 		user := fmt.Sprintf("What they want: %q\n%s", criteria, cardsJSON(batch))
 		ids := idSet(batch)
 		err := rc.Brain.AskJSON(ctx, rc, llm.Request{System: system, Messages: []llm.Message{{Role: "user", Content: user}}}, &out,

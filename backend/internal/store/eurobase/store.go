@@ -100,6 +100,44 @@ func (s *Store) GetHelperVersion(ctx context.Context, id string) (store.HelperVe
 	return getRow[store.HelperVersion](ctx, s, "helper_versions", id)
 }
 
+func (s *Store) CreateHelper(ctx context.Context, h *store.Helper, v *store.HelperVersion) error {
+	if h.ID == "" {
+		h.ID = store.NewID()
+	}
+	if err := insertRow(ctx, s, "helpers", &h.ID, h); err != nil {
+		return err
+	}
+	v.HelperID, v.WorkspaceID, v.UserID = h.ID, h.WorkspaceID, h.UserID
+	if v.Version == 0 {
+		v.Version = 1
+	}
+	err := insertRow(ctx, s, "helper_versions", &v.ID, v)
+	if err == nil {
+		var updated store.Helper
+		updated, err = updateRow[store.Helper](ctx, s, "helpers", h.ID, map[string]string{"current_version_id": v.ID})
+		if err == nil {
+			*h = updated
+			return nil
+		}
+	}
+	// No half-made helpers: deleting it cascades to the version.
+	_ = s.c.Delete(context.WithoutCancel(ctx), "helpers", h.ID)
+	return err
+}
+
+func (s *Store) UpdateHelper(ctx context.Context, id string, p store.HelperPatch) (store.Helper, error) {
+	return updateRow[store.Helper](ctx, s, "helpers", id, p)
+}
+
+func (s *Store) DeleteHelper(ctx context.Context, id string) error {
+	return mapErr(s.c.Delete(ctx, "helpers", id)) // the database cascades the rest
+}
+
+func (s *Store) ListHelpers(ctx context.Context, workspaceID string) ([]store.Helper, error) {
+	q := eb.NewQuery().Eq("workspace_id", workspaceID).Order("created_at", true).Order("id", true)
+	return listRows[store.Helper](ctx, s, "helpers", q, 0)
+}
+
 // ---- runs and steps ----
 
 func (s *Store) CreateRun(ctx context.Context, r *store.Run) error {

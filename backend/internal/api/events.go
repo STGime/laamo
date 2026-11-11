@@ -19,6 +19,10 @@ type Event struct {
 	State  string `json:"state,omitempty"`
 	Status string `json:"status,omitempty"`
 	Helper string `json:"helper_id,omitempty"`
+	// runs: the brick it's at; run_steps: which brick and its counts.
+	Step     *int   `json:"step,omitempty"`
+	Brick    string `json:"brick_id,omitempty"`
+	CardsOut *int   `json:"cards_out,omitempty"`
 }
 
 // Hub fans Eurobase table changes out to the members of each workspace.
@@ -56,7 +60,11 @@ func (h *Hub) dispatch(ev realtime.Event) {
 	case "feed_cards":
 		out = Event{Kind: "feed", ID: ev.String("id"), Type: ev.String("type"), State: ev.String("state"), Helper: ev.String("helper_id")}
 	case "runs":
-		out = Event{Kind: "run", ID: ev.String("id"), Status: ev.String("status"), Helper: ev.String("helper_id")}
+		out = Event{Kind: "run", ID: ev.String("id"), Status: ev.String("status"), Helper: ev.String("helper_id"),
+			Step: intField(ev, "next_brick_index")}
+	case "run_steps":
+		out = Event{Kind: "step", ID: ev.String("run_id"), Status: ev.String("status"), Brick: ev.String("brick_id"),
+			CardsOut: intField(ev, "cards_out")}
 	default:
 		return
 	}
@@ -157,4 +165,12 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+func intField(ev realtime.Event, field string) *int {
+	if n, ok := ev.Record[field].(float64); ok {
+		i := int(n)
+		return &i
+	}
+	return nil
 }

@@ -12,6 +12,7 @@ let brain = $state<Schemas['BrainMeter'] | null>(null);
 let next = $state<string | undefined>(undefined);
 let filter = $state<Filter>('all');
 let loading = $state(false);
+let loaded = $state(false); // at least one page has come back
 // Why the Feed didn't load: 0 = it did, -1 = no connection, else the HTTP status.
 let failed = $state(0);
 
@@ -41,6 +42,9 @@ export const feed = {
 	get loading() {
 		return loading;
 	},
+	get loaded() {
+		return loaded;
+	},
 	get failed() {
 		return failed;
 	},
@@ -55,6 +59,7 @@ export const feed = {
 			failed = 0;
 			const page = await fetchPage();
 			if (page) {
+				loaded = true;
 				cards = page.cards;
 				needsMe = page.needs_me;
 				brain = page.brain;
@@ -114,10 +119,14 @@ export function parseSSE(buffer: string): {
 
 /**
  * Listens to the workspace's live updates until the returned stop function
- * is called. Any change reloads the first page (debounced); a dropped
- * stream reconnects with backoff and reloads.
+ * is called. Events of the given kinds call onChange (debounced); a dropped
+ * stream reconnects with backoff and calls it too.
  */
-export function listen(onChange: () => void, token: () => Promise<string | null>): () => void {
+export function listen(
+	onChange: () => void,
+	token: () => Promise<string | null>,
+	kinds: string[] = ['feed', 'reload']
+): () => void {
 	let stopped = false;
 	let ctrl: AbortController | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -147,7 +156,9 @@ export function listen(onChange: () => void, token: () => Promise<string | null>
 					if (done) break;
 					const parsed = parseSSE(buf + value);
 					buf = parsed.rest;
-					if (parsed.events.length) changed();
+					// Each screen listens for what it shows: the Feed for its cards,
+					// helper screens for run and step progress.
+					if (parsed.events.some((e) => kinds.includes(e.event))) changed();
 				}
 			} catch {
 				/* reconnect below */

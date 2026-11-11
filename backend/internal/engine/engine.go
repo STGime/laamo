@@ -246,6 +246,7 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		rc.Run = r
 	}
 
+	rc.lastBrick = len(stack.Bricks) - 1
 	pile, err := e.loadPile(ctx, r)
 	if err != nil {
 		return err
@@ -292,6 +293,11 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 			return err
 		}
 
+		// Test mode: at most 3 cards reach a Do brick and the Feed. Look and
+		// Think bricks see everything, or a filter has nothing to choose from.
+		if rc.TestMode && len(pile) > TestModeMaxCards && b.ShapeFor(b.Config(sb.Config)) == catalog.ShapeAct {
+			pile = pile[:TestModeMaxCards]
+		}
 		out, stepErr := e.runStep(ctx, rc, &r, steps, i, sb, b, pile)
 		if stepErr != nil {
 			var se *stepError
@@ -361,8 +367,8 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 	if err == nil && len(held) > 0 {
 		out = mergeHeld(in, held, out)
 	}
-	if err == nil && rc.TestMode && len(out) > TestModeMaxCards {
-		out = out[:TestModeMaxCards]
+	if err == nil && rc.TestMode && i == rc.lastBrick && len(out) > TestModeMaxCards {
+		out = out[:TestModeMaxCards] // what the Feed shows
 	}
 	if err == nil {
 		err = e.saveCards(ctx, rc, step, out)
@@ -680,6 +686,9 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 				card.StepID = &res.stepID
 				card.Payload["cards"] = res.n
 			}
+			if len(res.links) > 0 {
+				card.Payload["links"] = res.links
+			}
 		}
 	default:
 		card.Type, card.Title = "problem", pick(de, "Something went wrong", "Etwas ist schiefgelaufen")
@@ -698,6 +707,7 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 type result struct {
 	title, body, stepID string
 	n                   int
+	links               []any // {title, url} the result came from
 }
 
 // result describes the last pile for the Result card: a single summary as
@@ -732,6 +742,11 @@ func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
 	res := result{stepID: last.ID, n: len(cards)}
 	if len(cards) == 1 {
 		res.body = truncate(text(cards[0], "summary", "body", "title", "name"), 500)
+		if src, ok := cards[0].Data["sources"].([]any); ok {
+			res.links = src[:min(5, len(src))]
+		} else if u := text(cards[0], "url", "website"); u != "" {
+			res.links = []any{map[string]any{"title": text(cards[0], "title", "name"), "url": u}}
+		}
 		return res
 	}
 	res.title = fmt.Sprintf(pick(de, "%d new cards", "%d neue Karten"), len(cards))

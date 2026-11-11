@@ -100,6 +100,7 @@ func fakeBricks(c *calls, searchResults int) map[string]engine.Brick {
 			card.Kind = "summary"
 			city, _ := rc.Profile("city")
 			card.Set("summary", fmt.Sprintf("%d news for %s", len(in), city), engine.TrustExtracted)
+			card.Set("sources", []any{map[string]any{"title": "Flour", "url": "https://example.com/0"}}, engine.TrustUntrusted)
 			return []engine.Card{card}, rc.AddCost(0.002)
 		}),
 		"do.chat": pass("do.chat"),
@@ -234,7 +235,8 @@ func TestRunToTheEnd(t *testing.T) {
 	if len(feed) != 1 || feed[0].Type != "result" || feed[0].Body == nil || *feed[0].Body != "3 news for Leipzig" {
 		t.Fatalf("feed: %+v", feed)
 	}
-	if feed[0].Title != "Done" || feed[0].StepID == nil || feed[0].Payload["cards"] == nil {
+	links, _ := feed[0].Payload["links"].([]any)
+	if feed[0].Title != "Done" || feed[0].StepID == nil || feed[0].Payload["cards"] == nil || len(links) != 1 {
 		t.Fatalf("result card: %+v", feed[0])
 	}
 
@@ -386,17 +388,28 @@ func TestSafetyStop(t *testing.T) {
 	})
 }
 
+// Test mode: Look and Think bricks see the whole pile (a filter needs
+// choices); at most 3 cards reach a Do brick and the result.
 func TestTestModeCapsPiles(t *testing.T) {
 	stack := morningBriefing()
 	stack[2].Config = cfg{"criteria": "x", "max": 10}
+	stack = slices.Delete(stack, 3, 4) // no Sum it up: the kept pile goes to Post to chat
 	e := newEnv(t, stack)
+	var posted int
+	e.eng.Bricks["do.chat"] = engine.BrickFunc(func(_ context.Context, _ *engine.RunContext, in []engine.Card, _ engine.Config) ([]engine.Card, error) {
+		posted += len(in)
+		return in, nil
+	})
 	r := e.run(e.start("test", false))
 	if !r.TestMode || r.Status != store.RunDone {
 		t.Fatalf("run: %+v", r)
 	}
 	steps := e.steps(r.ID)
-	if steps[1].CardsOut != engine.TestModeMaxCards || len(e.cards(steps[1].ID)) != engine.TestModeMaxCards {
-		t.Fatalf("search pile in test mode: %d", steps[1].CardsOut)
+	if steps[1].CardsOut != 5 || steps[2].CardsIn != 5 {
+		t.Fatalf("search and keep must see the whole pile: %d, %d", steps[1].CardsOut, steps[2].CardsIn)
+	}
+	if posted != engine.TestModeMaxCards || steps[3].CardsIn != engine.TestModeMaxCards {
+		t.Fatalf("Post to chat got %d cards", posted)
 	}
 }
 

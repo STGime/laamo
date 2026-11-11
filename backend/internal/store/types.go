@@ -69,6 +69,11 @@ type Helper struct {
 	UpdatedAt        time.Time `json:"updated_at,omitzero"`
 }
 
+type HelperPatch struct {
+	Name   *string `json:"name,omitempty"`
+	Status *string `json:"status,omitempty"` // active, paused
+}
+
 type HelperVersion struct {
 	ID           string          `json:"id"`
 	WorkspaceID  string          `json:"workspace_id"`

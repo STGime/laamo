@@ -119,7 +119,8 @@ paths:
       summary: The Feed, newest first, with the Needs me count and the brain allowance
       description: |
         Live updates: `GET /api/workspaces/{workspaceId}/events` streams Server-Sent Events
-        (`feed` with a FeedCard id, `run` with a run id and status, `reload` after a gap). Send the
+        (`feed` with a FeedCard id, `run` with a run id, status and helper, `step` with a run id, brick and counts,
+        `reload` after a gap). Send the
         bearer token as a header (read the stream with fetch; EventSource can't send headers).
       tags: [feed]
       parameters:
@@ -153,6 +154,172 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /workspaces/{workspaceId}/templates:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: listTemplates
+      summary: The Shelf, sorted by your needs, in your language, with known About me facts filled in
+      tags: [shelf]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [templates]
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShelfTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /workspaces/{workspaceId}/helpers:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: listHelpers
+      summary: Your helpers, newest first
+      tags: [helpers]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [helpers]
+                properties:
+                  helpers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Helper'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createHelper
+      summary: Make a helper from a Shelf template, optionally running a test right away
+      description: |
+        Answers are keyed by question key (About me facts by their fact key; they're remembered for all helpers).
+        For a "place" question, answer a place id, or `feed` to keep results in the Feed only.
+      tags: [helpers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewHelper'
+      responses:
+        '201':
+          description: Created (and active)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedHelper'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /helpers/{helperId}:
+    parameters:
+      - $ref: '#/components/parameters/HelperId'
+    get:
+      operationId: getHelper
+      summary: A helper with its bricks in plain words and its recent runs
+      tags: [helpers]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelperDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateHelper
+      summary: Rename a helper, or switch it on or off
+      tags: [helpers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                status:
+                  type: string
+                  enum: [active, paused]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Helper'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteHelper
+      summary: Delete a helper with its runs and Feed cards
+      tags: [helpers]
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /helpers/{helperId}/runs:
+    parameters:
+      - $ref: '#/components/parameters/HelperId'
+    post:
+      operationId: startRun
+      summary: Run a helper now (Tap Go, or a test run with at most 3 cards)
+      tags: [helpers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                test:
+                  type: boolean
+                answer:
+                  type: string
+                  maxLength: 500
+                  description: The answer to Tap Go's question ({answer})
+      responses:
+        '202':
+          description: Started; follow it in the Feed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStarted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /feed-cards/{feedCardId}/dismiss:
     parameters:
       - $ref: '#/components/parameters/FeedCardId'
@@ -231,6 +398,13 @@ components:
       bearerFormat: JWT
       description: Eurobase end-user access token (ES256)
   parameters:
+    HelperId:
+      name: helperId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     FeedCardId:
       name: feedCardId
       in: path
@@ -565,3 +739,202 @@ components:
           description: Included credits per month (1 credit ≈ €0.001 of AI)
         credits_left:
           type: number
+    ShelfTemplate:
+      type: object
+      required: [slug, name, promise, category, avatar, bricks, questions, brain, places, paid, match]
+      properties:
+        slug:
+          type: string
+          example: morning-briefing
+        name:
+          type: string
+        promise:
+          type: string
+        category:
+          $ref: '#/components/schemas/Need'
+        avatar:
+          type: string
+        bricks:
+          type: array
+          items:
+            $ref: '#/components/schemas/BrickPreview'
+        questions:
+          type: array
+          description: Only what's still open (known About me facts are skipped)
+          items:
+            $ref: '#/components/schemas/SetupQuestion'
+        brain:
+          type: boolean
+          description: Uses the AI brain
+        places:
+          type: array
+          description: Chat place types any of which works (empty = none needed)
+          items:
+            type: string
+        paid:
+          type: boolean
+        match:
+          type: integer
+          description: How well it fits your needs (0 = not one of them)
+    BrickPreview:
+      type: object
+      required: [id, type, group, sentence]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        group:
+          type: string
+          enum: [when, look, think, do, ask]
+        sentence:
+          type: string
+    SetupQuestion:
+      type: object
+      required: [key, kind, profile, text]
+      properties:
+        key:
+          type: string
+        kind:
+          type: string
+          enum: [text, select, place, list, time]
+        profile:
+          type: boolean
+          description: An About me fact (remembered for all helpers)
+        text:
+          type: string
+        placeholder:
+          type: string
+        fills:
+          type: array
+          description: Bricks this answer fills (for a place answered with `feed`, these are left out)
+          items:
+            type: string
+    NewHelper:
+      type: object
+      required: [template, answers]
+      properties:
+        template:
+          type: string
+          description: Template slug
+        answers:
+          type: object
+          additionalProperties:
+            type: string
+            maxLength: 2000
+        run_test:
+          type: boolean
+          description: Start a test run right away
+    Helper:
+      type: object
+      required: [id, name, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        avatar:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, paused]
+        next_run_at:
+          type: string
+          format: date-time
+          description: When its schedule runs next (only when on and scheduled)
+        run:
+          $ref: '#/components/schemas/RunProgress'
+        created_at:
+          type: string
+          format: date-time
+    RunProgress:
+      type: object
+      description: The run going on now (queued, running or waiting for you)
+      required: [id, status, step, steps, test]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, running, waiting]
+        step:
+          type: integer
+          description: Index of the brick it's at (0-based)
+        steps:
+          type: integer
+          description: Number of bricks
+        test:
+          type: boolean
+    StepProgress:
+      type: object
+      required: [brick_id, status, cards_in, cards_out]
+      properties:
+        brick_id:
+          type: string
+        status:
+          type: string
+          enum: [running, waiting, done, failed, skipped]
+        cards_in:
+          type: integer
+        cards_out:
+          type: integer
+    HelperDetail:
+      type: object
+      required: [helper, bricks, runs]
+      properties:
+        helper:
+          $ref: '#/components/schemas/Helper'
+        bricks:
+          type: array
+          items:
+            $ref: '#/components/schemas/BrickPreview'
+        runs:
+          type: array
+          description: The last 10 runs, newest first
+          items:
+            $ref: '#/components/schemas/RunSummary'
+        steps:
+          type: array
+          description: The latest run's steps, by brick (for the live run view)
+          items:
+            $ref: '#/components/schemas/StepProgress'
+    RunSummary:
+      type: object
+      required: [id, status, trigger_type, test, created_at, cost_eur]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, running, waiting, done, failed, stopped]
+        trigger_type:
+          type: string
+        test:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        cost_eur:
+          type: number
+    CreatedHelper:
+      type: object
+      required: [helper]
+      properties:
+        helper:
+          $ref: '#/components/schemas/Helper'
+        run_id:
+          type: string
+          format: uuid
+    RunStarted:
+      type: object
+      required: [run_id]
+      properties:
+        run_id:
+          type: string
+          format: uuid

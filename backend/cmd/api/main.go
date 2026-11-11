@@ -17,6 +17,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/auth"
 	"github.com/STGime/laamo/backend/internal/config"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
+	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	"github.com/STGime/laamo/backend/internal/realtime"
 	sebs "github.com/STGime/laamo/backend/internal/store/eurobase"
 )
@@ -38,7 +39,7 @@ func main() {
 
 	client := eb.New(cfg.EurobaseURL, cfg.EurobaseSecretKey)
 	// One realtime connection for all browsers' live updates.
-	events := api.NewHub(realtime.Subscribe(ctx, cfg.EurobaseURL, cfg.EurobaseSecretKey, []string{"feed_cards", "runs"}, log))
+	events := api.NewHub(realtime.Subscribe(ctx, cfg.EurobaseURL, cfg.EurobaseSecretKey, []string{"feed_cards", "runs", "run_steps"}, log))
 	server := api.NewServer(api.Deps{
 		Config: cfg,
 		Store:  sebs.New(client),
@@ -48,6 +49,7 @@ func main() {
 			return client.RPC(ctx, "resume_waiting_runs", map[string]any{"p_run": runID}, nil)
 		},
 		Events: events,
+		Queue:  qeb.New(client),
 	})
 
 	srv := &http.Server{
