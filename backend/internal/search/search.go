@@ -47,6 +47,12 @@ type Provider interface {
 	Search(ctx context.Context, q Query) ([]Result, error)
 }
 
+// ErrRejected: the search API refused the request (bad key, bad
+// parameters); trying again won't help.
+var ErrRejected = errors.New("search: request refused")
+
+var langRe = regexp.MustCompile(`^[a-z]{2}$`)
+
 // ErrNotConfigured: no API key.
 var ErrNotConfigured = errors.New("search: no API key configured")
 
@@ -90,10 +96,10 @@ func (b *Brave) Search(ctx context.Context, q Query) ([]Result, error) {
 	case "week":
 		v.Set("freshness", "pw")
 	}
-	if q.Lang != "" {
+	if langRe.MatchString(q.Lang) { // anything else would be refused (422)
 		v.Set("search_lang", q.Lang)
 	}
-	if q.Country != "" {
+	if len(q.Country) == 2 {
 		v.Set("country", q.Country)
 	}
 	base := b.BaseURL
@@ -126,6 +132,9 @@ func (b *Brave) Search(ctx context.Context, q Query) ([]Result, error) {
 		}
 		if resp.StatusCode == http.StatusTooManyRequests && attempt < 3 {
 			continue // the limiter spaces the next try
+		}
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			return nil, fmt.Errorf("%w: Brave HTTP %d: %.200s", ErrRejected, resp.StatusCode, body)
 		}
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("search: Brave HTTP %d: %.200s", resp.StatusCode, body)

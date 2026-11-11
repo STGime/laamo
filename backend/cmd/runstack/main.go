@@ -70,7 +70,7 @@ func main() {
 	var o options
 	flag.BoolVar(&o.live, "live", false, "use real search, AI and chat (default: offline fixtures)")
 	flag.StringVar(&o.webhook, "webhook", "", "Discord or Slack webhook for Post to chat (default: print the message)")
-	flag.StringVar(&o.profile, "profile", "business=bakery,city=Leipzig", "About me facts, k=v,…")
+	flag.StringVar(&o.profile, "profile", "", "About me facts, k=v,… (default: a bakery in Leipzig)")
 	flag.StringVar(&o.lang, "lang", "en", "workspace language (en, de)")
 	flag.StringVar(&o.tz, "tz", "Europe/Berlin", "workspace timezone")
 	flag.StringVar(&o.answer, "answer", "", "the Tap Go answer ({answer})")
@@ -94,6 +94,13 @@ func main() {
 }
 
 func run(ctx context.Context, w io.Writer, path string, o options) error {
+	o.lang = strings.TrimSpace(o.lang)
+	if o.lang != "en" && o.lang != "de" {
+		return fmt.Errorf("-lang %q: use en or de", o.lang)
+	}
+	if o.profile == "" { // the default About me facts, in the workspace language
+		o.profile = map[string]string{"en": "business=bakery,city=Leipzig", "de": "business=Bäckerei,city=Leipzig"}[o.lang]
+	}
 	raw, err := os.ReadFile(path) //nolint:gosec // G304: a dev tool reading the file it was given
 	if err != nil {
 		return err
