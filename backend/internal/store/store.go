@@ -135,6 +135,10 @@ type TriggerStore interface {
 type PlaceStore interface {
 	CreatePlace(ctx context.Context, p *Place) error
 	GetPlace(ctx context.Context, id string) (Place, error)
+	// ListPlaces returns a workspace's places, oldest first.
+	ListPlaces(ctx context.Context, workspaceID string) ([]Place, error)
+	UpdatePlace(ctx context.Context, id string, p PlacePatch) (Place, error)
+	DeletePlace(ctx context.Context, id string) error
 }
 
 type BrainStore interface {

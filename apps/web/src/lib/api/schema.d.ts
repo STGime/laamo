@@ -55,6 +55,64 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/workspaces/{workspaceId}/places': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		/** Where your helpers can tell you things (chats) */
+		get: operations['listPlaces'];
+		put?: never;
+		/** Connect a chat. Sends a test message first; only a chat that got it is saved (owner only) */
+		post: operations['createPlace'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/places/{placeId}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				placeId: components['parameters']['PlaceId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat */
+		delete: operations['deletePlace'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/places/{placeId}/test': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				placeId: components['parameters']['PlaceId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Send a test message to a chat */
+		post: operations['testPlace'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/me': {
 		parameters: {
 			query?: never;
@@ -329,6 +387,31 @@ export interface components {
 			cached: boolean;
 			seconds?: number;
 		};
+		/** @enum {string} */
+		PlaceType: 'discord' | 'slack' | 'teams' | 'telegram' | 'email' | 'posta';
+		Place: {
+			/** Format: uuid */
+			id: string;
+			type: components['schemas']['PlaceType'];
+			label: string;
+			/** @description The webhook's last 4 characters, to tell chats apart (the URL itself is never returned) */
+			last4?: string;
+			/** @description Names of the helpers that post here */
+			used_by?: string[];
+			/** Format: date-time */
+			verified_at?: string;
+			/** Format: date-time */
+			created_at: string;
+		};
+		PlaceList: {
+			places: components['schemas']['Place'][];
+		};
+		NewPlace: {
+			/** @enum {string} */
+			type: 'discord' | 'slack';
+			label: string;
+			webhook_url: string;
+		};
 		Error: {
 			/** @description Human-readable message (English) */
 			error: string;
@@ -345,6 +428,10 @@ export interface components {
 				| 'auth_unavailable'
 				| 'rate_limited'
 				| 'unavailable'
+				| 'webhook_invalid'
+				| 'webhook_gone'
+				| 'webhook_rejected'
+				| 'webhook_unreachable'
 				| 'internal';
 		};
 		User: {
@@ -692,6 +779,7 @@ export interface components {
 	};
 	parameters: {
 		HelperId: string;
+		PlaceId: string;
 		FeedCardId: string;
 		WorkspaceId: string;
 	};
@@ -765,6 +853,106 @@ export interface operations {
 			};
 			400: components['responses']['BadRequest'];
 			429: components['responses']['TooManyRequests'];
+			503: components['responses']['Unavailable'];
+		};
+	};
+	listPlaces: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PlaceList'];
+				};
+			};
+			404: components['responses']['NotFound'];
+		};
+	};
+	createPlace: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['NewPlace'];
+			};
+		};
+		responses: {
+			/** @description Connected and verified */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Place'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+			503: components['responses']['Unavailable'];
+		};
+	};
+	deletePlace: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				placeId: components['parameters']['PlaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Removed */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	testPlace: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				placeId: components['parameters']['PlaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Delivered; the place is verified */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Place'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			404: components['responses']['NotFound'];
 			503: components['responses']['Unavailable'];
 		};
 	};

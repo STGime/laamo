@@ -8,10 +8,14 @@
 	import { api, session } from '#lib/session.svelte.ts';
 	import { listen } from '#lib/feed.svelte.ts';
 	import { cities } from '#lib/cities.ts';
+	import { placeIcons } from '#lib/places.ts';
 	import { brickProgress, progressText } from '#lib/progress.ts';
 
 	let tpl = $state<Schemas['ShelfTemplate'] | null>(null);
 	let answers = $state<Record<string, string>>({});
+	let places = $state<Schemas['Place'][]>([]);
+	// Chats this template can post to (Discord, Slack, …).
+	const usable = $derived(places.filter((p) => tpl?.places.includes(p.type) && p.verified_at));
 	// About me facts the user wants for this helper only.
 	let justHere = $state<string[]>([]);
 	let busy = $state(false);
@@ -27,7 +31,15 @@
 			.GET('/workspaces/{workspaceId}/templates', { params: { path: { workspaceId: ws.id } } })
 			.then(({ data }) => {
 				tpl = data?.templates.find((x) => x.slug === page.params.slug) ?? null;
-				for (const q of tpl?.questions ?? []) if (q.kind === 'place') answers[q.key] = 'feed';
+				// Back from connecting a chat: that chat is the answer.
+				const back = page.url.searchParams.get('place');
+				for (const q of tpl?.questions ?? [])
+					if (q.kind === 'place') answers[q.key] = back ?? 'feed';
+			});
+		api
+			.GET('/workspaces/{workspaceId}/places', { params: { path: { workspaceId: ws.id } } })
+			.then(({ data }) => {
+				places = data?.places ?? [];
 			});
 	});
 
@@ -122,7 +134,21 @@
 									aria-checked={answers[q.key] === 'feed'}
 									onclick={() => (answers[q.key] = 'feed')}>{t('tpl.feedOnly')}</button
 								>
+								{#each usable as p (p.id)}
+									<button
+										type="button"
+										role="radio"
+										aria-checked={answers[q.key] === p.id}
+										onclick={() => (answers[q.key] = p.id)}
+										>{placeIcons[p.type] ?? '💬'} {p.label}</button
+									>
+								{/each}
 							</div>
+							{#if session.workspace?.role === 'owner'}
+								<a class="add" href="/places/new?back={encodeURIComponent(`/new/${tpl.slug}`)}"
+									>+ {t('tpl.addChat')}</a
+								>
+							{/if}
 						{:else}
 							<input
 								id="q-{q.key}"
@@ -173,6 +199,14 @@
 {/if}
 
 <style>
+	.add {
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--tap-min);
+		color: inherit;
+		font-weight: 700;
+		text-decoration: none;
+	}
 	.just {
 		display: flex;
 		align-items: center;

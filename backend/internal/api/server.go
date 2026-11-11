@@ -10,6 +10,7 @@ import (
 
 	"github.com/STGime/laamo/backend/internal/auth"
 	"github.com/STGime/laamo/backend/internal/config"
+	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/demo"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -31,6 +32,8 @@ type Server struct {
 	events *Hub
 	queue  queue.Queue
 	demo   *demo.Service
+	keys   *crypto.Keyring
+	chat   ChatSender
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -50,6 +53,10 @@ type Deps struct {
 	Queue queue.Queue
 	// Demo runs sample helpers without an account. Optional: off without it.
 	Demo *demo.Service
+	// Keys encrypt chat webhooks; Chat sends their test messages. Without
+	// them, connecting chats is off.
+	Keys *crypto.Keyring
+	Chat ChatSender
 }
 
 func NewServer(d Deps) *Server {
@@ -57,7 +64,7 @@ func NewServer(d Deps) *Server {
 		d.Log = slog.Default()
 	}
 	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log,
-		resume: d.Resume, events: d.Events, queue: d.Queue, demo: d.Demo}
+		resume: d.Resume, events: d.Events, queue: d.Queue, demo: d.Demo, keys: d.Keys, chat: d.Chat}
 }
 
 // maxBody caps request bodies.

@@ -303,6 +303,11 @@ type Place struct {
 	CreatedAt        time.Time      `json:"created_at,omitzero"`
 }
 
+type PlacePatch struct {
+	Label      *string    `json:"label,omitempty"`
+	VerifiedAt *time.Time `json:"verified_at,omitempty"`
+}
+
 // Brain is a workspace's AI: the included model with a monthly allowance,
 // or (post-MVP) the user's own key.
 type Brain struct {

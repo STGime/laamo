@@ -74,6 +74,9 @@
 		</dd>
 	</div>
 </dl>
+<a class="row-link" href="/places"><span>{t('me.places')}</span><span aria-hidden="true">›</span></a
+>
+
 <section class="about">
 	<h2>{t('me.about')}</h2>
 	<p class="hint">{t('me.aboutHint')}</p>
@@ -171,6 +174,17 @@
 	.seg button[aria-pressed='true'] {
 		background: var(--ink);
 		color: var(--white);
+	}
+	.row-link {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		min-height: 56px;
+		padding: 0 var(--gutter);
+		border-bottom: var(--border);
+		color: inherit;
+		font-weight: 700;
+		text-decoration: none;
 	}
 	.about {
 		padding: var(--space-5) var(--gutter) var(--space-2);

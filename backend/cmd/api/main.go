@@ -17,7 +17,9 @@ import (
 	"github.com/STGime/laamo/backend/internal/auth"
 	"github.com/STGime/laamo/backend/internal/bricks"
 	"github.com/STGime/laamo/backend/internal/catalog"
+	"github.com/STGime/laamo/backend/internal/chat"
 	"github.com/STGime/laamo/backend/internal/config"
+	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/demo"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/llm"
@@ -45,6 +47,11 @@ func main() {
 	defer stop()
 
 	client := eb.New(cfg.EurobaseURL, cfg.EurobaseSecretKey)
+	keys, err := crypto.ParseKeyring(cfg.MasterKeys, cfg.MasterKeyActive)
+	if err != nil {
+		log.Warn("no usable LAAMO_MASTER_KEYS: connecting chats is off", "err", err)
+		keys = nil
+	}
 	// One realtime connection for all browsers' live updates.
 	events := api.NewHub(realtime.Subscribe(ctx, cfg.EurobaseURL, cfg.EurobaseSecretKey, []string{"feed_cards", "runs", "run_steps"}, log))
 	server := api.NewServer(api.Deps{
@@ -58,6 +65,8 @@ func main() {
 		Events: events,
 		Queue:  qeb.New(client),
 		Demo:   demoService(cfg, log),
+		Keys:   keys,
+		Chat:   &chat.Sender{},
 	})
 
 	srv := &http.Server{

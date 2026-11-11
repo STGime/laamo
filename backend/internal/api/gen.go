@@ -110,15 +110,19 @@ func (e DemoRequestTemplate) Valid() bool {
 
 // Defines values for ErrorCode.
 const (
-	ErrorCodeAuthUnavailable ErrorCode = "auth_unavailable"
-	ErrorCodeBadRequest      ErrorCode = "bad_request"
-	ErrorCodeConflict        ErrorCode = "conflict"
-	ErrorCodeForbidden       ErrorCode = "forbidden"
-	ErrorCodeInternal        ErrorCode = "internal"
-	ErrorCodeNotFound        ErrorCode = "not_found"
-	ErrorCodeRateLimited     ErrorCode = "rate_limited"
-	ErrorCodeUnauthorized    ErrorCode = "unauthorized"
-	ErrorCodeUnavailable     ErrorCode = "unavailable"
+	ErrorCodeAuthUnavailable    ErrorCode = "auth_unavailable"
+	ErrorCodeBadRequest         ErrorCode = "bad_request"
+	ErrorCodeConflict           ErrorCode = "conflict"
+	ErrorCodeForbidden          ErrorCode = "forbidden"
+	ErrorCodeInternal           ErrorCode = "internal"
+	ErrorCodeNotFound           ErrorCode = "not_found"
+	ErrorCodeRateLimited        ErrorCode = "rate_limited"
+	ErrorCodeUnauthorized       ErrorCode = "unauthorized"
+	ErrorCodeUnavailable        ErrorCode = "unavailable"
+	ErrorCodeWebhookGone        ErrorCode = "webhook_gone"
+	ErrorCodeWebhookInvalid     ErrorCode = "webhook_invalid"
+	ErrorCodeWebhookRejected    ErrorCode = "webhook_rejected"
+	ErrorCodeWebhookUnreachable ErrorCode = "webhook_unreachable"
 )
 
 // Valid indicates whether the value is a known member of the ErrorCode enum.
@@ -141,6 +145,14 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeUnauthorized:
 		return true
 	case ErrorCodeUnavailable:
+		return true
+	case ErrorCodeWebhookGone:
+		return true
+	case ErrorCodeWebhookInvalid:
+		return true
+	case ErrorCodeWebhookRejected:
+		return true
+	case ErrorCodeWebhookUnreachable:
 		return true
 	default:
 		return false
@@ -387,6 +399,54 @@ func (e Need) Valid() bool {
 	}
 }
 
+// Defines values for NewPlaceType.
+const (
+	NewPlaceTypeDiscord NewPlaceType = "discord"
+	NewPlaceTypeSlack   NewPlaceType = "slack"
+)
+
+// Valid indicates whether the value is a known member of the NewPlaceType enum.
+func (e NewPlaceType) Valid() bool {
+	switch e {
+	case NewPlaceTypeDiscord:
+		return true
+	case NewPlaceTypeSlack:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlaceType.
+const (
+	PlaceTypeDiscord  PlaceType = "discord"
+	PlaceTypeEmail    PlaceType = "email"
+	PlaceTypePosta    PlaceType = "posta"
+	PlaceTypeSlack    PlaceType = "slack"
+	PlaceTypeTeams    PlaceType = "teams"
+	PlaceTypeTelegram PlaceType = "telegram"
+)
+
+// Valid indicates whether the value is a known member of the PlaceType enum.
+func (e PlaceType) Valid() bool {
+	switch e {
+	case PlaceTypeDiscord:
+		return true
+	case PlaceTypeEmail:
+		return true
+	case PlaceTypePosta:
+		return true
+	case PlaceTypeSlack:
+		return true
+	case PlaceTypeTeams:
+		return true
+	case PlaceTypeTelegram:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Plan.
 const (
 	Business Plan = "business"
@@ -479,25 +539,25 @@ func (e RunSummaryStatus) Valid() bool {
 
 // Defines values for SetupQuestionKind.
 const (
-	List   SetupQuestionKind = "list"
-	Place  SetupQuestionKind = "place"
-	Select SetupQuestionKind = "select"
-	Text   SetupQuestionKind = "text"
-	Time   SetupQuestionKind = "time"
+	SetupQuestionKindList   SetupQuestionKind = "list"
+	SetupQuestionKindPlace  SetupQuestionKind = "place"
+	SetupQuestionKindSelect SetupQuestionKind = "select"
+	SetupQuestionKindText   SetupQuestionKind = "text"
+	SetupQuestionKindTime   SetupQuestionKind = "time"
 )
 
 // Valid indicates whether the value is a known member of the SetupQuestionKind enum.
 func (e SetupQuestionKind) Valid() bool {
 	switch e {
-	case List:
+	case SetupQuestionKindList:
 		return true
-	case Place:
+	case SetupQuestionKindPlace:
 		return true
-	case Select:
+	case SetupQuestionKindSelect:
 		return true
-	case Text:
+	case SetupQuestionKindText:
 		return true
-	case Time:
+	case SetupQuestionKindTime:
 		return true
 	default:
 		return false
@@ -840,6 +900,16 @@ type NewHelper struct {
 	Template string `json:"template"`
 }
 
+// NewPlace defines model for NewPlace.
+type NewPlace struct {
+	Label      string       `json:"label"`
+	Type       NewPlaceType `json:"type"`
+	WebhookUrl string       `json:"webhook_url"`
+}
+
+// NewPlaceType defines model for NewPlace.Type.
+type NewPlaceType string
+
 // NewWorkspace defines model for NewWorkspace.
 type NewWorkspace struct {
 	Locale *Locale `json:"locale,omitempty"`
@@ -860,6 +930,29 @@ type NewWorkspace struct {
 	// Example: Europe/Berlin
 	Timezone *string `json:"timezone,omitempty"`
 }
+
+// Place defines model for Place.
+type Place struct {
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+	Label     string             `json:"label"`
+
+	// Last4 The webhook's last 4 characters, to tell chats apart (the URL itself is never returned)
+	Last4 *string   `json:"last4,omitempty"`
+	Type  PlaceType `json:"type"`
+
+	// UsedBy Names of the helpers that post here
+	UsedBy     *[]string  `json:"used_by,omitempty"`
+	VerifiedAt *time.Time `json:"verified_at,omitempty"`
+}
+
+// PlaceList defines model for PlaceList.
+type PlaceList struct {
+	Places []Place `json:"places"`
+}
+
+// PlaceType defines model for PlaceType.
+type PlaceType string
 
 // Plan defines model for Plan.
 type Plan string
@@ -1021,6 +1114,9 @@ type FeedCardId = openapi_types.UUID
 // HelperId defines model for HelperId.
 type HelperId = openapi_types.UUID
 
+// PlaceId defines model for PlaceId.
+type PlaceId = openapi_types.UUID
+
 // WorkspaceId defines model for WorkspaceId.
 type WorkspaceId = openapi_types.UUID
 
@@ -1093,6 +1189,9 @@ type UpdateWorkspaceJSONRequestBody = WorkspaceUpdate
 
 // CreateHelperJSONRequestBody defines body for CreateHelper for application/json ContentType.
 type CreateHelperJSONRequestBody = NewHelper
+
+// CreatePlaceJSONRequestBody defines body for CreatePlace for application/json ContentType.
+type CreatePlaceJSONRequestBody = NewPlace
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -1267,6 +1366,16 @@ type ClientInterface interface {
 	// Corresponds with GET /me (the `GetMe` operationId).
 	GetMe(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeletePlace Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
+	//
+	// Corresponds with DELETE /places/{placeId} (the `DeletePlace` operationId).
+	DeletePlace(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TestPlace Send a test message to a chat
+	//
+	// Corresponds with POST /places/{placeId}/test (the `TestPlace` operationId).
+	TestPlace(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateWorkspaceWithBody Create a workspace (you become its owner)
 	//
 	// Also creates your owner membership and the included brain. At most 5 workspaces per user.
@@ -1338,6 +1447,25 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
 	CreateHelper(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPlaces Where your helpers can tell you things (chats)
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/places (the `ListPlaces` operationId).
+	ListPlaces(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePlaceWithBody Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
+	CreatePlaceWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePlace Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
+	CreatePlace(ctx context.Context, workspaceId WorkspaceId, body CreatePlaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	//
@@ -1594,6 +1722,36 @@ func (c *Client) GetMe(ctx context.Context, reqEditors ...RequestEditorFn) (*htt
 	return c.Client.Do(req)
 }
 
+// DeletePlace Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
+//
+// Corresponds with DELETE /places/{placeId} (the `DeletePlace` operationId).
+func (c *Client) DeletePlace(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePlaceRequest(c.Server, placeId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TestPlace Send a test message to a chat
+//
+// Corresponds with POST /places/{placeId}/test (the `TestPlace` operationId).
+func (c *Client) TestPlace(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestPlaceRequest(c.Server, placeId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // CreateWorkspaceWithBody Create a workspace (you become its owner)
 //
 // Also creates your owner membership and the included brain. At most 5 workspaces per user.
@@ -1746,6 +1904,55 @@ func (c *Client) CreateHelperWithBody(ctx context.Context, workspaceId Workspace
 // Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
 func (c *Client) CreateHelper(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateHelperRequest(c.Server, workspaceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPlaces Where your helpers can tell you things (chats)
+//
+// Corresponds with GET /workspaces/{workspaceId}/places (the `ListPlaces` operationId).
+func (c *Client) ListPlaces(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPlacesRequest(c.Server, workspaceId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePlaceWithBody Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
+func (c *Client) CreatePlaceWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePlaceRequestWithBody(c.Server, workspaceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePlace Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
+func (c *Client) CreatePlace(ctx context.Context, workspaceId WorkspaceId, body CreatePlaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePlaceRequest(c.Server, workspaceId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2169,6 +2376,74 @@ func NewGetMeRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewDeletePlaceRequest constructs an http.Request for the DeletePlace method
+func NewDeletePlaceRequest(server string, placeId PlaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "placeId", placeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/places/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewTestPlaceRequest constructs an http.Request for the TestPlace method
+func NewTestPlaceRequest(server string, placeId PlaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "placeId", placeId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/places/%s/test", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCreateWorkspaceRequest calls the generic CreateWorkspace builder with application/json body
 func NewCreateWorkspaceRequest(server string, body CreateWorkspaceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -2456,6 +2731,87 @@ func NewCreateHelperRequestWithBody(server string, workspaceId WorkspaceId, cont
 	return req, nil
 }
 
+// NewListPlacesRequest constructs an http.Request for the ListPlaces method
+func NewListPlacesRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/places", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePlaceRequest calls the generic CreatePlace builder with application/json body
+func NewCreatePlaceRequest(server string, workspaceId WorkspaceId, body CreatePlaceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreatePlaceRequestWithBody(server, workspaceId, "application/json", bodyReader)
+}
+
+// NewCreatePlaceRequestWithBody constructs an http.Request for the CreatePlace method, with any body, and a specified content type
+func NewCreatePlaceRequestWithBody(server string, workspaceId WorkspaceId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/places", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListTemplatesRequest constructs an http.Request for the ListTemplates method
 func NewListTemplatesRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
 	var err error
@@ -2647,6 +3003,20 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /me (the `GetMe` operationId).
 	GetMeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMeResponse, error)
 
+	// DeletePlaceWithResponse Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /places/{placeId} (the `DeletePlace` operationId).
+	DeletePlaceWithResponse(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*DeletePlaceResponse, error)
+
+	// TestPlaceWithResponse Send a test message to a chat
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /places/{placeId}/test (the `TestPlace` operationId).
+	TestPlaceWithResponse(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*TestPlaceResponse, error)
+
 	// CreateWorkspaceWithBodyWithResponse Create a workspace (you become its owner)
 	//
 	// Also creates your owner membership and the included brain. At most 5 workspaces per user.
@@ -2724,6 +3094,27 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
 	CreateHelperWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateHelperResponse, error)
+
+	// ListPlacesWithResponse Where your helpers can tell you things (chats)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/places (the `ListPlaces` operationId).
+	ListPlacesWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListPlacesResponse, error)
+
+	// CreatePlaceWithBodyWithResponse Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
+	CreatePlaceWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePlaceResponse, error)
+
+	// CreatePlaceWithResponse Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
+	CreatePlaceWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreatePlaceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePlaceResponse, error)
 
 	// ListTemplatesWithResponse The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	//
@@ -3338,6 +3729,116 @@ func (r GetMeResponse) ContentType() string {
 	return ""
 }
 
+type DeletePlaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeletePlaceResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeletePlaceResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePlaceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePlaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePlaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePlaceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TestPlaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Place
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r TestPlaceResponse) GetJSON200() *Place {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r TestPlaceResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r TestPlaceResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r TestPlaceResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r TestPlaceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TestPlaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TestPlaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TestPlaceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateWorkspaceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3693,6 +4194,123 @@ func (r CreateHelperResponse) ContentType() string {
 	return ""
 }
 
+type ListPlacesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlaceList
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPlacesResponse) GetJSON200() *PlaceList {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListPlacesResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPlacesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPlacesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPlacesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPlacesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePlaceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Place
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePlaceResponse) GetJSON201() *Place {
+	return r.JSON201
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r CreatePlaceResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r CreatePlaceResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CreatePlaceResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreatePlaceResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePlaceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePlaceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePlaceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePlaceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTemplatesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3955,6 +4573,32 @@ func (c *ClientWithResponses) GetMeWithResponse(ctx context.Context, reqEditors 
 	return ParseGetMeResponse(rsp)
 }
 
+// DeletePlaceWithResponse Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /places/{placeId} (the `DeletePlace` operationId).
+func (c *ClientWithResponses) DeletePlaceWithResponse(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*DeletePlaceResponse, error) {
+	rsp, err := c.DeletePlace(ctx, placeId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePlaceResponse(rsp)
+}
+
+// TestPlaceWithResponse Send a test message to a chat
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /places/{placeId}/test (the `TestPlace` operationId).
+func (c *ClientWithResponses) TestPlaceWithResponse(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*TestPlaceResponse, error) {
+	rsp, err := c.TestPlace(ctx, placeId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestPlaceResponse(rsp)
+}
+
 // CreateWorkspaceWithBodyWithResponse Create a workspace (you become its owner)
 //
 // Also creates your owner membership and the included brain. At most 5 workspaces per user.
@@ -4085,6 +4729,45 @@ func (c *ClientWithResponses) CreateHelperWithResponse(ctx context.Context, work
 		return nil, err
 	}
 	return ParseCreateHelperResponse(rsp)
+}
+
+// ListPlacesWithResponse Where your helpers can tell you things (chats)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /workspaces/{workspaceId}/places (the `ListPlaces` operationId).
+func (c *ClientWithResponses) ListPlacesWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListPlacesResponse, error) {
+	rsp, err := c.ListPlaces(ctx, workspaceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPlacesResponse(rsp)
+}
+
+// CreatePlaceWithBodyWithResponse Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
+func (c *ClientWithResponses) CreatePlaceWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePlaceResponse, error) {
+	rsp, err := c.CreatePlaceWithBody(ctx, workspaceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePlaceResponse(rsp)
+}
+
+// CreatePlaceWithResponse Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
+func (c *ClientWithResponses) CreatePlaceWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreatePlaceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePlaceResponse, error) {
+	rsp, err := c.CreatePlace(ctx, workspaceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePlaceResponse(rsp)
 }
 
 // ListTemplatesWithResponse The Shelf, sorted by your needs, in your language, with known About me facts filled in
@@ -4543,6 +5226,89 @@ func ParseGetMeResponse(rsp *http.Response) (*GetMeResponse, error) {
 	return response, nil
 }
 
+// ParseDeletePlaceResponse parses an HTTP response from a DeletePlaceWithResponse call
+func ParseDeletePlaceResponse(rsp *http.Response) (*DeletePlaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePlaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTestPlaceResponse parses an HTTP response from a TestPlaceWithResponse call
+func ParseTestPlaceResponse(rsp *http.Response) (*TestPlaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TestPlaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Place
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCreateWorkspaceResponse parses an HTTP response from a CreateWorkspaceWithResponse call
 func ParseCreateWorkspaceResponse(rsp *http.Response) (*CreateWorkspaceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -4806,6 +5572,93 @@ func ParseCreateHelperResponse(rsp *http.Response) (*CreateHelperResponse, error
 	return response, nil
 }
 
+// ParseListPlacesResponse parses an HTTP response from a ListPlacesWithResponse call
+func ParseListPlacesResponse(rsp *http.Response) (*ListPlacesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPlacesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlaceList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePlaceResponse parses an HTTP response from a CreatePlaceWithResponse call
+func ParseCreatePlaceResponse(rsp *http.Response) (*CreatePlaceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePlaceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Place
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTemplatesResponse parses an HTTP response from a ListTemplatesWithResponse call
 func ParseListTemplatesResponse(rsp *http.Response) (*ListTemplatesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -4883,6 +5736,12 @@ type ServerInterface interface {
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// DeletePlace Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
+	// (DELETE /places/{placeId})
+	DeletePlace(w http.ResponseWriter, r *http.Request, placeId PlaceId)
+	// TestPlace Send a test message to a chat
+	// (POST /places/{placeId}/test)
+	TestPlace(w http.ResponseWriter, r *http.Request, placeId PlaceId)
 	// CreateWorkspace Create a workspace (you become its owner)
 	// (POST /workspaces)
 	CreateWorkspace(w http.ResponseWriter, r *http.Request)
@@ -4901,6 +5760,12 @@ type ServerInterface interface {
 	// CreateHelper Make a helper from a Shelf template, optionally running a test right away
 	// (POST /workspaces/{workspaceId}/helpers)
 	CreateHelper(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// ListPlaces Where your helpers can tell you things (chats)
+	// (GET /workspaces/{workspaceId}/places)
+	ListPlaces(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// CreatePlace Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+	// (POST /workspaces/{workspaceId}/places)
+	CreatePlace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	// (GET /workspaces/{workspaceId}/templates)
 	ListTemplates(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -5153,6 +6018,58 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 	handler.ServeHTTP(w, r)
 }
 
+// DeletePlace operation middleware
+func (siw *ServerInterfaceWrapper) DeletePlace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "placeId" -------------
+	var placeId PlaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "placeId", r.PathValue("placeId"), &placeId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "placeId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePlace(w, r, placeId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestPlace operation middleware
+func (siw *ServerInterfaceWrapper) TestPlace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "placeId" -------------
+	var placeId PlaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "placeId", r.PathValue("placeId"), &placeId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "placeId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestPlace(w, r, placeId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateWorkspace operation middleware
 func (siw *ServerInterfaceWrapper) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 
@@ -5339,6 +6256,58 @@ func (siw *ServerInterfaceWrapper) CreateHelper(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListPlaces operation middleware
+func (siw *ServerInterfaceWrapper) ListPlaces(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlaces(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePlace operation middleware
+func (siw *ServerInterfaceWrapper) CreatePlace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePlace(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListTemplates(w http.ResponseWriter, r *http.Request) {
 
@@ -5488,6 +6457,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealth)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/demo/challenge", wrapper.GetDemoChallenge)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/demo/runs", wrapper.RunDemo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.ListPlaces)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.CreatePlace)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/places/{placeId}", wrapper.DeletePlace)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/places/{placeId}/test", wrapper.TestPlace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/me", wrapper.GetMe)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces", wrapper.CreateWorkspace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}", wrapper.GetWorkspace)
@@ -6079,6 +7052,114 @@ func (response GetMe401JSONResponse) VisitGetMeResponse(w http.ResponseWriter) e
 	return err
 }
 
+type DeletePlaceRequestObject struct {
+	PlaceId PlaceId `json:"placeId"`
+}
+
+type DeletePlaceResponseObject interface {
+	VisitDeletePlaceResponse(w http.ResponseWriter) error
+}
+
+type DeletePlace204Response struct {
+}
+
+func (response DeletePlace204Response) VisitDeletePlaceResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeletePlace403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeletePlace403JSONResponse) VisitDeletePlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePlace404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeletePlace404JSONResponse) VisitDeletePlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestPlaceRequestObject struct {
+	PlaceId PlaceId `json:"placeId"`
+}
+
+type TestPlaceResponseObject interface {
+	VisitTestPlaceResponse(w http.ResponseWriter) error
+}
+
+type TestPlace200JSONResponse Place
+
+func (response TestPlace200JSONResponse) VisitTestPlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestPlace400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response TestPlace400JSONResponse) VisitTestPlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestPlace404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response TestPlace404JSONResponse) VisitTestPlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestPlace503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response TestPlace503JSONResponse) VisitTestPlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateWorkspaceRequestObject struct {
 	Body *CreateWorkspaceJSONRequestBody
 }
@@ -6426,6 +7507,121 @@ func (response CreateHelper404JSONResponse) VisitCreateHelperResponse(w http.Res
 	return err
 }
 
+type ListPlacesRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListPlacesResponseObject interface {
+	VisitListPlacesResponse(w http.ResponseWriter) error
+}
+
+type ListPlaces200JSONResponse PlaceList
+
+func (response ListPlaces200JSONResponse) VisitListPlacesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlaces404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListPlaces404JSONResponse) VisitListPlacesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlaceRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Body        *CreatePlaceJSONRequestBody
+}
+
+type CreatePlaceResponseObject interface {
+	VisitCreatePlaceResponse(w http.ResponseWriter) error
+}
+
+type CreatePlace201JSONResponse Place
+
+func (response CreatePlace201JSONResponse) VisitCreatePlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlace400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreatePlace400JSONResponse) VisitCreatePlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlace403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreatePlace403JSONResponse) VisitCreatePlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlace404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreatePlace404JSONResponse) VisitCreatePlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlace503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response CreatePlace503JSONResponse) VisitCreatePlaceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTemplatesRequestObject struct {
 	WorkspaceId WorkspaceId `json:"workspaceId"`
 }
@@ -6513,6 +7709,12 @@ type StrictServerInterface interface {
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// DeletePlace Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
+	// (DELETE /places/{placeId})
+	DeletePlace(ctx context.Context, request DeletePlaceRequestObject) (DeletePlaceResponseObject, error)
+	// TestPlace Send a test message to a chat
+	// (POST /places/{placeId}/test)
+	TestPlace(ctx context.Context, request TestPlaceRequestObject) (TestPlaceResponseObject, error)
 	// CreateWorkspace Create a workspace (you become its owner)
 	// (POST /workspaces)
 	CreateWorkspace(ctx context.Context, request CreateWorkspaceRequestObject) (CreateWorkspaceResponseObject, error)
@@ -6531,6 +7733,12 @@ type StrictServerInterface interface {
 	// CreateHelper Make a helper from a Shelf template, optionally running a test right away
 	// (POST /workspaces/{workspaceId}/helpers)
 	CreateHelper(ctx context.Context, request CreateHelperRequestObject) (CreateHelperResponseObject, error)
+	// ListPlaces Where your helpers can tell you things (chats)
+	// (GET /workspaces/{workspaceId}/places)
+	ListPlaces(ctx context.Context, request ListPlacesRequestObject) (ListPlacesResponseObject, error)
+	// CreatePlace Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
+	// (POST /workspaces/{workspaceId}/places)
+	CreatePlace(ctx context.Context, request CreatePlaceRequestObject) (CreatePlaceResponseObject, error)
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	// (GET /workspaces/{workspaceId}/templates)
 	ListTemplates(ctx context.Context, request ListTemplatesRequestObject) (ListTemplatesResponseObject, error)
@@ -6884,6 +8092,58 @@ func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeletePlace operation middleware
+func (sh *strictHandler) DeletePlace(w http.ResponseWriter, r *http.Request, placeId PlaceId) {
+	var request DeletePlaceRequestObject
+
+	request.PlaceId = placeId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePlace(ctx, request.(DeletePlaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePlace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePlaceResponseObject); ok {
+		if err := validResponse.VisitDeletePlaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestPlace operation middleware
+func (sh *strictHandler) TestPlace(w http.ResponseWriter, r *http.Request, placeId PlaceId) {
+	var request TestPlaceRequestObject
+
+	request.PlaceId = placeId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestPlace(ctx, request.(TestPlaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestPlace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestPlaceResponseObject); ok {
+		if err := validResponse.VisitTestPlaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // CreateWorkspace operation middleware
 func (sh *strictHandler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	var request CreateWorkspaceRequestObject
@@ -7053,6 +8313,65 @@ func (sh *strictHandler) CreateHelper(w http.ResponseWriter, r *http.Request, wo
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateHelperResponseObject); ok {
 		if err := validResponse.VisitCreateHelperResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPlaces operation middleware
+func (sh *strictHandler) ListPlaces(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListPlacesRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPlaces(ctx, request.(ListPlacesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPlaces")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPlacesResponseObject); ok {
+		if err := validResponse.VisitListPlacesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePlace operation middleware
+func (sh *strictHandler) CreatePlace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request CreatePlaceRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	var body CreatePlaceJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePlace(ctx, request.(CreatePlaceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePlace")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePlaceResponseObject); ok {
+		if err := validResponse.VisitCreatePlaceResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

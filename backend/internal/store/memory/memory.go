@@ -758,6 +758,46 @@ func (s *Store) GetPlace(_ context.Context, id string) (store.Place, error) {
 	return get(s, s.places, id)
 }
 
+func (s *Store) ListPlaces(_ context.Context, workspaceID string) ([]store.Place, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.Place
+	for _, p := range s.places {
+		if p.WorkspaceID == workspaceID {
+			out = append(out, clone(p))
+		}
+	}
+	slices.SortFunc(out, func(a, b store.Place) int {
+		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	})
+	return out, nil
+}
+
+func (s *Store) UpdatePlace(_ context.Context, id string, p store.PlacePatch) (store.Place, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pl, ok := s.places[id]
+	if !ok {
+		return store.Place{}, store.ErrNotFound
+	}
+	pl, err := store.ApplyPatch(pl, p)
+	if err != nil {
+		return pl, err
+	}
+	s.places[id] = clone(pl)
+	return pl, nil
+}
+
+func (s *Store) DeletePlace(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.places[id]; !ok {
+		return store.ErrNotFound
+	}
+	delete(s.places, id)
+	return nil
+}
+
 // ---- triggers ----
 
 func (s *Store) HelperTriggers(_ context.Context, helperID string) ([]store.Trigger, error) {
