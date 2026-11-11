@@ -273,6 +273,8 @@ export const de: Record<Key, string> = {
 	'me.timeFormat': 'Uhrzeit',
 	'time.hours': 'Stunden',
 	'time.minutes': 'Minuten',
+	'builder.restored': 'Ungespeicherte Änderungen von vorhin.',
+	'builder.discard': 'Verwerfen',
 	'builder.title': 'Steine ändern',
 	'builder.edit': 'Steine ändern',
 	'builder.missing': 'Diesen Helfer gibt es nicht mehr.',

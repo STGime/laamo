@@ -55,11 +55,14 @@
 				base = data.stack as Stack;
 				lastOut = data.last_out;
 				bricks = structuredClone(data.stack.bricks) as StackBrick[];
-				// Back from Connect a chat: the edit from before, once.
+				// An edit that wasn't saved comes back. After Connect a chat
+				// that's expected; otherwise it's marked, with Discard.
 				try {
 					const d = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
-					sessionStorage.removeItem(draftKey);
-					if (d?.via === 'chat' && d.version === version) bricks = d.bricks;
+					if (d?.version === version) {
+						bricks = d.bricks;
+						restored = d.via !== 'chat';
+					} else sessionStorage.removeItem(draftKey);
 				} catch {
 					/* no draft */
 				}
@@ -78,14 +81,30 @@
 
 	const stack = $derived<Stack>({ ...(base ?? { schema: 1 }), schema: 1, bricks });
 	const dirty = $derived(!!base && JSON.stringify(base.bricks) !== JSON.stringify(bricks));
-	// Only a trip to Connect a chat keeps an unsaved edit; Cancel or
-	// leaving any other way drops it.
-	function keepDraft() {
+	// Unsaved edits are kept until Save or Cancel.
+	let restored = $state(false);
+	function draft(via = '') {
 		try {
-			if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ via: 'chat', version, bricks }));
+			if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ via, version, bricks }));
+			else sessionStorage.removeItem(draftKey);
 		} catch {
 			/* private mode */
 		}
+	}
+	$effect(() => {
+		if (base) draft();
+	});
+	const keepDraft = () => draft('chat');
+	function dropDraft() {
+		try {
+			sessionStorage.removeItem(draftKey);
+		} catch {
+			/* private mode */
+		}
+	}
+	function discard() {
+		if (base) bricks = structuredClone($state.snapshot(base.bricks)) as StackBrick[];
+		restored = false;
 	}
 
 	// Live checks, the same as the server's (#41 adds one-tap fixes).
@@ -198,6 +217,7 @@
 		});
 		saving = false;
 		if (data) {
+			dropDraft();
 			goto(`/helpers/${id}`, { replaceState: true });
 			return;
 		}
@@ -215,7 +235,7 @@
 	<PageHeader title={t('builder.title')}>
 		{#snippet right()}
 			<div class="head-actions">
-				<a class="cancel" href="/helpers/{id}">{t('helper.cancel')}</a>
+				<a class="cancel" href="/helpers/{id}" onclick={dropDraft}>{t('helper.cancel')}</a>
 				<button
 					type="button"
 					class="btn primary"
@@ -227,6 +247,12 @@
 	</PageHeader>
 	{#if name}<p class="lead">{name}</p>{/if}
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
+	{#if restored && dirty}
+		<p class="restored">
+			{t('builder.restored')}
+			<button type="button" onclick={discard}>{t('builder.discard')}</button>
+		</p>
+	{/if}
 
 	{#if base}
 		<ol
@@ -317,6 +343,27 @@
 		padding: 0 var(--gutter) var(--space-3);
 		color: var(--muted);
 		font-weight: 600;
+	}
+	.restored {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		margin: 0 var(--gutter) var(--space-3);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-control);
+		background: var(--gray-50);
+		font-weight: 600;
+	}
+	.restored button {
+		min-height: var(--tap-min);
+		padding: 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		font-weight: 800;
+		text-decoration: underline;
+		cursor: pointer;
 	}
 	.head-actions {
 		display: flex;

@@ -265,6 +265,8 @@ export const en = {
 	'me.timeFormat': 'Time',
 	'time.hours': 'Hours',
 	'time.minutes': 'Minutes',
+	'builder.restored': 'Unsaved changes from before.',
+	'builder.discard': 'Discard',
 	'builder.title': 'Change bricks',
 	'builder.edit': 'Change bricks',
 	'builder.missing': 'This helper isn’t here anymore.',
