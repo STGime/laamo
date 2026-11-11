@@ -16,6 +16,7 @@ type Workspace struct {
 	Locale    string         `json:"locale"`
 	Plan      string         `json:"plan"`
 	Profile   map[string]any `json:"profile"` // About me facts
+	Needs     []string       `json:"needs"`   // onboarding chips (template categories), at most 3
 	CreatedAt time.Time      `json:"created_at,omitzero"`
 	UpdatedAt time.Time      `json:"updated_at,omitzero"`
 }
@@ -33,6 +34,7 @@ type WorkspacePatch struct {
 	Timezone *string        `json:"timezone,omitempty"`
 	Locale   *string        `json:"locale,omitempty"`
 	Profile  map[string]any `json:"profile,omitempty"` // replaces the whole profile
+	Needs    *[]string      `json:"needs,omitempty"`   // replaces the list
 }
 
 // Member roles.

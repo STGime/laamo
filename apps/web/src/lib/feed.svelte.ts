@@ -117,7 +117,7 @@ export function parseSSE(buffer: string): {
  * is called. Any change reloads the first page (debounced); a dropped
  * stream reconnects with backoff and reloads.
  */
-export function listen(onChange: () => void, token: () => string | null): () => void {
+export function listen(onChange: () => void, token: () => Promise<string | null>): () => void {
 	let stopped = false;
 	let ctrl: AbortController | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -130,7 +130,7 @@ export function listen(onChange: () => void, token: () => string | null): () => 
 		let wait = 1000;
 		while (!stopped) {
 			const ws = session.workspace;
-			const t = token();
+			const t = await token();
 			if (!ws || !t) return;
 			ctrl = new AbortController();
 			const started = Date.now();

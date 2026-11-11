@@ -12,14 +12,18 @@ export interface ApiOptions {
 	fetch?: typeof fetch;
 	/** Current Eurobase access token, or null when signed out. */
 	token?: () => string | null | undefined;
+	/** Runs before each request, e.g. to refresh an expiring token. */
+	before?: () => Promise<unknown>;
 }
 
 export function createApi(opts: ApiOptions = {}) {
 	const client = createClient<paths>({ baseUrl: opts.baseUrl ?? '/api', fetch: opts.fetch });
 	const token = opts.token;
+	const before = opts.before;
 	if (token) {
 		client.use({
-			onRequest({ request }) {
+			async onRequest({ request }) {
+				if (before) await before();
 				const t = token();
 				if (t) request.headers.set('Authorization', `Bearer ${t}`);
 				return request;

@@ -16,7 +16,7 @@
 		feed.load();
 		return listen(
 			() => feed.load(),
-			() => session.token
+			() => session.fresh()
 		);
 	});
 

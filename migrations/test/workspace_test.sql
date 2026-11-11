@@ -49,4 +49,25 @@ DO $$ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 
+-- needs (0012): known values, at most 3.
+SELECT pg_temp.act('service', NULL);
+DO $$
+DECLARE wid uuid;
+BEGIN
+  wid := (create_workspace('bbbbbbbb-0000-0000-0000-000000000002', 'Needs test')->>'id')::uuid;
+  ASSERT (SELECT needs FROM workspaces WHERE id = wid) = '{}'::text[], 'needs default to empty';
+  UPDATE workspaces SET needs = ARRAY['find_customers', 'plan_events'] WHERE id = wid;
+  BEGIN
+    UPDATE workspaces SET needs = ARRAY['world_domination'] WHERE id = wid;
+    RAISE EXCEPTION 'unknown need accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE workspaces SET needs = ARRAY['find_customers', 'plan_events', 'sort_emails', 'book_meetings'] WHERE id = wid;
+    RAISE EXCEPTION '4 needs accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  DELETE FROM workspaces WHERE id = wid;
+END $$;
+
 \echo 'Workspace tests passed'

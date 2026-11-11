@@ -270,3 +270,31 @@ func TestSpecIsServed(t *testing.T) {
 		t.Fatalf("spec: %d %.80s", resp.StatusCode, body)
 	}
 }
+
+// Onboarding sends About me facts and needs with the new workspace.
+func TestCreateWorkspaceWithOnboarding(t *testing.T) {
+	e := newEnv(t, config.Config{})
+	ctx := context.Background()
+	c := e.client(t, "anna")
+	needs := api.Needs{"find_customers", "stay_up_to_date"}
+	res := must(c.CreateWorkspaceWithResponse(ctx, api.NewWorkspace{Name: "Bäckerei Krause", Locale: new(api.Locale("de")),
+		Profile: &api.Profile{"name": "Anna", "business": "Bäckerei"}, Needs: &needs}))
+	if res.StatusCode() != 201 || res.JSON201.Profile["name"] != "Anna" || len(*res.JSON201.Needs) != 2 {
+		t.Fatalf("%d %s", res.StatusCode(), res.Body)
+	}
+	for _, bad := range []api.NewWorkspace{
+		{Name: "X", Needs: &api.Needs{"find_customers", "find_customers"}},
+		{Name: "X", Needs: &api.Needs{"find_customers", "sort_emails", "book_meetings", "plan_events"}},
+		{Name: "X", Needs: &api.Needs{"world_domination"}},
+		{Name: "X", Profile: &api.Profile{"favourite_colour": "red"}},
+	} {
+		if r := must(c.CreateWorkspaceWithResponse(ctx, bad)); r.StatusCode() != 400 {
+			t.Errorf("%+v: %d %s", bad, r.StatusCode(), r.Body)
+		}
+	}
+	one := api.Needs{"plan_events"}
+	up := must(c.UpdateWorkspaceWithResponse(ctx, res.JSON201.Id, api.WorkspaceUpdate{Needs: &one}))
+	if up.StatusCode() != 200 || len(*up.JSON200.Needs) != 1 || (*up.JSON200.Needs)[0] != "plan_events" || up.JSON200.Profile["business"] != "Bäckerei" {
+		t.Fatalf("%d %s", up.StatusCode(), up.Body)
+	}
+}

@@ -72,12 +72,37 @@ func (s *Server) CreateWorkspace(ctx context.Context, req CreateWorkspaceRequest
 	if req.Body.Locale != nil {
 		nw.Locale = string(*req.Body.Locale)
 	}
+	bad := func(msg string) (CreateWorkspaceResponseObject, error) {
+		return CreateWorkspace400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, msg))}, nil
+	}
+	// About me facts and needs from onboarding are checked before anything
+	// is created, then set right after.
+	var p store.WorkspacePatch
+	if req.Body.Profile != nil {
+		merged, msg := mergeProfile(nil, *req.Body.Profile)
+		if msg != "" {
+			return bad(msg)
+		}
+		p.Profile = merged
+	}
+	if req.Body.Needs != nil {
+		needs, msg := checkNeeds(*req.Body.Needs)
+		if msg != "" {
+			return bad(msg)
+		}
+		p.Needs = &needs
+	}
 	w, err := s.store.CreateWorkspace(ctx, nw)
 	if errors.Is(err, store.ErrInvalid) {
-		return CreateWorkspace400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, invalidMsg(err)))}, nil
+		return bad(invalidMsg(err))
 	}
 	if err != nil {
 		return nil, err
+	}
+	if p.Profile != nil || p.Needs != nil {
+		if w, err = s.store.UpdateWorkspace(ctx, w.ID, p); err != nil {
+			return nil, err
+		}
 	}
 	s.log.Info("workspace created", "workspace", w.ID, "user", u.ID)
 	return CreateWorkspace201JSONResponse(full(w, store.RoleOwner)), nil
@@ -165,6 +190,13 @@ func (s *Server) UpdateWorkspace(ctx context.Context, req UpdateWorkspaceRequest
 		}
 		p.Profile = merged
 	}
+	if b.Needs != nil {
+		needs, msg := checkNeeds(*b.Needs)
+		if msg != "" {
+			return bad(msg)
+		}
+		p.Needs = &needs
+	}
 
 	w, err := s.store.UpdateWorkspace(ctx, m.WorkspaceID, p)
 	switch {
@@ -236,6 +268,28 @@ func full(w store.Workspace, role string) Workspace {
 	for k, v := range w.Profile {
 		profile[k] = fmt.Sprint(v)
 	}
+	needs := Needs{}
+	for _, n := range w.Needs {
+		needs = append(needs, Need(n))
+	}
 	return Workspace{Id: s.Id, Name: s.Name, Role: s.Role, Timezone: s.Timezone, Locale: s.Locale, Plan: s.Plan,
-		Profile: profile, CreatedAt: w.CreatedAt}
+		Profile: profile, Needs: &needs, CreatedAt: w.CreatedAt}
+}
+
+// checkNeeds validates onboarding needs: known, unique, at most 3.
+func checkNeeds(in Needs) ([]string, string) {
+	out := []string{}
+	for _, n := range in {
+		switch {
+		case !n.Valid():
+			return nil, fmt.Sprintf("unknown need %q", n)
+		case slices.Contains(out, string(n)):
+			return nil, fmt.Sprintf("need %q is listed twice", n)
+		}
+		out = append(out, string(n))
+	}
+	if len(out) > 3 {
+		return nil, "pick at most 3 needs"
+	}
+	return out, ""
 }
