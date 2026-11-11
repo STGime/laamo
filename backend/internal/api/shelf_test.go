@@ -89,7 +89,9 @@ func TestShelfToFirstRun(t *testing.T) {
 	}
 	// It moves on: step 2 of 4, with what the first steps found.
 	step := 2
-	st.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunRunning), NextBrickIndex: &step})
+	if _, err := st.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunRunning), NextBrickIndex: &step}); err != nil {
+		t.Fatal(err)
+	}
 	for i, b := range []string{"b1", "b2"} {
 		s := store.Step{WorkspaceID: ws.ID, UserID: ws.UserID, RunID: r.ID, BrickID: b, BrickType: "x", Position: i, CardsOut: 10 * i}
 		_ = st.CreateStep(ctx, &s)
@@ -99,7 +101,9 @@ func TestShelfToFirstRun(t *testing.T) {
 	if d0.Helper.Run == nil || d0.Helper.Run.Step != 2 || d0.Steps == nil || len(*d0.Steps) != 2 || (*d0.Steps)[1].CardsOut != 10 {
 		t.Fatalf("live view %+v %+v", d0.Helper.Run, d0.Steps)
 	}
-	st.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunDone)})
+	if _, err := st.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunDone)}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Done: Run now works again.
 	run := must(c.StartRunWithResponse(ctx, wsID(h.ID), api.StartRunJSONRequestBody{}))

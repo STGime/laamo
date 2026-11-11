@@ -45,7 +45,8 @@
 		(detail?.bricks ?? []).map((b, i) => {
 			const step = run ? detail?.steps?.find((s) => s.brick_id === b.id) : undefined;
 			let sub = '';
-			if (step?.status === 'done' && b.group !== 'when') sub = t('helper.cards', { n: step.cards_out });
+			if (step?.status === 'done' && b.group !== 'when')
+				sub = t('helper.cards', { n: step.cards_out });
 			else if (run && i === current)
 				sub = run.status === 'waiting' ? t('helper.waitsHere') : t('helper.atWork');
 			return { id: b.id, group: b.group, title: b.sentence, sub };
