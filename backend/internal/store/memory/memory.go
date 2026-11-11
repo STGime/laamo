@@ -325,7 +325,7 @@ func (s *Store) CreateHelper(_ context.Context, h *store.Helper, v *store.Helper
 	return nil
 }
 
-func (s *Store) AddHelperVersion(_ context.Context, v *store.HelperVersion) error {
+func (s *Store) AddHelperVersion(_ context.Context, v *store.HelperVersion, current bool) error {
 	s.mu.Lock()
 	h, ok := s.helpers[v.HelperID]
 	n := 0
@@ -340,8 +340,10 @@ func (s *Store) AddHelperVersion(_ context.Context, v *store.HelperVersion) erro
 	}
 	v.ID, v.WorkspaceID, v.UserID, v.Version = "", h.WorkspaceID, h.UserID, n+1
 	*v = s.PutHelperVersion(*v)
-	h.CurrentVersionID = &v.ID
-	s.PutHelper(h)
+	if current {
+		h.CurrentVersionID = &v.ID
+		s.PutHelper(h)
+	}
 	return nil
 }
 

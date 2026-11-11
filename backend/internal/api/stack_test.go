@@ -3,16 +3,18 @@ package api_test
 import (
 	"context"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/STGime/laamo/backend/internal/api"
+	qmem "github.com/STGime/laamo/backend/internal/queue/memory"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/store/memory"
 )
 
 func TestBuilderSave(t *testing.T) {
 	st := memory.New()
-	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna}}).Handler())
+	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna}, Queue: qmem.New()}).Handler())
 	t.Cleanup(srv.Close)
 	e := env{url: srv.URL, store: st}
 	ctx := context.Background()
@@ -68,5 +70,30 @@ func TestBuilderSave(t *testing.T) {
 	}
 	if v := must(c.GetHelperStackWithResponse(ctx, h.Id)); v.JSON200.Version != 2 {
 		t.Fatalf("saved anyway: v%d", v.JSON200.Version)
+	}
+
+	// Test an edit (#42): it runs as its own version; the helper keeps v2.
+	stack.Bricks[0].Config["time"] = "21:00"
+	if r := must(c.TestHelperStackWithResponse(ctx, h.Id, api.TestStack{Stack: bad})); r.StatusCode() != 422 {
+		t.Fatalf("bad test: %d", r.StatusCode())
+	}
+	tr := must(c.TestHelperStackWithResponse(ctx, h.Id, api.TestStack{Stack: stack}))
+	if tr.StatusCode() != 202 {
+		t.Fatalf("test: %d %s", tr.StatusCode(), tr.Body)
+	}
+	run, _ := st.GetRun(ctx, tr.JSON202.RunId.String())
+	tested, _ := st.GetHelperVersion(ctx, run.VersionID)
+	if !run.TestMode || tested.Version != 3 || !strings.Contains(string(tested.Stack), "21:00") {
+		t.Fatalf("run %+v on v%d", run, tested.Version)
+	}
+	if v := must(c.GetHelperStackWithResponse(ctx, h.Id)); v.JSON200.Version != 2 {
+		t.Fatalf("test made v%d current", v.JSON200.Version)
+	}
+	if r := must(c.TestHelperStackWithResponse(ctx, h.Id, api.TestStack{Stack: stack})); r.StatusCode() != 409 {
+		t.Fatalf("second test while the first runs: %d", r.StatusCode())
+	}
+	// Saving after a test: the base is still v2.
+	if r := must(c.SaveHelperStackWithResponse(ctx, h.Id, api.SaveStack{Stack: stack, Version: 2})); r.StatusCode() != 200 || r.JSON200.Version != 4 {
+		t.Fatalf("save after test: %d %s", r.StatusCode(), r.Body)
 	}
 }

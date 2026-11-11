@@ -186,7 +186,7 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 
 	out := CreateHelper201JSONResponse{Helper: helperOut(h)}
 	if req.Body.RunTest != nil && *req.Body.RunTest {
-		runID, err := s.startRun(ctx, h.ID, "test", nil)
+		runID, err := s.startRun(ctx, h.ID, "", "test", nil)
 		if err != nil {
 			s.log.Warn("first test run", "helper", h.ID, "err", err)
 		} else {
@@ -222,7 +222,7 @@ func (s *Server) StartRun(ctx context.Context, req StartRunRequestObject) (Start
 			data["answer"] = *req.Body.Answer
 		}
 	}
-	runID, err := s.startRun(ctx, h.ID, trigger, data)
+	runID, err := s.startRun(ctx, h.ID, "", trigger, data)
 	if errors.Is(err, engine.ErrNotRunnable) {
 		return StartRun409JSONResponse{ConflictJSONResponse(apiErr(ErrorCodeConflict, "this helper can't run yet"))}, nil
 	}
@@ -233,12 +233,13 @@ func (s *Server) StartRun(ctx context.Context, req StartRunRequestObject) (Start
 }
 
 // startRun creates the run and queues it for the worker.
-func (s *Server) startRun(ctx context.Context, helperID, trigger string, data map[string]any) (string, error) {
+// versionID "" runs the current version.
+func (s *Server) startRun(ctx context.Context, helperID, versionID, trigger string, data map[string]any) (string, error) {
 	if s.queue == nil {
 		return "", errors.New("no job queue configured")
 	}
 	eng := &engine.Engine{Store: s.store, Catalog: catalog.Default(), Log: s.log}
-	r, err := eng.StartRun(ctx, engine.StartRequest{HelperID: helperID, TriggerType: trigger, TriggerData: data})
+	r, err := eng.StartRun(ctx, engine.StartRequest{HelperID: helperID, VersionID: versionID, TriggerType: trigger, TriggerData: data})
 	if err != nil {
 		return "", err
 	}

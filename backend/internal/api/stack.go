@@ -49,36 +49,25 @@ func (s *Server) SaveHelperStack(ctx context.Context, req SaveHelperStackRequest
 	if req.Body.Version != cur.Version {
 		return stale, nil
 	}
-	var stack catalog.Stack
-	raw, _ := json.Marshal(req.Body.Stack)
-	if err := json.Unmarshal(raw, &stack); err != nil {
-		return SaveHelperStack400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "that isn't a stack"))}, nil
-	}
 	w, err := s.store.GetWorkspace(ctx, h.WorkspaceID)
 	if err != nil {
 		return nil, err
 	}
-	cat := catalog.Default()
-	problems := catalog.Errors(cat.Validate(stack, catalog.Options{}))
-	problems = append(problems, s.foreignPlaces(ctx, cat, stack, w.ID)...)
-	if len(problems) > 0 {
-		out := SaveHelperStack422JSONResponse{Error: problems[0].Message, Issues: make([]StackIssue, 0, len(problems))}
-		for _, p := range problems {
-			out.Issues = append(out.Issues, issueOut(p))
-		}
-		return out, nil
+	stack, problems, ok := s.checkStack(ctx, req.Body.Stack, w.ID)
+	if !ok {
+		return SaveHelperStack400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "that isn't a stack"))}, nil
 	}
-
-	raw, _ = json.Marshal(stack)
-	u, _ := user(ctx)
-	v := store.HelperVersion{HelperID: h.ID, Stack: raw, CreatedBy: &u.ID}
-	if err := s.store.AddHelperVersion(ctx, &v); errors.Is(err, store.ErrConflict) {
+	if problems != nil {
+		return SaveHelperStack422JSONResponse(*problems), nil
+	}
+	v, err := s.addVersion(ctx, h, stack, true)
+	if errors.Is(err, store.ErrConflict) {
 		return stale, nil
 	} else if err != nil {
 		return nil, err
 	}
 	h.CurrentVersionID = &v.ID
-	if err := schedule.Sync(ctx, s.store, cat, h, w, stack, time.Now()); err != nil {
+	if err := schedule.Sync(ctx, s.store, catalog.Default(), h, w, stack, time.Now()); err != nil {
 		s.log.Warn("helper schedule", "helper", h.ID, "err", err)
 	}
 	s.log.Info("helper saved", "helper", h.ID, "version", v.Version)
@@ -87,6 +76,71 @@ func (s *Server) SaveHelperStack(ctx context.Context, req SaveHelperStackRequest
 		return nil, err
 	}
 	return SaveHelperStack200JSONResponse(out), nil
+}
+
+// TestHelperStack (#42) runs an edit once in test mode (max 3 cards, Do
+// bricks only reach the user) as a version that isn't made current: the
+// helper keeps running what was saved.
+func (s *Server) TestHelperStack(ctx context.Context, req TestHelperStackRequestObject) (TestHelperStackResponseObject, error) {
+	h, ok, err := s.helper(ctx, req.HelperId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return TestHelperStack404JSONResponse{NotFoundJSONResponse(helperNotFound)}, nil
+	}
+	if run, _ := s.activeRun(ctx, h); run != nil && run.Status != RunProgressStatusWaiting {
+		return TestHelperStack409JSONResponse{ConflictJSONResponse(apiErr(ErrorCodeConflict, "this helper is already running"))}, nil
+	}
+	stack, problems, ok := s.checkStack(ctx, req.Body.Stack, h.WorkspaceID)
+	if !ok {
+		return TestHelperStack400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "that isn't a stack"))}, nil
+	}
+	if problems != nil {
+		return TestHelperStack422JSONResponse(*problems), nil
+	}
+	v, err := s.addVersion(ctx, h, stack, false)
+	if err != nil {
+		return nil, err
+	}
+	data := map[string]any{}
+	if req.Body.Answer != nil && *req.Body.Answer != "" {
+		data["answer"] = *req.Body.Answer
+	}
+	runID, err := s.startRun(ctx, h.ID, v.ID, "test", data)
+	if err != nil {
+		return nil, err
+	}
+	return TestHelperStack202JSONResponse{RunId: uuid(runID)}, nil
+}
+
+// checkStack decodes a stack from the builder and checks it like the
+// engine would; ok=false when it isn't a stack at all.
+func (s *Server) checkStack(ctx context.Context, in Stack, workspaceID string) (catalog.Stack, *StackProblems, bool) {
+	var stack catalog.Stack
+	raw, _ := json.Marshal(in)
+	if err := json.Unmarshal(raw, &stack); err != nil {
+		return stack, nil, false
+	}
+	cat := catalog.Default()
+	problems := catalog.Errors(cat.Validate(stack, catalog.Options{}))
+	problems = append(problems, s.foreignPlaces(ctx, cat, stack, workspaceID)...)
+	if len(problems) == 0 {
+		return stack, nil, true
+	}
+	out := &StackProblems{Error: problems[0].Message, Issues: make([]StackIssue, 0, len(problems))}
+	for _, p := range problems {
+		out.Issues = append(out.Issues, issueOut(p))
+	}
+	return stack, out, true
+}
+
+func (s *Server) addVersion(ctx context.Context, h store.Helper, stack catalog.Stack, current bool) (store.HelperVersion, error) {
+	raw, _ := json.Marshal(stack)
+	u, _ := user(ctx)
+	v := store.HelperVersion{HelperID: h.ID, Stack: raw, CreatedBy: &u.ID}
+	err := s.store.AddHelperVersion(ctx, &v, current)
+	return v, err
 }
 
 // foreignPlaces: a Post to chat brick may only post to this workspace's
