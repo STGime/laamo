@@ -27,6 +27,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
 	sebs "github.com/STGime/laamo/backend/internal/store/eurobase"
+	"github.com/STGime/laamo/backend/internal/web"
 )
 
 func main() {
@@ -64,8 +65,8 @@ func run(log *slog.Logger) error {
 			Store: st,
 		},
 		Log: log,
-		// Blobs: Eurobase storage comes with Read a webpage (#26); until then
-		// large fields stay inline.
+		// Large card fields (page text) go to project storage.
+		Blobs: eb.Blobs{Client: client, Prefix: "laamo/"},
 	}
 
 	host, _ := os.Hostname()
@@ -85,7 +86,7 @@ func run(log *slog.Logger) error {
 }
 
 func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps {
-	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}}
+	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}, Pages: &web.Fetcher{}}
 	if keys, err := crypto.ParseKeyring(cfg.MasterKeys, cfg.MasterKeyActive); err == nil {
 		d.Keys = keys
 	} else {

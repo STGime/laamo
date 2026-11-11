@@ -41,6 +41,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/store/memory"
+	"github.com/STGime/laamo/backend/internal/web"
 )
 
 type setFlags []string
@@ -252,7 +253,7 @@ func applySets(st *catalog.Stack, sets []string) error {
 func services(o options, w io.Writer, st *memory.Store, keys *crypto.Keyring) (bricks.Deps, *llm.Brain, error) {
 	deps := bricks.Deps{Store: st, Keys: keys, Chat: printSender{w}, SearchCostEUR: 0.005}
 	if !o.live {
-		deps.Search = fixtureSearch{}
+		deps.Search, deps.Pages = fixtureSearch{}, fixturePages{}
 		return deps, &llm.Brain{Chat: fixtureBrain{}, Model: "fixture", Store: st}, nil
 	}
 	cfg, err := config.Load()
@@ -267,6 +268,7 @@ func services(o options, w io.Writer, st *memory.Store, keys *crypto.Keyring) (b
 		p = &search.Cached{Provider: p, Dir: cfg.SearchCacheDir, TTL: 24 * time.Hour}
 	}
 	deps.Search, deps.SearchCostEUR = p, cfg.SearchCostEUR
+	deps.Pages = &web.Fetcher{}
 	if o.webhook != "" {
 		deps.Chat = &chat.Sender{}
 	}
@@ -289,8 +291,12 @@ func report(ctx context.Context, w io.Writer, st *memory.Store, cat *catalog.Cat
 	for _, s := range steps {
 		i := slices.IndexFunc(stack.Bricks, func(b catalog.StackBrick) bool { return b.ID == s.BrickID })
 		sentence := s.BrickType
+		var adds []string
 		if i >= 0 {
 			sentence = strings.ReplaceAll(cat.Sentence(stack.Bricks[i], lang), place.ID, "#"+place.Label)
+			if b, ok := cat.Brick(stack.Bricks[i].Type); ok {
+				adds, _ = b.AddsFor(b.Config(stack.Bricks[i].Config))
+			}
 		}
 		mark := "✓"
 		if s.Status != "done" {
@@ -306,7 +312,7 @@ func report(ctx context.Context, w io.Writer, st *memory.Store, cat *catalog.Cat
 				_, _ = fmt.Fprintf(w, "    … %d more\n", len(cards)-5)
 				break
 			}
-			_, _ = fmt.Fprintf(w, "    • %s\n", cardLine(c))
+			_, _ = fmt.Fprintf(w, "    • %s\n", cardLine(c, adds))
 		}
 	}
 	_, _ = fmt.Fprintf(w, "\n%s · €%.4f · %d+%d AI tokens · %s\n", strings.ToUpper(r.Status), float64(r.CostEUR), r.TokensIn, r.TokensOut, took.Round(time.Millisecond))
@@ -325,8 +331,18 @@ func report(ctx context.Context, w io.Writer, st *memory.Store, cat *catalog.Cat
 	return nil
 }
 
-func cardLine(c store.Card) string {
-	text := func(k string) string { s, _ := c.Data[k].(string); return s }
+// cardLine shows a card's title, score and reason, and what the step
+// added to it (a page's text, a summary).
+func cardLine(c store.Card, adds []string) string {
+	text := func(k string) string {
+		switch v := c.Data[k].(type) {
+		case string:
+			return v
+		case map[string]any: // stored in project storage
+			return fmt.Sprintf("(%v bytes in storage)", v["bytes"])
+		}
+		return ""
+	}
 	line := text("title")
 	for _, k := range []string{"name", "summary", "body", "text"} {
 		if line == "" {
@@ -339,11 +355,28 @@ func cardLine(c store.Card) string {
 	if c.Reason != nil && *c.Reason != "" {
 		line += " — " + *c.Reason
 	}
-	r := []rune(strings.ReplaceAll(line, "\n", " "))
-	if len(r) > 160 {
-		return string(r[:159]) + "…"
+	line = strings.ReplaceAll(line, "\n", " ")
+	for _, k := range adds {
+		if v := text(k); v != "" && v != line && k != "title" {
+			v = strings.Join(strings.Fields(v), " ")
+			if r := []rune(v); len(r) > 100 {
+				v = fmt.Sprintf("%s… (%d chars)", string(r[:100]), len(r))
+			}
+			line += "\n      " + k + ": " + v
+		}
 	}
-	return string(r)
+	return clipLine(line)
+}
+
+func clipLine(line string) string {
+	var out []string
+	for l := range strings.SplitSeq(line, "\n") {
+		if r := []rune(l); len(r) > 160 {
+			l = string(r[:159]) + "…"
+		}
+		out = append(out, l)
+	}
+	return strings.Join(out, "\n")
 }
 
 // printSender shows chat messages instead of posting them.
@@ -367,6 +400,14 @@ func (fixtureSearch) Search(_ context.Context, q search.Query) ([]search.Result,
 			Snippet: "Fixture result for “" + q.Q + "”.", PublishedAt: time.Now().Add(-time.Duration(i) * time.Hour).UTC()})
 	}
 	return out, nil
+}
+
+// fixturePages returns a made-up page for any URL (offline mode).
+type fixturePages struct{}
+
+func (fixturePages) Read(_ context.Context, u string) (web.Page, error) {
+	return web.Page{URL: u, Title: "Fixture page", Text: "Made-up text of " + u + ". Flour prices rise in December.",
+		Emails: []string{"info@example.com"}}, nil
 }
 
 // fixtureBrain answers Keep and Sum it up without a model (offline mode):

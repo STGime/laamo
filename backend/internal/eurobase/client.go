@@ -238,6 +238,7 @@ type call struct {
 	path       string
 	query      url.Values
 	body       []byte
+	ctype      string // default application/json
 	idempotent bool
 }
 
@@ -278,7 +279,7 @@ func (c *Client) try(ctx context.Context, cl call, target string, attempt int, o
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "laamo-backend")
 	if cl.body != nil {
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", cmpOr(cl.ctype, "application/json"))
 	}
 
 	resp, err := c.http.Do(req)
@@ -302,6 +303,10 @@ func (c *Client) try(ctx context.Context, cl call, target string, attempt int, o
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		if raw, ok := out.(*[]byte); ok {
+			*raw = data
+			return -1, nil
+		}
 		if out != nil && resp.StatusCode != http.StatusNoContent && len(data) > 0 {
 			if err := json.Unmarshal(data, out); err != nil {
 				return -1, fmt.Errorf("eurobase: decode %s %s: %w", cl.method, cl.path, err)

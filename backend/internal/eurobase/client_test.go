@@ -11,6 +11,7 @@ import (
 	"time"
 
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
+	"github.com/STGime/laamo/backend/internal/eurobase/eurobasetest"
 )
 
 // server answers with the given statuses in order, then 200 {"result": 1}.
@@ -193,5 +194,35 @@ func TestRPCErrorCodes(t *testing.T) {
 				t.Fatalf("code not kept: %v", err)
 			}
 		})
+	}
+}
+
+func TestObjects(t *testing.T) {
+	f := eurobasetest.New(t)
+	c := eb.New(f.URL(), f.Key)
+	ctx := context.Background()
+	text := []byte("Bäckerei Krause – Brot seit 1952")
+	if err := c.PutObject(ctx, "laamo/runs/r1/page text.txt", "text/plain", text); err != nil {
+		t.Fatal(err)
+	}
+	got, err := c.GetObject(ctx, "laamo/runs/r1/page text.txt")
+	if err != nil || string(got) != string(text) {
+		t.Fatalf("get: %q, %v", got, err)
+	}
+	if _, err := c.GetObject(ctx, "laamo/none"); !errors.Is(err, eb.ErrNotFound) {
+		t.Fatalf("missing: %v", err)
+	}
+	if err := c.DeleteObject(ctx, "laamo/runs/r1/page text.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.DeleteObject(ctx, "laamo/runs/r1/page text.txt"); err != nil {
+		t.Fatalf("second delete: %v", err)
+	}
+	if err := c.PutObject(ctx, "../x", "", nil); err == nil {
+		t.Fatal("bad key accepted")
+	}
+	b := eb.Blobs{Client: c, Prefix: "laamo/"}
+	if err := b.Put(ctx, "runs/r2/x.txt", text); err != nil || f.Objects["laamo/runs/r2/x.txt"] == nil {
+		t.Fatalf("blobs put: %v", err)
 	}
 }

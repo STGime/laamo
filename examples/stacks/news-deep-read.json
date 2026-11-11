@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "bricks": [
+    { "id": "b1", "type": "when.tap", "config": {} },
+    { "id": "b2", "type": "look.search", "config": { "query": "{my business} {my city}", "count": 10, "freshness": "week" } },
+    { "id": "b3", "type": "think.keep", "config": { "criteria": "matter most to a {my business} in {my city}", "max": 3, "sort": "best" } },
+    { "id": "b4", "type": "look.read_page", "config": { "source": "url", "depth": "page" } },
+    { "id": "b5", "type": "think.summarize", "config": { "length": "short", "mode": "each", "language": "auto" } }
+  ]
+}

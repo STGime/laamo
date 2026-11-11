@@ -20,3 +20,4 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+/backend/runstack
