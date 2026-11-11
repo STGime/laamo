@@ -20,6 +20,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/config"
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/engine/tmpl"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/queue"
@@ -66,7 +67,8 @@ func run(log *slog.Logger) error {
 		},
 		Log: log,
 		// Large card fields (page text) go to project storage.
-		Blobs: eb.Blobs{Client: client, Prefix: "laamo/"},
+		Blobs:   eb.Blobs{Client: client, Prefix: "laamo/"},
+		Resolve: tmpl.Config,
 	}
 
 	host, _ := os.Hostname()

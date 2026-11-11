@@ -298,6 +298,25 @@ func testFeed(t *testing.T, newStore New) {
 		t.Fatalf("decided_at = %v", got.DecidedAt)
 	}
 	isErr(t, "unknown feed card", get(s.GetFeedCard(ctx, store.NewID())), store.ErrNotFound)
+
+	// An Ask me card uses its step's id, so a retried pause can't make two.
+	st := store.Step{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, RunID: r.ID, BrickID: "b3", BrickType: "ask.check",
+		Position: 2, Status: "waiting"}
+	must(t, s.CreateStep(ctx, &st))
+	eq(t, "step status", st.Status, "waiting")
+	ask := store.FeedCard{ID: st.ID, WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, RunID: &r.ID, StepID: &st.ID,
+		Type: "approval", Title: "Check 3", ExpiresAt: new(when.Add(48 * time.Hour))}
+	must(t, s.CreateFeedCard(ctx, &ask))
+	eq(t, "given id kept", ask.ID, st.ID)
+	again := ask
+	isErr(t, "same feed card id", s.CreateFeedCard(ctx, &again), store.ErrConflict)
+	_, err = s.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunWaiting), WaitingOnCardID: store.Set(ask.ID)})
+	must(t, err)
+	got2, err := s.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunRunning), WaitingOnCardID: store.Null[string]()})
+	must(t, err)
+	if got2.WaitingOnCardID != nil {
+		t.Fatalf("waiting_on_card_id not cleared: %v", *got2.WaitingOnCardID)
+	}
 }
 
 func testLists(t *testing.T, newStore New) {

@@ -43,8 +43,8 @@ func (o *outbox) add(to string) {
 
 // outreachBricks fakes the stack's bricks. The "model" in Pull out details
 // is fooled by the injection on card 2, and card 3's extractor is buggy and
-// copies raw page text. check decides what Check first does.
-func outreachBricks(e *env, box *outbox, check func(i int, c *engine.Card)) {
+// copies raw page text. Check first is the engine's own pause.
+func outreachBricks(e *env, box *outbox) {
 	fn := func(f func(in []engine.Card) []engine.Card) engine.Brick {
 		return engine.BrickFunc(func(_ context.Context, _ *engine.RunContext, in []engine.Card, _ engine.Config) ([]engine.Card, error) {
 			return f(in), nil
@@ -82,12 +82,6 @@ func outreachBricks(e *env, box *outbox, check func(i int, c *engine.Card)) {
 		}
 		return in
 	})
-	e.eng.Bricks["ask.check"] = fn(func(in []engine.Card) []engine.Card {
-		for i := range in {
-			check(i, &in[i])
-		}
-		return in
-	})
 	e.eng.Bricks["do.email"] = fn(func(in []engine.Card) []engine.Card {
 		for _, c := range in {
 			box.add(c.Text("email"))
@@ -107,39 +101,35 @@ func (e *env) emailStep(runID string) store.Step {
 	return store.Step{}
 }
 
-// Without approval, nothing read from the web may pick a recipient: every
-// card is held back, the run still finishes, and the step log says why.
-func TestTrustNoApprovalNoEmail(t *testing.T) {
+// The run waits at Check first: nothing is sent until the user decides,
+// and skipping everything sends nothing.
+func TestTrustWaitsForCheck(t *testing.T) {
 	e := newEnv(t, outreach())
 	box := &outbox{}
-	outreachBricks(e, box, func(int, *engine.Card) {}) // a Check first that doesn't approve
+	outreachBricks(e, box)
 	r := e.run(e.start("manual", false))
-	if r.Status != store.RunDone {
-		t.Fatalf("status %s", r.Status)
+	if r.Status != store.RunWaiting || len(box.sent) != 0 {
+		t.Fatalf("status %s, sent %v", r.Status, box.sent)
 	}
-	if len(box.sent) != 0 {
-		t.Fatalf("sent to %v without approval", box.sent)
-	}
-	step := e.emailStep(r.ID)
-	if len(step.Log) != 3 || step.Log[0]["code"] != "held_untrusted_target" || step.CardsOut != 3 {
-		t.Fatalf("step log %v, cards out %d", step.Log, step.CardsOut)
+	fc := e.waiting(r)
+	shown := e.cards(fc.ID)
+	r = e.decide(r, engine.StateSkipped, engine.Decision{Skip: cardIDs(shown)})
+	if r.Status != store.RunDone || len(box.sent) != 0 {
+		t.Fatalf("status %s, sent %v", r.Status, box.sent)
 	}
 }
 
 // After Check first: approved extracted addresses may be used, an address
-// the user typed over the injected one is used, and raw page text never is.
+// the user typed over the injected one is used, and raw page text never is,
+// approved or not.
 func TestTrustApprovalAndEdits(t *testing.T) {
 	e := newEnv(t, outreach())
 	box := &outbox{}
-	outreachBricks(e, box, func(i int, c *engine.Card) {
-		switch i {
-		case 1: // the user spots the odd address and types the right one
-			c.Approve(map[string]any{"email": "hallo@ost.example"})
-		default:
-			c.Approve(nil)
-		}
-	})
+	outreachBricks(e, box)
 	r := e.run(e.start("manual", false))
+	shown := e.cards(e.waiting(r).ID)
+	ost := shown[1].CardID // the user spots the odd address and types the right one
+	r = e.decide(r, engine.StateEdited, engine.Decision{Edits: map[string]map[string]any{ost: {"email": "hallo@ost.example"}}})
 	if r.Status != store.RunDone {
 		t.Fatalf("status %s", r.Status)
 	}
@@ -148,12 +138,13 @@ func TestTrustApprovalAndEdits(t *testing.T) {
 		t.Fatalf("sent to %v", box.sent)
 	}
 	step := e.emailStep(r.ID)
-	if len(step.Log) != 1 || step.Log[0]["card"] == nil || !strings.Contains(step.Log[0]["msg"].(string), "email is untrusted") {
+	if len(step.Log) != 1 || step.Log[0]["code"] != "held_untrusted_target" || !strings.Contains(step.Log[0]["msg"].(string), "email is untrusted") {
 		t.Fatalf("step log %v", step.Log)
 	}
 	// The pile after the Act brick is still the pile before it, in order.
 	cards := e.cards(step.ID)
-	if len(cards) != 3 || cards[2].Data["email"] != "sued@sued.example" || cards[1].Trust["email"] != engine.TrustUser {
+	if len(cards) != 3 || cards[2].Data["email"] != "sued@sued.example" || cards[1].Trust["email"] != engine.TrustUser ||
+		cards[0].Trust["email"] != engine.TrustApproved {
 		t.Fatalf("cards %+v", cards)
 	}
 }

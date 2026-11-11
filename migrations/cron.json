@@ -8,5 +8,15 @@
     "action": "enqueue_due_triggers",
     "run_as": "service",
     "enabled": true
+  },
+  {
+    "name": "resume-waiting-runs",
+    "description": "Resume runs whose Ask me card was decided or expired (Laamo)",
+    "schedule": "* * * * *",
+    "timezone": "UTC",
+    "action_type": "rpc",
+    "action": "resume_waiting_runs",
+    "run_as": "service",
+    "enabled": true
   }
 ]

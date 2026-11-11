@@ -691,3 +691,44 @@ func TestUnusableAnswerFailsTheRun(t *testing.T) {
 		t.Fatal("both attempts must be in the ledger")
 	}
 }
+
+// ---- Ask me helpers ----
+
+// waiting returns the Feed card a waiting run waits on.
+func (e *env) waiting(r store.Run) store.FeedCard {
+	e.t.Helper()
+	r = e.get(r.ID)
+	if r.Status != store.RunWaiting || r.WaitingOnCardID == nil {
+		e.t.Fatalf("run is %s, not waiting", r.Status)
+	}
+	fc, err := e.store.GetFeedCard(context.Background(), *r.WaitingOnCardID)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return fc
+}
+
+// decide records a decision on the waiting Feed card (as the API does) and
+// runs the job that resumes the run.
+func (e *env) decide(r store.Run, state string, d engine.Decision) store.Run {
+	e.t.Helper()
+	fc := e.waiting(r)
+	if err := engine.CheckDecision(fc, e.cards(fc.ID), state, d); err != nil {
+		e.t.Fatal(err)
+	}
+	raw, _ := json.Marshal(d)
+	var m map[string]any
+	_ = json.Unmarshal(raw, &m)
+	if _, err := e.store.UpdateFeedCard(context.Background(), fc.ID, store.FeedCardPatch{State: &state, Decision: m}); err != nil {
+		e.t.Fatal(err)
+	}
+	return e.run(r)
+}
+
+func cardIDs(cards []store.Card) []string {
+	var out []string
+	for _, c := range cards {
+		out = append(out, c.CardID)
+	}
+	return out
+}
