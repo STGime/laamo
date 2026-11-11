@@ -14,7 +14,16 @@
 	import BrickSheet, { type Pill } from '#lib/components/BrickSheet.svelte';
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
-	import { add, fieldPills, fillProfile, groups, ready, startOnTop, tray } from '#lib/builder.ts';
+	import {
+		add,
+		applyFix,
+		fieldPills,
+		fillProfile,
+		groups,
+		ready,
+		startOnTop,
+		tray
+	} from '#lib/builder.ts';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { api, session } from '#lib/session.svelte.ts';
 
@@ -107,14 +116,36 @@
 		restored = false;
 	}
 
-	// Live checks, the same as the server's (#41 adds one-tap fixes).
+	// Live checks, the same as the server's, with one-tap fixes (#41).
 	const issues = $derived(validate(stack));
-	const errors = $derived(issues.filter((i) => i.level === 'error'));
+	// About me facts a brick uses but that aren't set yet: the run would
+	// stop there, so it's an error here (the sheet can set them).
+	const unset = $derived(
+		bricks.flatMap((b, index) =>
+			[...JSON.stringify(b.config).matchAll(/\{my ([a-z_]+)\}/g)]
+				.map((m) => m[1])
+				.filter((k) => catalog.profile.some((f) => f.key === k) && !String(profile[k] ?? '').trim())
+				.slice(0, 1)
+				.map((k): Issue => ({
+					brick: b.id,
+					index,
+					level: 'error',
+					code: 'unset_fact',
+					field: k,
+					message: ''
+				}))
+		)
+	);
+	const errors = $derived([...issues.filter((i) => i.level === 'error'), ...unset]);
 	function issueFor(b: StackBrick): Issue | Schemas['StackIssue'] | undefined {
 		return (
 			issues.find((i) => i.brick === b.id && i.level === 'error') ??
+			unset.find((i) => i.brick === b.id) ??
 			serverIssues.find((i) => i.brick === b.id) ??
-			issues.find((i) => i.brick === b.id)
+			issues.find((i) => i.brick === b.id) ??
+			(ready.has(b.type)
+				? undefined
+				: { brick: b.id, index: -1, level: 'hint', code: 'not_available', message: '' })
 		);
 	}
 	function issueText(i: Issue | Schemas['StackIssue']): string {
@@ -125,17 +156,50 @@
 				return t('builder.issue.setting');
 			case 'unknown_profile':
 				return t('builder.issue.profile');
+			case 'unset_fact':
+				return t('builder.issue.unset', { fact: t(`pill.${i.field}` as Key) });
 			case 'start_first':
 			case 'start_only_first':
 				return t('builder.issue.start');
 			case 'missing_field':
-				return t('builder.issue.field', { field: i.field ?? '' });
+				return t('builder.issue.field', {
+					field: catalog.fields.find((f) => f.key === i.field)?.label[lang] ?? i.field ?? ''
+				});
 			case 'check_required':
-			case 'check_suggested':
 				return t('builder.issue.check');
+			case 'check_suggested':
+				return t('builder.issue.checkMaybe');
+			case 'not_available':
+				return t('builder.issue.later');
 		}
 		return i.message;
 	}
+
+	// A fix we can offer: the brick it adds has to run today.
+	function fixOf(i: Issue | Schemas['StackIssue']) {
+		const f = 'fix' in i ? i.fix : undefined;
+		return f && ready.has(f.insert) ? f : undefined;
+	}
+	function fix(i: Issue) {
+		const f = fixOf(i);
+		if (!f) return;
+		const r = applyFix(bricks, f);
+		bricks = r.bricks;
+		// A brick that still needs a setting opens right away.
+		const added = bricks.find((x) => x.id === r.id);
+		if (
+			added &&
+			validate({ ...stack, bricks }).some((x) => x.brick === r.id && x.level === 'error')
+		)
+			open(added);
+	}
+	const settingCodes = [
+		'missing_setting',
+		'bad_value',
+		'bad_pill',
+		'unknown_profile',
+		'unset_fact'
+	];
 
 	// Sentences with known About me facts and chat names filled in.
 	const profile = $derived({ ...about, ...(base?.profile ?? {}) });
@@ -275,7 +339,21 @@
 						onclick={() => open(b)}
 					/>
 					{#if issue}
-						<p class="issue" class:hint={issue.level === 'hint'}>{issueText(issue)}</p>
+						{@const f = fixOf(issue)}
+						<div class="issue" class:hint={issue.level === 'hint'}>
+							{#if settingCodes.includes(issue.code)}
+								<button type="button" class="note" onclick={() => open(b)}
+									>{issueText(issue)}</button
+								>
+							{:else}
+								<span>{issueText(issue)}</span>
+							{/if}
+							{#if f}
+								<button type="button" class="fix" onclick={() => fix(issue as Issue)}
+									>+ {brick(f.insert)?.title[lang]}</button
+								>
+							{/if}
+						</div>
 					{/if}
 				</li>
 			{/each}
@@ -398,6 +476,32 @@
 	}
 	.issue.hint {
 		color: var(--muted);
+	}
+	.issue {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2);
+	}
+	.note {
+		padding: 0;
+		border: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.fix {
+		min-height: 36px;
+		padding: 0 var(--space-3);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		background: var(--white);
+		color: var(--ink);
+		font: inherit;
+		font-weight: 800;
+		cursor: pointer;
 	}
 	.empty {
 		padding: 0 var(--gutter);

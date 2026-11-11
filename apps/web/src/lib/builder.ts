@@ -69,3 +69,24 @@ export function fillProfile(text: string, profile: Record<string, unknown>): str
 		return typeof v === 'string' && v.trim() ? v : m;
 	});
 }
+
+/**
+ * One-tap fix (#41): puts the suggested brick right before the one that
+ * needs it, e.g. Check first before Post to chat. A When brick goes on top.
+ */
+export function applyFix(
+	bricks: StackBrick[],
+	fix: { insert: string; config?: Record<string, unknown>; before: string }
+): { bricks: StackBrick[]; id: string } {
+	const b = brick(fix.insert);
+	if (!b) return { bricks, id: '' };
+	const sb: StackBrick = {
+		id: nextId(bricks),
+		type: fix.insert,
+		config: withDefaults(b, fix.config ?? {})
+	};
+	const at = bricks.findIndex((x) => x.id === fix.before);
+	const out = [...bricks];
+	out.splice(at < 0 ? out.length : at, 0, sb);
+	return { bricks: startOnTop(out), id: sb.id };
+}
