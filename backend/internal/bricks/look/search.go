@@ -11,6 +11,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/engine/tmpl"
+	"github.com/STGime/laamo/backend/internal/geo"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -39,10 +40,12 @@ func (s Search) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card
 		}
 	}
 
-	q := search.Query{Count: cfg.Int("count"), Freshness: cfg.String("freshness"), Lang: rc.Workspace.Locale}
-	if rc.Workspace.Locale == "de" {
-		q.Country = "DE"
-	}
+	// Results in the workspace's language, from the country it's in (from
+	// the About me city, or the browser's timezone): an English-speaking
+	// shop in Berlin wants Berlin news, not American ones.
+	city, _ := rc.Profile("city")
+	q := search.Query{Count: cfg.Int("count"), Freshness: cfg.String("freshness"), Lang: rc.Workspace.Locale,
+		Country: geo.Country(city, rc.Workspace.Timezone)}
 	seen := map[string]bool{}
 	var out []engine.Card
 	for _, card := range targets {

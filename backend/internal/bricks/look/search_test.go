@@ -90,3 +90,18 @@ func TestSearchErrors(t *testing.T) {
 		t.Fatalf("missing About me fact: %v", err)
 	}
 }
+
+// An English workspace in Berlin searches German results in English.
+func TestSearchCountryFromCity(t *testing.T) {
+	fs := &fakeSearch{}
+	rc := brickstest.RunContext("look.search")
+	rc.Workspace.Locale = "en"
+	rc.Workspace.Timezone = "America/New_York"
+	rc.Workspace.Profile = map[string]any{"city": "Berlin, Germany", "business": "Burger Restaurant"}
+	if _, err := brickstest.Contract(t, "look.search", look.Search{Provider: fs}, rc, nil, map[string]any{"query": "{my business} news"}); err != nil {
+		t.Fatal(err)
+	}
+	if q := fs.queries[0]; q.Lang != "en" || q.Country != "DE" {
+		t.Fatalf("query %+v", q)
+	}
+}
