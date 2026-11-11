@@ -922,6 +922,9 @@ components:
           format: date-time
         cost_eur:
           type: number
+        cards_out:
+          type: integer
+          description: Cards the run ended with (its last finished brick), once it is done
     CreatedHelper:
       type: object
       required: [helper]

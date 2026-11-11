@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -331,10 +332,30 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 		return nil, err
 	}
 	for _, r := range runs {
-		out.Runs = append(out.Runs, RunSummary{Id: uuid(r.ID), Status: RunSummaryStatus(r.Status), TriggerType: r.TriggerType,
-			Test: r.TestMode, CreatedAt: r.CreatedAt, FinishedAt: r.FinishedAt, CostEur: float32(r.CostEUR)})
+		rs := RunSummary{Id: uuid(r.ID), Status: RunSummaryStatus(r.Status), TriggerType: r.TriggerType,
+			Test: r.TestMode, CreatedAt: r.CreatedAt, FinishedAt: r.FinishedAt, CostEur: float32(r.CostEUR)}
+		if r.Status == store.RunDone {
+			if rs.CardsOut, err = s.cardsOut(ctx, r.ID); err != nil {
+				return nil, err
+			}
+		}
+		out.Runs = append(out.Runs, rs)
 	}
 	return GetHelper200JSONResponse(out), nil
+}
+
+// cardsOut is what a finished run ended with: its last done step's cards.
+func (s *Server) cardsOut(ctx context.Context, runID string) (*int, error) {
+	steps, err := s.store.ListSteps(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	for _, st := range slices.Backward(steps) {
+		if st.Status == "done" {
+			return &st.CardsOut, nil
+		}
+	}
+	return nil, nil
 }
 
 func (s *Server) UpdateHelper(ctx context.Context, req UpdateHelperRequestObject) (UpdateHelperResponseObject, error) {
