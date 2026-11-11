@@ -4,6 +4,8 @@
 	import { feed, listen, type Filter } from '#lib/feed.svelte.ts';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { api, session } from '#lib/session.svelte.ts';
+	import type { Schemas } from '#lib/api/client.ts';
+	import { busy, progressText } from '#lib/progress.ts';
 
 	const filters: { id: Filter; key: Key }[] = [
 		{ id: 'all', key: 'feed.filter.all' },
@@ -20,17 +22,24 @@
 		);
 	});
 
-	// With helpers but no cards yet, the empty Feed says so instead of
-	// offering a first helper.
-	let helperCount = $state<number | null>(null);
-	$effect(() => {
+	// Helpers: how many (the empty Feed says "waiting" instead of offering a
+	// first helper), and which are running now (a working card on top).
+	let helpers = $state<Schemas['Helper'][] | null>(null);
+	const helperCount = $derived(helpers?.length ?? null);
+	const working = $derived((helpers ?? []).filter((h) => h.run && busy(h.run)));
+	function loadHelpers() {
 		const ws = session.workspace;
-		if (!ws || !feed.loaded || feed.cards.length > 0 || helperCount !== null) return;
+		if (!ws) return;
 		api
 			.GET('/workspaces/{workspaceId}/helpers', { params: { path: { workspaceId: ws.id } } })
 			.then(({ data }) => {
-				helperCount = data?.helpers.length ?? 0;
+				if (data) helpers = data.helpers;
 			});
+	}
+	$effect(() => {
+		if (!session.workspace) return;
+		loadHelpers();
+		return listen(loadHelpers, () => session.fresh(), ['run', 'step']);
 	});
 
 	const pct = $derived(
@@ -73,6 +82,20 @@
 	{/each}
 </div>
 
+{#each working as h (h.id)}
+	<a class="working" href="/helpers/{h.id}">
+		<span class="avatar" aria-hidden="true">{h.avatar ?? '🧱'}</span>
+		<span class="wtext">
+			<strong>{h.name}</strong>
+			{#if h.run}<span class="wline">{progressText(h.run)}</span>
+				{#if h.run.steps > 0}<span class="wbar" aria-hidden="true"
+						><span style:width="{(Math.min(h.run.step, h.run.steps) / h.run.steps) * 100}%"
+						></span></span
+					>{/if}{/if}
+		</span>
+	</a>
+{/each}
+
 {#if feed.cards.length}
 	{#each feed.cards as card (card.id)}
 		<FeedItem {card} />
@@ -88,7 +111,7 @@
 	<p class="note">
 		{feed.failed < 0 ? t('error.offline') : t('feed.loadFailed', { status: feed.failed })}
 	</p>
-{:else if feed.loaded && feed.filter === 'all' && helperCount !== null && helperCount > 0}
+{:else if feed.loaded && feed.filter === 'all' && helperCount !== null && helperCount > 0 && !working.length}
 	<p class="note">{t('feed.empty.waiting')}</p>
 	<div class="cta">
 		<a class="btn primary wide" href="/helpers">{t('feed.empty.runOne')}</a>
@@ -112,6 +135,43 @@
 {/if}
 
 <style>
+	.working {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin: var(--space-3) var(--gutter);
+		padding: var(--space-3) var(--space-4);
+		border: 2px solid var(--brick-blue);
+		border-radius: var(--radius-control);
+		color: inherit;
+		text-decoration: none;
+	}
+	.working .avatar {
+		font-size: 24px;
+	}
+	.wtext {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}
+	.wline {
+		font-size: var(--text-sm);
+		font-weight: 700;
+	}
+	.wbar {
+		display: block;
+		height: 6px;
+		margin-top: var(--space-1);
+		border-radius: 3px;
+		background: var(--gray-200);
+		overflow: hidden;
+	}
+	.wbar span {
+		display: block;
+		height: 100%;
+		background: var(--brick-blue);
+		transition: width var(--motion-base) var(--ease);
+	}
 	.brain {
 		display: inline-flex;
 		align-items: center;

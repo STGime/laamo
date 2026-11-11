@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -315,4 +316,31 @@ func TestAskJSON(t *testing.T) {
 func decode(text string, out any) error {
 	text = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(text), "```json"), "```"))
 	return json.Unmarshal([]byte(text), out)
+}
+
+// A stuck attempt is cut short and retried, and the call is logged with
+// why the first attempt failed.
+func TestClientSlowAttempt(t *testing.T) {
+	var n atomic.Int32
+	srv := provider(t, func(w http.ResponseWriter, r *http.Request, _ map[string]any) {
+		if n.Add(1) == 1 {
+			select {
+			case <-r.Context().Done():
+			case <-time.After(2 * time.Second):
+			}
+			return
+		}
+		answer(w, "ok", nil)
+	})
+	var logs strings.Builder
+	c := client(srv.URL)
+	c.AttemptTimeout = 100 * time.Millisecond
+	c.Log = slog.New(slog.NewTextHandler(&logs, nil))
+	res, err := c.Chat(context.Background(), llm.Request{})
+	if err != nil || res.Text != "ok" || n.Load() != 2 {
+		t.Fatalf("slow attempt: %v %d", err, n.Load())
+	}
+	if l := logs.String(); !strings.Contains(l, "llm call slow") || !strings.Contains(l, "attempts=2") || !strings.Contains(l, "no answer within 100ms") {
+		t.Fatalf("log: %s", l)
+	}
 }

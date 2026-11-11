@@ -4,6 +4,7 @@
 	import type { Schemas } from '#lib/api/client.ts';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { api, session } from '#lib/session.svelte.ts';
+	import { hasPending } from '#lib/demo.ts';
 
 	type Need = Schemas['Need'];
 	const all: Need[] = [
@@ -46,8 +47,11 @@
 			failed = true;
 			return;
 		}
+		const tried = hasPending(); // before the refresh: +layout takes it then
 		await session.refresh();
-		goto('/new', { replaceState: true }); // straight to the Shelf, sorted by these needs
+		// Straight to the Shelf, sorted by these needs; or to the Feed when
+		// the helper they tried is being set up (see +layout).
+		goto(tried ? '/feed' : '/new', { replaceState: true });
 	}
 </script>
 

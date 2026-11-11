@@ -6,11 +6,16 @@
 	import BrickStack, { type StackItem } from '#lib/components/BrickStack.svelte';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { api, session } from '#lib/session.svelte.ts';
+	import { listen } from '#lib/feed.svelte.ts';
+	import { brickProgress, progressText } from '#lib/progress.ts';
 
 	let tpl = $state<Schemas['ShelfTemplate'] | null>(null);
 	let answers = $state<Record<string, string>>({});
 	let busy = $state(false);
 	let error = $state('');
+	// After Try it now: the new helper's first run, live.
+	let helperId = $state<string | null>(null);
+	let detail = $state<Schemas['HelperDetail'] | null>(null);
 
 	$effect(() => {
 		const ws = session.workspace;
@@ -45,6 +50,25 @@
 				: { id: b.id, group: b.group, title: fill(b.sentence) }
 		)
 	);
+	// While the first run goes, the bricks light up; when it's done (or
+	// waits for you), the Feed has its card.
+	const live = $derived(detail ? brickProgress(bricks, detail.helper.run, detail.steps) : null);
+	async function loadRun() {
+		if (!helperId) return;
+		const { data } = await api.GET('/helpers/{helperId}', {
+			params: { path: { helperId } }
+		});
+		if (!data) return;
+		detail = data;
+		const run = data.helper.run;
+		if (!run || run.status === 'waiting') goto('/feed', { replaceState: true });
+	}
+	$effect(() => {
+		if (!helperId) return;
+		loadRun();
+		return listen(loadRun, () => session.fresh(), ['run', 'step', 'reload']);
+	});
+
 	const ready = $derived(!!tpl && tpl.questions.every((q) => (answers[q.key] ?? '').trim() !== ''));
 
 	async function tryIt() {
@@ -56,12 +80,15 @@
 			params: { path: { workspaceId: ws.id } },
 			body: { template: tpl.slug, answers, run_test: true }
 		});
-		busy = false;
 		if (!data) {
+			busy = false;
 			error = t('tpl.failed', { error: (err as { error?: string } | undefined)?.error ?? '' });
 			return;
 		}
-		goto('/feed');
+		if (data.run_id) {
+			helperId = data.helper.id;
+			document.getElementById('how')?.scrollIntoView({ block: 'start' });
+		} else goto('/feed');
 	}
 </script>
 
@@ -74,8 +101,8 @@
 		</header>
 
 		<section>
-			<h2>{t('tpl.how')}</h2>
-			<BrickStack {bricks} />
+			<h2 id="how">{t('tpl.how')}</h2>
+			<BrickStack bricks={(live?.items ?? bricks) as StackItem[]} current={live?.current ?? -1} />
 		</section>
 
 		{#if tpl.questions.length}
@@ -106,7 +133,11 @@
 
 	<div class="cta">
 		<button class="btn primary wide" disabled={!ready || busy} onclick={tryIt}
-			>{t('tpl.test')}</button
+			>{detail?.helper.run
+				? progressText(detail.helper.run)
+				: busy
+					? t('helpers.queued')
+					: t('tpl.test')}</button
 		>
 		<p class="hint">{t('tpl.testHint')}</p>
 	</div>

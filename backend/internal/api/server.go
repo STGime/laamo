@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
-
-	"github.com/STGime/laamo/backend/internal/queue"
 
 	"github.com/STGime/laamo/backend/internal/auth"
 	"github.com/STGime/laamo/backend/internal/config"
+	"github.com/STGime/laamo/backend/internal/demo"
+	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/packages/openapi"
 )
@@ -29,6 +30,7 @@ type Server struct {
 	resume func(ctx context.Context, runID string) error
 	events *Hub
 	queue  queue.Queue
+	demo   *demo.Service
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -46,6 +48,8 @@ type Deps struct {
 	Events *Hub
 	// Queue takes run jobs ("Run now", the first test run).
 	Queue queue.Queue
+	// Demo runs sample helpers without an account. Optional: off without it.
+	Demo *demo.Service
 }
 
 func NewServer(d Deps) *Server {
@@ -53,7 +57,7 @@ func NewServer(d Deps) *Server {
 		d.Log = slog.Default()
 	}
 	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log,
-		resume: d.Resume, events: d.Events, queue: d.Queue}
+		resume: d.Resume, events: d.Events, queue: d.Queue, demo: d.Demo}
 }
 
 // maxBody caps request bodies.
@@ -86,9 +90,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+BaseURL+"/workspaces/{workspaceId}/events", s.serveEvents)
 
 	public := func(r *http.Request) bool {
-		return r.Method == http.MethodGet && (r.URL.Path == BaseURL+"/healthz" || r.URL.Path == BaseURL+"/openapi.yaml")
+		switch r.Method + " " + strings.TrimPrefix(r.URL.Path, BaseURL) {
+		case "GET /healthz", "GET /openapi.yaml", "GET /demo/challenge", "POST /demo/runs":
+			return true
+		}
+		return false
 	}
-	return http.MaxBytesHandler(auth.Middleware(s.auth, public, WriteError)(mux), maxBody)
+	return http.MaxBytesHandler(withClientIP(auth.Middleware(s.auth, public, WriteError)(mux), s.cfg.TrustProxy), maxBody)
 }
 
 // serveSpec serves the contract as written (embedded at build time).

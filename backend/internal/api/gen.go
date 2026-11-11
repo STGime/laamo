@@ -90,6 +90,24 @@ func (e CardTrust) Valid() bool {
 	}
 }
 
+// Defines values for DemoRequestTemplate.
+const (
+	MorningBriefing DemoRequestTemplate = "morning-briefing"
+	WeekendScout    DemoRequestTemplate = "weekend-scout"
+)
+
+// Valid indicates whether the value is a known member of the DemoRequestTemplate enum.
+func (e DemoRequestTemplate) Valid() bool {
+	switch e {
+	case MorningBriefing:
+		return true
+	case WeekendScout:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErrorCode.
 const (
 	ErrorCodeAuthUnavailable ErrorCode = "auth_unavailable"
@@ -98,7 +116,9 @@ const (
 	ErrorCodeForbidden       ErrorCode = "forbidden"
 	ErrorCodeInternal        ErrorCode = "internal"
 	ErrorCodeNotFound        ErrorCode = "not_found"
+	ErrorCodeRateLimited     ErrorCode = "rate_limited"
 	ErrorCodeUnauthorized    ErrorCode = "unauthorized"
+	ErrorCodeUnavailable     ErrorCode = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the ErrorCode enum.
@@ -116,7 +136,11 @@ func (e ErrorCode) Valid() bool {
 		return true
 	case ErrorCodeNotFound:
 		return true
+	case ErrorCodeRateLimited:
+		return true
 	case ErrorCodeUnauthorized:
+		return true
+	case ErrorCodeUnavailable:
 		return true
 	default:
 		return false
@@ -594,6 +618,53 @@ type CreatedHelper struct {
 	RunId  *openapi_types.UUID `json:"run_id,omitempty"`
 }
 
+// DemoCard defines model for DemoCard.
+type DemoCard struct {
+	Summary string `json:"summary"`
+	Title   string `json:"title"`
+	Url     string `json:"url"`
+}
+
+// DemoChallenge defines model for DemoChallenge.
+type DemoChallenge struct {
+	Bits  int    `json:"bits"`
+	Token string `json:"token"`
+}
+
+// DemoLink defines model for DemoLink.
+type DemoLink struct {
+	Title string `json:"title"`
+	Url   string `json:"url"`
+}
+
+// DemoRequest defines model for DemoRequest.
+type DemoRequest struct {
+	// Business Morning Briefing only
+	Business *string             `json:"business,omitempty"`
+	City     string              `json:"city"`
+	Lang     *Locale             `json:"lang,omitempty"`
+	Nonce    string              `json:"nonce"`
+	Template DemoRequestTemplate `json:"template"`
+	Timezone *string             `json:"timezone,omitempty"`
+	Token    string              `json:"token"`
+}
+
+// DemoRequestTemplate defines model for DemoRequest.Template.
+type DemoRequestTemplate string
+
+// DemoResult defines model for DemoResult.
+type DemoResult struct {
+	Avatar   string     `json:"avatar"`
+	Body     string     `json:"body"`
+	Cached   bool       `json:"cached"`
+	Cards    []DemoCard `json:"cards"`
+	Links    []DemoLink `json:"links"`
+	Name     string     `json:"name"`
+	Seconds  *float32   `json:"seconds,omitempty"`
+	Template string     `json:"template"`
+	Title    string     `json:"title"`
+}
+
 // Error defines model for Error.
 type Error struct {
 	// Code Stable machine code
@@ -962,8 +1033,14 @@ type Forbidden = Error
 // NotFound defines model for NotFound.
 type NotFound = Error
 
+// TooManyRequests defines model for TooManyRequests.
+type TooManyRequests = Error
+
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// Unavailable defines model for Unavailable.
+type Unavailable = Error
 
 // UpdateHelperJSONBody defines parameters for UpdateHelper.
 type UpdateHelperJSONBody struct {
@@ -992,6 +1069,9 @@ type ListFeedParams struct {
 
 // ListFeedParamsFilter defines parameters for ListFeed.
 type ListFeedParamsFilter string
+
+// RunDemoJSONRequestBody defines body for RunDemo for application/json ContentType.
+type RunDemoJSONRequestBody = DemoRequest
 
 // DecideFeedCardJSONRequestBody defines body for DecideFeedCard for application/json ContentType.
 type DecideFeedCardJSONRequestBody = FeedDecision
@@ -1084,6 +1164,25 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+
+	// GetDemoChallenge A proof-of-work challenge for one demo run (no account needed)
+	//
+	// Corresponds with GET /demo/challenge (the `GetDemoChallenge` operationId).
+	GetDemoChallenge(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RunDemoWithBody Run a sample helper without an account (Test mode, nothing saved or sent)
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /demo/runs (the `RunDemo` operationId).
+	RunDemoWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RunDemo Run a sample helper without an account (Test mode, nothing saved or sent)
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /demo/runs (the `RunDemo` operationId).
+	RunDemo(ctx context.Context, body RunDemoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
 	//
@@ -1241,6 +1340,55 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /workspaces/{workspaceId}/templates (the `ListTemplates` operationId).
 	ListTemplates(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// GetDemoChallenge A proof-of-work challenge for one demo run (no account needed)
+//
+// Corresponds with GET /demo/challenge (the `GetDemoChallenge` operationId).
+func (c *Client) GetDemoChallenge(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDemoChallengeRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RunDemoWithBody Run a sample helper without an account (Test mode, nothing saved or sent)
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /demo/runs (the `RunDemo` operationId).
+func (c *Client) RunDemoWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRunDemoRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RunDemo Run a sample helper without an account (Test mode, nothing saved or sent)
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /demo/runs (the `RunDemo` operationId).
+func (c *Client) RunDemo(ctx context.Context, body RunDemoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRunDemoRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
@@ -1618,6 +1766,73 @@ func (c *Client) ListTemplates(ctx context.Context, workspaceId WorkspaceId, req
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetDemoChallengeRequest constructs an http.Request for the GetDemoChallenge method
+func NewGetDemoChallengeRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/demo/challenge")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRunDemoRequest calls the generic RunDemo builder with application/json body
+func NewRunDemoRequest(server string, body RunDemoJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRunDemoRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRunDemoRequestWithBody constructs an http.Request for the RunDemo method, with any body, and a specified content type
+func NewRunDemoRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/demo/runs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewGetFeedCardRequest constructs an http.Request for the GetFeedCard method
@@ -2316,6 +2531,27 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// GetDemoChallengeWithResponse A proof-of-work challenge for one demo run (no account needed)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /demo/challenge (the `GetDemoChallenge` operationId).
+	GetDemoChallengeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetDemoChallengeResponse, error)
+
+	// RunDemoWithBodyWithResponse Run a sample helper without an account (Test mode, nothing saved or sent)
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /demo/runs (the `RunDemo` operationId).
+	RunDemoWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RunDemoResponse, error)
+
+	// RunDemoWithResponse Run a sample helper without an account (Test mode, nothing saved or sent)
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /demo/runs (the `RunDemo` operationId).
+	RunDemoWithResponse(ctx context.Context, body RunDemoJSONRequestBody, reqEditors ...RequestEditorFn) (*RunDemoResponse, error)
+
 	// GetFeedCardWithResponse A Feed card, with the cards it asks about (Check first, Let me pick)
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -2492,6 +2728,109 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /workspaces/{workspaceId}/templates (the `ListTemplates` operationId).
 	ListTemplatesWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListTemplatesResponse, error)
+}
+
+type GetDemoChallengeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DemoChallenge
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetDemoChallengeResponse) GetJSON200() *DemoChallenge {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r GetDemoChallengeResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDemoChallengeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDemoChallengeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetDemoChallengeResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RunDemoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DemoResult
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *TooManyRequests
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RunDemoResponse) GetJSON200() *DemoResult {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r RunDemoResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r RunDemoResponse) GetJSON429() *TooManyRequests {
+	return r.JSON429
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r RunDemoResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r RunDemoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RunDemoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RunDemoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RunDemoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type GetFeedCardResponse struct {
@@ -3410,6 +3749,45 @@ func (r ListTemplatesResponse) ContentType() string {
 	return ""
 }
 
+// GetDemoChallengeWithResponse A proof-of-work challenge for one demo run (no account needed)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /demo/challenge (the `GetDemoChallenge` operationId).
+func (c *ClientWithResponses) GetDemoChallengeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetDemoChallengeResponse, error) {
+	rsp, err := c.GetDemoChallenge(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDemoChallengeResponse(rsp)
+}
+
+// RunDemoWithBodyWithResponse Run a sample helper without an account (Test mode, nothing saved or sent)
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /demo/runs (the `RunDemo` operationId).
+func (c *ClientWithResponses) RunDemoWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RunDemoResponse, error) {
+	rsp, err := c.RunDemoWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRunDemoResponse(rsp)
+}
+
+// RunDemoWithResponse Run a sample helper without an account (Test mode, nothing saved or sent)
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /demo/runs (the `RunDemo` operationId).
+func (c *ClientWithResponses) RunDemoWithResponse(ctx context.Context, body RunDemoJSONRequestBody, reqEditors ...RequestEditorFn) (*RunDemoResponse, error) {
+	rsp, err := c.RunDemo(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRunDemoResponse(rsp)
+}
+
 // GetFeedCardWithResponse A Feed card, with the cards it asks about (Check first, Let me pick)
 //
 // Returns a wrapper object for the known response body format(s).
@@ -3717,6 +4095,79 @@ func (c *ClientWithResponses) ListTemplatesWithResponse(ctx context.Context, wor
 		return nil, err
 	}
 	return ParseListTemplatesResponse(rsp)
+}
+
+// ParseGetDemoChallengeResponse parses an HTTP response from a GetDemoChallengeWithResponse call
+func ParseGetDemoChallengeResponse(rsp *http.Response) (*GetDemoChallengeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDemoChallengeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DemoChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRunDemoResponse parses an HTTP response from a RunDemoWithResponse call
+func ParseRunDemoResponse(rsp *http.Response) (*RunDemoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RunDemoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DemoResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest TooManyRequests
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetFeedCardResponse parses an HTTP response from a GetFeedCardWithResponse call
@@ -4396,6 +4847,12 @@ func ParseListTemplatesResponse(rsp *http.Response) (*ListTemplatesResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// GetDemoChallenge A proof-of-work challenge for one demo run (no account needed)
+	// (GET /demo/challenge)
+	GetDemoChallenge(w http.ResponseWriter, r *http.Request)
+	// RunDemo Run a sample helper without an account (Test mode, nothing saved or sent)
+	// (POST /demo/runs)
+	RunDemo(w http.ResponseWriter, r *http.Request)
 	// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
 	// (GET /feed-cards/{feedCardId})
 	GetFeedCard(w http.ResponseWriter, r *http.Request, feedCardId FeedCardId)
@@ -4454,6 +4911,34 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetDemoChallenge operation middleware
+func (siw *ServerInterfaceWrapper) GetDemoChallenge(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDemoChallenge(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunDemo operation middleware
+func (siw *ServerInterfaceWrapper) RunDemo(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunDemo(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetFeedCard operation middleware
 func (siw *ServerInterfaceWrapper) GetFeedCard(w http.ResponseWriter, r *http.Request) {
@@ -4998,6 +5483,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealth)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/demo/challenge", wrapper.GetDemoChallenge)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/demo/runs", wrapper.RunDemo)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/me", wrapper.GetMe)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces", wrapper.CreateWorkspace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}", wrapper.GetWorkspace)
@@ -5025,7 +5512,96 @@ type ForbiddenJSONResponse Error
 
 type NotFoundJSONResponse Error
 
+type TooManyRequestsJSONResponse Error
+
 type UnauthorizedJSONResponse Error
+
+type UnavailableJSONResponse Error
+
+type GetDemoChallengeRequestObject struct {
+}
+
+type GetDemoChallengeResponseObject interface {
+	VisitGetDemoChallengeResponse(w http.ResponseWriter) error
+}
+
+type GetDemoChallenge200JSONResponse DemoChallenge
+
+func (response GetDemoChallenge200JSONResponse) VisitGetDemoChallengeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunDemoRequestObject struct {
+	Body *RunDemoJSONRequestBody
+}
+
+type RunDemoResponseObject interface {
+	VisitRunDemoResponse(w http.ResponseWriter) error
+}
+
+type RunDemo200JSONResponse DemoResult
+
+func (response RunDemo200JSONResponse) VisitRunDemoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunDemo400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RunDemo400JSONResponse) VisitRunDemoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunDemo429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response RunDemo429JSONResponse) VisitRunDemoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunDemo503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response RunDemo503JSONResponse) VisitRunDemoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type GetFeedCardRequestObject struct {
 	FeedCardId FeedCardId `json:"feedCardId"`
@@ -5901,6 +6477,12 @@ func (response ListTemplates404JSONResponse) VisitListTemplatesResponse(w http.R
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// GetDemoChallenge A proof-of-work challenge for one demo run (no account needed)
+	// (GET /demo/challenge)
+	GetDemoChallenge(ctx context.Context, request GetDemoChallengeRequestObject) (GetDemoChallengeResponseObject, error)
+	// RunDemo Run a sample helper without an account (Test mode, nothing saved or sent)
+	// (POST /demo/runs)
+	RunDemo(ctx context.Context, request RunDemoRequestObject) (RunDemoResponseObject, error)
 	// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
 	// (GET /feed-cards/{feedCardId})
 	GetFeedCard(ctx context.Context, request GetFeedCardRequestObject) (GetFeedCardResponseObject, error)
@@ -5988,6 +6570,61 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// GetDemoChallenge operation middleware
+func (sh *strictHandler) GetDemoChallenge(w http.ResponseWriter, r *http.Request) {
+	var request GetDemoChallengeRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDemoChallenge(ctx, request.(GetDemoChallengeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDemoChallenge")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetDemoChallengeResponseObject); ok {
+		if err := validResponse.VisitGetDemoChallengeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RunDemo operation middleware
+func (sh *strictHandler) RunDemo(w http.ResponseWriter, r *http.Request) {
+	var request RunDemoRequestObject
+
+	var body RunDemoJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RunDemo(ctx, request.(RunDemoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RunDemo")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RunDemoResponseObject); ok {
+		if err := validResponse.VisitRunDemoResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetFeedCard operation middleware

@@ -50,7 +50,7 @@
 	<p class="eu"><span aria-hidden="true">🇪🇺</span> {t('landing.eu')}</p>
 
 	<div class="cta">
-		<a class="btn primary wide" href="/start">{t('landing.cta')}</a>
+		<a class="btn primary wide" href="/try">{t('landing.try')}</a>
 		<a class="signin" href="/start">{t('landing.signIn')}</a>
 	</div>
 </div>

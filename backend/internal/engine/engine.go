@@ -734,6 +734,7 @@ func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
 		return result{}
 	}
 	cards, err := e.Store.ListCards(ctx, last.ID)
+	cards = GoOn(*last, cards) // after Let me pick or Check first: what went on
 	if err != nil || len(cards) == 0 {
 		return result{}
 	}
