@@ -2,6 +2,14 @@
   S10 Brick sheet: a brick's settings, rendered from bricks.json. At most 3
   show; the rest wait behind "More". Text settings with pills get chips.
 -->
+<script lang="ts" module>
+	export interface Pill {
+		raw: string; // "my city", "title", "answer"
+		label: string; // what the chip says: "Berlin", "Title"
+		unset?: string; // an About me fact without a value yet: its key
+	}
+</script>
+
 <script lang="ts">
 	import {
 		brick,
@@ -22,6 +30,7 @@
 		places,
 		lastOut,
 		pills = [],
+		onfact,
 		back,
 		onremove
 	}: {
@@ -29,8 +38,11 @@
 		sb: StackBrick;
 		places: Schemas['Place'][];
 		lastOut?: number;
-		/** Pills that make sense here, e.g. "my city", "title", "answer". */
-		pills?: string[];
+		/** Pills that make sense here: About me facts (value shown, or unset
+		 * with a question), then card fields and {answer}. */
+		pills?: Pill[];
+		/** Remembers an About me fact; false when it didn't save. */
+		onfact?: (key: string, value: string) => Promise<boolean>;
 		/** Where "Connect a chat" comes back to. */
 		back: string;
 		onremove: () => void;
@@ -54,6 +66,28 @@
 		const l = list(cfg[key]);
 		set(key, l.includes(item) ? l.filter((x) => x !== item) : [...l, item]);
 	}
+	// A fact without a value: ask for it right here, then use it.
+	let asking = $state<{ setting: string; key: string; value: string } | null>(null);
+	let askBusy = $state(false);
+	async function answer() {
+		if (!asking || !onfact || !asking.value.trim()) return;
+		askBusy = true;
+		const ok = await onfact(asking.key, asking.value);
+		askBusy = false;
+		if (ok) {
+			pill(asking.setting, `my ${asking.key}`);
+			asking = null;
+		}
+	}
+	const question = (key: string) =>
+		catalog.profile.find((p) => p.key === key)?.question[lang] ?? key;
+	// {my city} → Berlin: what the text will say.
+	const preview = (v: string) =>
+		v.replace(
+			/\{my ([a-z_]+)\}/g,
+			(m, k: string) => pills.find((p) => p.raw === `my ${k}` && !p.unset)?.label ?? m
+		);
+
 	function pill(key: string, p: string) {
 		const v = str(cfg[key]);
 		set(key, `${v}${v && !v.endsWith(' ') ? ' ' : ''}{${p}}`);
@@ -185,17 +219,44 @@
 				oninput={(e) => set(s.key, e.currentTarget.value)}
 			/>
 		{/if}
+		{#if s.pills && /\{my [a-z_]+\}/.test(str(cfg[s.key])) && preview(str(cfg[s.key])) !== str(cfg[s.key])}
+			<p class="filled">→ {preview(str(cfg[s.key]))}</p>
+		{/if}
 		{#if s.pills && pills.length}
 			<div class="pills" aria-label={t('builder.pills')}>
-				{#each pills as p (p)}
+				{#each pills as p (p.raw)}
 					<button
 						type="button"
 						class="pill"
-						class:mine={p.startsWith('my ')}
-						onclick={() => pill(s.key, p)}>{`{${p}}`}</button
+						class:mine={p.raw.startsWith('my ')}
+						class:unset={!!p.unset}
+						onclick={() =>
+							p.unset ? (asking = { setting: s.key, key: p.unset, value: '' }) : pill(s.key, p.raw)}
+						>{p.unset ? `+ ${p.label}` : p.label}</button
 					>
 				{/each}
 			</div>
+			{#if asking?.setting === s.key}
+				<form
+					class="ask"
+					onsubmit={(e) => {
+						e.preventDefault();
+						answer();
+					}}
+				>
+					<label for="ask-{s.key}">{question(asking.key)}</label>
+					<input id="ask-{s.key}" bind:value={asking.value} autocomplete="off" />
+					<p class="help">{t('tpl.remember')}</p>
+					<div class="row">
+						<button type="button" class="btn" onclick={() => (asking = null)}
+							>{t('helper.cancel')}</button
+						>
+						<button type="submit" class="btn primary" disabled={askBusy || !asking.value.trim()}
+							>{t('builder.use')}</button
+						>
+					</div>
+				</form>
+			{/if}
 		{/if}
 		{#if s.help}<p class="help">{s.help[lang]}</p>{/if}
 	</div>
@@ -309,6 +370,31 @@
 	.pill.mine {
 		background: var(--brick-purple);
 		color: var(--on-purple);
+	}
+	.pill.unset {
+		background: var(--white);
+		color: var(--ink);
+		border: 2px dashed var(--brick-purple);
+	}
+	.filled {
+		margin: 0;
+		color: var(--muted);
+		font-weight: 600;
+	}
+	.ask {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-3);
+		border: 2px solid var(--brick-purple);
+		border-radius: var(--radius-control);
+	}
+	.ask .row {
+		display: flex;
+		gap: var(--space-2);
+	}
+	.ask .btn {
+		flex: 1;
 	}
 	.add,
 	.more {

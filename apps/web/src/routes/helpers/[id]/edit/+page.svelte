@@ -6,12 +6,12 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import { brick, type GroupId, type Stack, type StackBrick } from '@laamo/catalog';
+	import { brick, catalog, type GroupId, type Stack, type StackBrick } from '@laamo/catalog';
 	import { sentence } from '@laamo/catalog/describe';
 	import { available, validate, type Issue } from '@laamo/catalog/validate';
 	import type { Schemas } from '#lib/api/client.ts';
 	import Brick from '#lib/components/Brick.svelte';
-	import BrickSheet from '#lib/components/BrickSheet.svelte';
+	import BrickSheet, { type Pill } from '#lib/components/BrickSheet.svelte';
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { add, fieldPills, fillProfile, groups, ready, startOnTop, tray } from '#lib/builder.ts';
@@ -149,18 +149,39 @@
 	const editIndex = $derived(bricks.findIndex((b) => b.id === editing));
 	// Pills for the open sheet: known About me facts, then what the bricks
 	// above give (card fields, {answer}).
-	const pills = $derived.by(() => {
+	const pills = $derived.by((): Pill[] => {
 		if (editIndex < 0) return [];
 		const here = available(stack, editIndex);
-		const mine = Object.entries(profile)
-			.filter(([, v]) => typeof v === 'string' && v.trim())
-			.map(([k]) => `my ${k}`);
+		const owner = session.workspace?.role === 'owner';
+		const mine: Pill[] = catalog.profile.flatMap((f) => {
+			const v = profile[f.key];
+			if (typeof v === 'string' && v.trim()) return [{ raw: `my ${f.key}`, label: v }];
+			return owner ? [{ raw: `my ${f.key}`, label: t(`pill.${f.key}` as Key), unset: f.key }] : [];
+		});
+		const field = (k: string) => catalog.fields.find((f) => f.key === k)?.label[lang] ?? k;
 		return [
-			...mine,
-			...here.context.filter((k) => k === 'answer'),
-			...here.fields.filter((f) => fieldPills.includes(f))
+			...mine.filter((p) => !p.unset),
+			...here.context
+				.filter((k) => k === 'answer')
+				.map((k) => ({ raw: k, label: t('builder.answer') })),
+			...here.fields
+				.filter((f) => fieldPills.includes(f))
+				.map((f) => ({ raw: f, label: field(f) })),
+			...mine.filter((p) => p.unset)
 		];
 	});
+
+	// "+ your offer" in a sheet: remembered in About me, for every helper.
+	async function rememberFact(key: string, value: string): Promise<boolean> {
+		const ws = session.workspace;
+		if (!ws) return false;
+		const { data } = await api.PATCH('/workspaces/{workspaceId}', {
+			params: { path: { workspaceId: ws.id } },
+			body: { profile: { [key]: value.trim() } }
+		});
+		if (data) about = data.profile ?? {};
+		return !!data;
+	}
 
 	async function save() {
 		saving = true;
@@ -195,9 +216,20 @@
 	<p class="empty">{t('builder.missing')}</p>
 {:else}
 	<PageHeader title={t('builder.title')}>
-		{#snippet right()}<a class="cancel" href="/helpers/{id}">{t('helper.cancel')}</a>{/snippet}
+		{#snippet right()}
+			<div class="head-actions">
+				<a class="cancel" href="/helpers/{id}">{t('helper.cancel')}</a>
+				<button
+					type="button"
+					class="btn primary"
+					disabled={!dirty || errors.length > 0 || saving}
+					onclick={save}>{saving ? t('builder.saving') : t('builder.save')}</button
+				>
+			</div>
+		{/snippet}
 	</PageHeader>
 	{#if name}<p class="lead">{name}</p>{/if}
+	{#if error}<p class="error" role="alert">{error}</p>{/if}
 
 	{#if base}
 		<ol
@@ -226,9 +258,6 @@
 			{/each}
 		</ol>
 		{#if !bricks.length}<p class="empty">{t('builder.empty')}</p>{/if}
-		{#if !errors.length && issues.length === 0 && !bricks.some((b) => !ready.has(b.type))}
-			<p class="ok">{t('builder.ok')}</p>
-		{/if}
 	{:else}
 		<p class="empty">{t('loading')}</p>
 	{/if}
@@ -246,13 +275,6 @@
 				>
 			{/each}
 		</div>
-		{#if error}<p class="error" role="alert">{error}</p>{/if}
-		<button
-			type="button"
-			class="btn primary wide"
-			disabled={!dirty || errors.length > 0 || saving}
-			onclick={save}>{saving ? t('builder.saving') : t('builder.save')}</button
-		>
 	</div>
 
 	{#if editing && editIndex >= 0}
@@ -262,6 +284,7 @@
 			{places}
 			lastOut={lastOut[editing]}
 			{pills}
+			onfact={rememberFact}
 			back="/helpers/{id}/edit"
 			onremove={remove}
 		/>
@@ -297,6 +320,15 @@
 		color: var(--muted);
 		font-weight: 600;
 	}
+	.head-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+	.head-actions .btn {
+		min-height: var(--tap-min);
+		padding: 0 var(--space-4);
+	}
 	.cancel {
 		color: inherit;
 		font-weight: 700;
@@ -305,7 +337,7 @@
 	.stack {
 		list-style: none;
 		margin: 0;
-		padding: 0 var(--gutter) 260px;
+		padding: 0 var(--gutter) 160px;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
@@ -322,7 +354,6 @@
 	.issue.hint {
 		color: var(--muted);
 	}
-	.ok,
 	.empty {
 		padding: 0 var(--gutter);
 		color: var(--muted);
@@ -381,6 +412,7 @@
 	}
 	.error {
 		margin: 0;
+		padding: 0 var(--gutter) var(--space-3);
 		color: var(--danger);
 		font-weight: 600;
 	}
