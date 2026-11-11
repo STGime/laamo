@@ -137,7 +137,7 @@
 	<section>
 		<h2>{t('helper.bricks')}</h2>
 		<BrickStack {bricks} {current} />
-		<p class="hint">{t('helper.editSoon')}</p>
+		<a class="btn wide edit" href="/helpers/{id}/edit">{t('builder.edit')}</a>
 	</section>
 
 	<section>

@@ -435,6 +435,59 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /helpers/{helperId}/stack:
+    parameters:
+      - $ref: '#/components/parameters/HelperId'
+    get:
+      operationId: getHelperStack
+      summary: A helper's current stack for the builder, with what each brick gave last time
+      tags: [helpers]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelperStack'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: saveHelperStack
+      summary: Save an edited stack as the helper's next version
+      tags: [helpers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveStack'
+      responses:
+        '200':
+          description: Saved; runs from now on use this version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelperStack'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Someone saved a newer version first; reload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The stack has problems; nothing was saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StackProblems'
   /feed-cards/{feedCardId}/dismiss:
     parameters:
       - $ref: '#/components/parameters/FeedCardId'
@@ -1037,6 +1090,87 @@ components:
         match:
           type: integer
           description: How well it fits your needs (0 = not one of them)
+    HelperStack:
+      type: object
+      required: [version, stack, last_out]
+      properties:
+        version:
+          type: integer
+        stack:
+          $ref: '#/components/schemas/Stack'
+        last_out:
+          type: object
+          description: Cards each brick (by stack brick id) gave in the last finished run
+          additionalProperties:
+            type: integer
+    Stack:
+      type: object
+      description: A stack as in packages/catalog (schema 1); checked against bricks.json
+      required: [schema, bricks]
+      properties:
+        schema:
+          type: integer
+        bricks:
+          type: array
+          items:
+            $ref: '#/components/schemas/StackBrick'
+        limits:
+          type: object
+          additionalProperties: true
+        profile:
+          type: object
+          additionalProperties:
+            type: string
+      additionalProperties: true
+    StackBrick:
+      type: object
+      required: [id, type, config]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+    SaveStack:
+      type: object
+      required: [stack, version]
+      properties:
+        stack:
+          $ref: '#/components/schemas/Stack'
+        version:
+          type: integer
+          description: The version the edit started from
+    StackProblems:
+      type: object
+      required: [error, issues]
+      properties:
+        error:
+          type: string
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/StackIssue'
+    StackIssue:
+      type: object
+      required: [index, level, code, message]
+      properties:
+        brick:
+          type: string
+        index:
+          type: integer
+        level:
+          type: string
+          enum: [error, hint]
+        code:
+          type: string
+        setting:
+          type: string
+        field:
+          type: string
+        message:
+          type: string
     BrickPreview:
       type: object
       required: [id, type, group, sentence]

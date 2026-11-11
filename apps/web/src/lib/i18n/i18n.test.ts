@@ -11,6 +11,10 @@ describe('i18n', () => {
 		expect(t('swipe.left', { n: 3 }, 'de')).toBe('noch 3');
 		expect(t('me.signedInAs', { email: 'a@b.de' }, 'en')).toBe('Signed in as a@b.de');
 	});
+	it('uses the one form for n = 1', () => {
+		expect(t('helper.cards', { n: 1 }, 'en')).toBe('→ 1 card');
+		expect(t('helper.cards', { n: 2 }, 'de')).toBe('→ 2 Karten');
+	});
 	it('picks de or en from the browser', () => {
 		expect(browserLang(['de-AT', 'en'])).toBe('de');
 		expect(browserLang(['fr-FR', 'en-GB'])).toBe('en');
