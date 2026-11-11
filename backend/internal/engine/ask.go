@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -230,6 +231,30 @@ func stepDecision(s store.Step) (applied, bool) {
 		}
 	}
 	return applied{}, false
+}
+
+// GoOn narrows the cards stored on an Ask step (everything the user was
+// shown) to the ones that went on, with the user's edits. Other steps'
+// cards come back unchanged.
+func GoOn(step store.Step, cards []store.Card) []store.Card {
+	a, ok := stepDecision(step)
+	if !ok {
+		return cards
+	}
+	var out []store.Card
+	for _, c := range cards {
+		if !slices.Contains(a.Keep, c.CardID) {
+			continue
+		}
+		if edits := a.Edits[c.CardID]; len(edits) > 0 {
+			data := make(map[string]any, len(c.Data)+len(edits))
+			maps.Copy(data, c.Data)
+			maps.Copy(data, edits)
+			c.Data = data
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 // errPaused ends Execute without finishing the run.

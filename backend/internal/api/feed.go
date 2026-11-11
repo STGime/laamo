@@ -40,7 +40,21 @@ func (s *Server) shownCards(ctx context.Context, fc store.FeedCard) ([]store.Car
 	if fc.StepID == nil || (fc.Type != engine.FeedApproval && fc.Type != engine.FeedPick && fc.Type != "result") {
 		return nil, nil
 	}
-	return s.store.ListCards(ctx, *fc.StepID)
+	cards, err := s.store.ListCards(ctx, *fc.StepID)
+	if err != nil || fc.Type != "result" || fc.RunID == nil {
+		return cards, err
+	}
+	// A result from an Ask step shows what went on, not everything shown.
+	steps, err := s.store.ListSteps(ctx, *fc.RunID)
+	if err != nil {
+		return nil, err
+	}
+	for _, st := range steps {
+		if st.ID == *fc.StepID {
+			return engine.GoOn(st, cards), nil
+		}
+	}
+	return cards, nil
 }
 
 func (s *Server) GetFeedCard(ctx context.Context, req GetFeedCardRequestObject) (GetFeedCardResponseObject, error) {

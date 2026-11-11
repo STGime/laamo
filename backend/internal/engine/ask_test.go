@@ -153,6 +153,29 @@ func TestPausePick(t *testing.T) {
 	}
 }
 
+// Let me pick as the last brick (Weekend Scout): the result card counts
+// what was picked, not everything shown.
+func TestPickLastResult(t *testing.T) {
+	e := newEnv(t, []sb{
+		{ID: "b1", Type: "when.tap"},
+		{ID: "b2", Type: "look.search", Config: cfg{"query": "events"}},
+		{ID: "b3", Type: "ask.pick"},
+	})
+	r := e.run(e.start("manual", false))
+	fc := e.waiting(r)
+	ids := cardIDs(e.cards(fc.ID))
+	r = e.decide(r, engine.StateAnswered, engine.Decision{Picked: []string{ids[1], ids[2]}})
+	var result *store.FeedCard
+	for _, f := range e.feed(r.ID) {
+		if f.Type == "result" {
+			result = &f
+		}
+	}
+	if result == nil || result.Title != "2 new cards" || fmt.Sprint(result.Payload["cards"]) != "2" {
+		t.Fatalf("result %+v", result)
+	}
+}
+
 // Let me pick shows at most max_show cards; the rest don't go on.
 func TestPausePickMaxShow(t *testing.T) {
 	e := newEnv(t, []sb{
