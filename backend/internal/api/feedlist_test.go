@@ -171,6 +171,11 @@ func TestEvents(t *testing.T) {
 	if got := next(); got != `event: run data: {"id":"r1","status":"waiting"}` {
 		t.Fatalf("got %q", got)
 	}
+	e.events <- realtime.Event{Channel: "db:run_steps", Type: "UPDATE", Record: map[string]any{"run_id": "r1", "workspace_id": e.ws.ID,
+		"brick_id": "b2", "status": "done", "cards_out": 10.0}}
+	if got := next(); got != `event: step data: {"id":"r1","status":"done","brick_id":"b2","cards_out":10}` {
+		t.Fatalf("got %q", got)
+	}
 	e.events <- realtime.Event{Type: realtime.Reconnected}
 	if got := next(); got != `event: reload data: {}` {
 		t.Fatalf("got %q", got)

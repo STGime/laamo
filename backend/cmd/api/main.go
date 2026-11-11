@@ -39,7 +39,7 @@ func main() {
 
 	client := eb.New(cfg.EurobaseURL, cfg.EurobaseSecretKey)
 	// One realtime connection for all browsers' live updates.
-	events := api.NewHub(realtime.Subscribe(ctx, cfg.EurobaseURL, cfg.EurobaseSecretKey, []string{"feed_cards", "runs"}, log))
+	events := api.NewHub(realtime.Subscribe(ctx, cfg.EurobaseURL, cfg.EurobaseSecretKey, []string{"feed_cards", "runs", "run_steps"}, log))
 	server := api.NewServer(api.Deps{
 		Config: cfg,
 		Store:  sebs.New(client),

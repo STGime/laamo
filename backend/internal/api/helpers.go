@@ -73,6 +73,27 @@ func (s *Server) ListTemplates(ctx context.Context, req ListTemplatesRequestObje
 	return ListTemplates200JSONResponse{Templates: out}, nil
 }
 
+// activeRun is the helper's latest run if it's still going (queued,
+// running or waiting for the user), with how far it got.
+func (s *Server) activeRun(ctx context.Context, h store.Helper) (*RunProgress, *store.Run) {
+	runs, err := s.store.ListRuns(ctx, store.RunFilter{HelperID: h.ID, Limit: 1})
+	if err != nil || len(runs) == 0 {
+		return nil, nil
+	}
+	r := runs[0]
+	if r.Status != store.RunQueued && r.Status != store.RunRunning && r.Status != store.RunWaiting {
+		return nil, &r
+	}
+	total := 0
+	if v, err := s.store.GetHelperVersion(ctx, r.VersionID); err == nil {
+		var stack catalog.Stack
+		if json.Unmarshal(v.Stack, &stack) == nil {
+			total = len(stack.Bricks)
+		}
+	}
+	return &RunProgress{Id: uuid(r.ID), Status: RunProgressStatus(r.Status), Step: r.NextBrickIndex, Steps: total, Test: r.TestMode}, &r
+}
+
 func helperOut(h store.Helper) Helper {
 	return Helper{Id: uuid(h.ID), Name: h.Name, Avatar: h.Avatar, Status: HelperStatus(h.Status), CreatedAt: h.CreatedAt}
 }
@@ -91,7 +112,9 @@ func (s *Server) ListHelpers(ctx context.Context, req ListHelpersRequestObject) 
 	}
 	out := ListHelpers200JSONResponse{Helpers: make([]Helper, 0, len(hs))}
 	for _, h := range hs {
-		out.Helpers = append(out.Helpers, helperOut(h))
+		ho := helperOut(h)
+		ho.Run, _ = s.activeRun(ctx, h)
+		out.Helpers = append(out.Helpers, ho)
 	}
 	return out, nil
 }
@@ -181,6 +204,9 @@ func (s *Server) StartRun(ctx context.Context, req StartRunRequestObject) (Start
 	} else if !ok {
 		return StartRun404JSONResponse{NotFoundJSONResponse(apiErr(ErrorCodeNotFound, "helper not found"))}, nil
 	}
+	if run, _ := s.activeRun(ctx, h); run != nil && run.Status != RunProgressStatusWaiting {
+		return StartRun409JSONResponse{ConflictJSONResponse(apiErr(ErrorCodeConflict, "this helper is already running"))}, nil
+	}
 	trigger := "manual"
 	data := map[string]any{}
 	if req.Body != nil {
@@ -266,6 +292,28 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 	}
 	out := HelperDetail{Helper: helperOut(h), Bricks: []BrickPreview{}, Runs: []RunSummary{}}
 	out.Helper.NextRunAt = s.nextRun(ctx, h)
+	var latest *store.Run
+	out.Helper.Run, latest = s.activeRun(ctx, h)
+	if latest != nil {
+		steps, err := s.store.ListSteps(ctx, latest.ID)
+		if err != nil {
+			return nil, err
+		}
+		// One entry per brick: its latest attempt.
+		byBrick := map[string]StepProgress{}
+		var order []string
+		for _, st := range steps {
+			if _, seen := byBrick[st.BrickID]; !seen {
+				order = append(order, st.BrickID)
+			}
+			byBrick[st.BrickID] = StepProgress{BrickId: st.BrickID, Status: StepProgressStatus(st.Status), CardsIn: st.CardsIn, CardsOut: st.CardsOut}
+		}
+		sp := make([]StepProgress, 0, len(order))
+		for _, id := range order {
+			sp = append(sp, byBrick[id])
+		}
+		out.Steps = &sp
+	}
 	if h.CurrentVersionID != nil {
 		v, err := s.store.GetHelperVersion(ctx, *h.CurrentVersionID)
 		if err != nil {

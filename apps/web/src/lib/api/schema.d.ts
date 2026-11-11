@@ -90,7 +90,8 @@ export interface paths {
 		/**
 		 * The Feed, newest first, with the Needs me count and the brain allowance
 		 * @description Live updates: `GET /api/workspaces/{workspaceId}/events` streams Server-Sent Events
-		 *     (`feed` with a FeedCard id, `run` with a run id and status, `reload` after a gap). Send the
+		 *     (`feed` with a FeedCard id, `run` with a run id, status and helper, `step` with a run id, brick and counts,
+		 *     `reload` after a gap). Send the
 		 *     bearer token as a header (read the stream with fetch; EventSource can't send headers).
 		 */
 		get: operations['listFeed'];
@@ -495,14 +496,36 @@ export interface components {
 			 * @description When its schedule runs next (only when on and scheduled)
 			 */
 			next_run_at?: string;
+			run?: components['schemas']['RunProgress'];
 			/** Format: date-time */
 			created_at: string;
+		};
+		/** @description The run going on now (queued, running or waiting for you) */
+		RunProgress: {
+			/** Format: uuid */
+			id: string;
+			/** @enum {string} */
+			status: 'queued' | 'running' | 'waiting';
+			/** @description Index of the brick it's at (0-based) */
+			step: number;
+			/** @description Number of bricks */
+			steps: number;
+			test: boolean;
+		};
+		StepProgress: {
+			brick_id: string;
+			/** @enum {string} */
+			status: 'running' | 'waiting' | 'done' | 'failed' | 'skipped';
+			cards_in: number;
+			cards_out: number;
 		};
 		HelperDetail: {
 			helper: components['schemas']['Helper'];
 			bricks: components['schemas']['BrickPreview'][];
 			/** @description The last 10 runs, newest first */
 			runs: components['schemas']['RunSummary'][];
+			/** @description The latest run's steps, by brick (for the live run view) */
+			steps?: components['schemas']['StepProgress'][];
 		};
 		RunSummary: {
 			/** Format: uuid */

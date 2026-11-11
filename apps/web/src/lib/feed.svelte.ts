@@ -119,10 +119,14 @@ export function parseSSE(buffer: string): {
 
 /**
  * Listens to the workspace's live updates until the returned stop function
- * is called. Any change reloads the first page (debounced); a dropped
- * stream reconnects with backoff and reloads.
+ * is called. Events of the given kinds call onChange (debounced); a dropped
+ * stream reconnects with backoff and calls it too.
  */
-export function listen(onChange: () => void, token: () => Promise<string | null>): () => void {
+export function listen(
+	onChange: () => void,
+	token: () => Promise<string | null>,
+	kinds: string[] = ['feed', 'reload']
+): () => void {
 	let stopped = false;
 	let ctrl: AbortController | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -152,9 +156,9 @@ export function listen(onChange: () => void, token: () => Promise<string | null>
 					if (done) break;
 					const parsed = parseSSE(buf + value);
 					buf = parsed.rest;
-					// Run progress (one event per step) is for the helper page;
-					// the Feed only changes with its cards.
-					if (parsed.events.some((e) => e.event === 'feed' || e.event === 'reload')) changed();
+					// Each screen listens for what it shows: the Feed for its cards,
+					// helper screens for run and step progress.
+					if (parsed.events.some((e) => kinds.includes(e.event))) changed();
 				}
 			} catch {
 				/* reconnect below */

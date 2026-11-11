@@ -402,30 +402,51 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Defines values for RunProgressStatus.
+const (
+	RunProgressStatusQueued  RunProgressStatus = "queued"
+	RunProgressStatusRunning RunProgressStatus = "running"
+	RunProgressStatusWaiting RunProgressStatus = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the RunProgressStatus enum.
+func (e RunProgressStatus) Valid() bool {
+	switch e {
+	case RunProgressStatusQueued:
+		return true
+	case RunProgressStatusRunning:
+		return true
+	case RunProgressStatusWaiting:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RunSummaryStatus.
 const (
-	Done    RunSummaryStatus = "done"
-	Failed  RunSummaryStatus = "failed"
-	Queued  RunSummaryStatus = "queued"
-	Running RunSummaryStatus = "running"
-	Stopped RunSummaryStatus = "stopped"
-	Waiting RunSummaryStatus = "waiting"
+	RunSummaryStatusDone    RunSummaryStatus = "done"
+	RunSummaryStatusFailed  RunSummaryStatus = "failed"
+	RunSummaryStatusQueued  RunSummaryStatus = "queued"
+	RunSummaryStatusRunning RunSummaryStatus = "running"
+	RunSummaryStatusStopped RunSummaryStatus = "stopped"
+	RunSummaryStatusWaiting RunSummaryStatus = "waiting"
 )
 
 // Valid indicates whether the value is a known member of the RunSummaryStatus enum.
 func (e RunSummaryStatus) Valid() bool {
 	switch e {
-	case Done:
+	case RunSummaryStatusDone:
 		return true
-	case Failed:
+	case RunSummaryStatusFailed:
 		return true
-	case Queued:
+	case RunSummaryStatusQueued:
 		return true
-	case Running:
+	case RunSummaryStatusRunning:
 		return true
-	case Stopped:
+	case RunSummaryStatusStopped:
 		return true
-	case Waiting:
+	case RunSummaryStatusWaiting:
 		return true
 	default:
 		return false
@@ -453,6 +474,33 @@ func (e SetupQuestionKind) Valid() bool {
 	case Text:
 		return true
 	case Time:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StepProgressStatus.
+const (
+	StepProgressStatusDone    StepProgressStatus = "done"
+	StepProgressStatusFailed  StepProgressStatus = "failed"
+	StepProgressStatusRunning StepProgressStatus = "running"
+	StepProgressStatusSkipped StepProgressStatus = "skipped"
+	StepProgressStatusWaiting StepProgressStatus = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the StepProgressStatus enum.
+func (e StepProgressStatus) Valid() bool {
+	switch e {
+	case StepProgressStatusDone:
+		return true
+	case StepProgressStatusFailed:
+		return true
+	case StepProgressStatusRunning:
+		return true
+	case StepProgressStatusSkipped:
+		return true
+	case StepProgressStatusWaiting:
 		return true
 	default:
 		return false
@@ -660,8 +708,11 @@ type Helper struct {
 	Name      string             `json:"name"`
 
 	// NextRunAt When its schedule runs next (only when on and scheduled)
-	NextRunAt *time.Time   `json:"next_run_at,omitempty"`
-	Status    HelperStatus `json:"status"`
+	NextRunAt *time.Time `json:"next_run_at,omitempty"`
+
+	// Run The run going on now (queued, running or waiting for you)
+	Run    *RunProgress `json:"run,omitempty"`
+	Status HelperStatus `json:"status"`
 }
 
 // HelperStatus defines model for Helper.Status.
@@ -674,6 +725,9 @@ type HelperDetail struct {
 
 	// Runs The last 10 runs, newest first
 	Runs []RunSummary `json:"runs"`
+
+	// Steps The latest run's steps, by brick (for the live run view)
+	Steps *[]StepProgress `json:"steps,omitempty"`
 }
 
 // HelperRef defines model for HelperRef.
@@ -744,6 +798,22 @@ type Profile map[string]string
 // Role defines model for Role.
 type Role string
 
+// RunProgress The run going on now (queued, running or waiting for you)
+type RunProgress struct {
+	Id     openapi_types.UUID `json:"id"`
+	Status RunProgressStatus  `json:"status"`
+
+	// Step Index of the brick it's at (0-based)
+	Step int `json:"step"`
+
+	// Steps Number of bricks
+	Steps int  `json:"steps"`
+	Test  bool `json:"test"`
+}
+
+// RunProgressStatus defines model for RunProgress.Status.
+type RunProgressStatus string
+
 // RunStarted defines model for RunStarted.
 type RunStarted struct {
 	RunId openapi_types.UUID `json:"run_id"`
@@ -803,6 +873,17 @@ type ShelfTemplate struct {
 	// Slug Example: morning-briefing
 	Slug string `json:"slug"`
 }
+
+// StepProgress defines model for StepProgress.
+type StepProgress struct {
+	BrickId  string             `json:"brick_id"`
+	CardsIn  int                `json:"cards_in"`
+	CardsOut int                `json:"cards_out"`
+	Status   StepProgressStatus `json:"status"`
+}
+
+// StepProgressStatus defines model for StepProgress.Status.
+type StepProgressStatus string
 
 // User defines model for User.
 type User struct {
@@ -1122,7 +1203,8 @@ type ClientInterface interface {
 	// ListFeed The Feed, newest first, with the Needs me count and the brain allowance
 	//
 	// Live updates: `GET /api/workspaces/{workspaceId}/events` streams Server-Sent Events
-	// (`feed` with a FeedCard id, `run` with a run id and status, `reload` after a gap). Send the
+	// (`feed` with a FeedCard id, `run` with a run id, status and helper, `step` with a run id, brick and counts,
+	// `reload` after a gap). Send the
 	// bearer token as a header (read the stream with fetch; EventSource can't send headers).
 	//
 	// Corresponds with GET /workspaces/{workspaceId}/feed (the `ListFeed` operationId).
@@ -1449,7 +1531,8 @@ func (c *Client) UpdateWorkspace(ctx context.Context, workspaceId WorkspaceId, b
 // ListFeed The Feed, newest first, with the Needs me count and the brain allowance
 //
 // Live updates: `GET /api/workspaces/{workspaceId}/events` streams Server-Sent Events
-// (`feed` with a FeedCard id, `run` with a run id and status, `reload` after a gap). Send the
+// (`feed` with a FeedCard id, `run` with a run id, status and helper, `step` with a run id, brick and counts,
+// `reload` after a gap). Send the
 // bearer token as a header (read the stream with fetch; EventSource can't send headers).
 //
 // Corresponds with GET /workspaces/{workspaceId}/feed (the `ListFeed` operationId).
@@ -2365,7 +2448,8 @@ type ClientWithResponsesInterface interface {
 	// ListFeedWithResponse The Feed, newest first, with the Needs me count and the brain allowance
 	//
 	// Live updates: `GET /api/workspaces/{workspaceId}/events` streams Server-Sent Events
-	// (`feed` with a FeedCard id, `run` with a run id and status, `reload` after a gap). Send the
+	// (`feed` with a FeedCard id, `run` with a run id, status and helper, `step` with a run id, brick and counts,
+	// `reload` after a gap). Send the
 	// bearer token as a header (read the stream with fetch; EventSource can't send headers).
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -3560,7 +3644,8 @@ func (c *ClientWithResponses) UpdateWorkspaceWithResponse(ctx context.Context, w
 // ListFeedWithResponse The Feed, newest first, with the Needs me count and the brain allowance
 //
 // Live updates: `GET /api/workspaces/{workspaceId}/events` streams Server-Sent Events
-// (`feed` with a FeedCard id, `run` with a run id and status, `reload` after a gap). Send the
+// (`feed` with a FeedCard id, `run` with a run id, status and helper, `step` with a run id, brick and counts,
+// `reload` after a gap). Send the
 // bearer token as a header (read the stream with fetch; EventSource can't send headers).
 //
 // Returns a wrapper object for the known response body format(s).

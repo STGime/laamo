@@ -186,6 +186,13 @@ export const de: Record<Key, string> = {
 	'run.status.failed': 'Fehlgeschlagen',
 	'run.status.stopped': 'Gestoppt',
 	'run.test': 'Test',
+	'helpers.running': 'Läuft · Schritt {step} von {steps}',
+	'helpers.queued': 'Startet…',
+	'helpers.waiting': 'Wartet auf dich im Feed',
+	'helpers.busy': 'Läuft…',
+	'helper.cards': '→ {n} Karten',
+	'helper.atWork': 'arbeitet…',
+	'helper.waitsHere': 'wartet auf dich',
 	'error.offline': 'Laamo ist gerade nicht erreichbar. Versuch es gleich noch mal.',
 	loading: 'Lädt…'
 };

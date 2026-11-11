@@ -180,6 +180,13 @@ export const en = {
 	'run.status.failed': 'Failed',
 	'run.status.stopped': 'Stopped',
 	'run.test': 'test',
+	'helpers.running': 'Running · step {step} of {steps}',
+	'helpers.queued': 'Starting…',
+	'helpers.waiting': 'Waiting for you in the Feed',
+	'helpers.busy': 'Running…',
+	'helper.cards': '→ {n} cards',
+	'helper.atWork': 'working…',
+	'helper.waitsHere': 'waiting for you',
 	'error.offline': 'Can’t reach Laamo right now. Try again in a moment.',
 	loading: 'Loading…'
 } as const;

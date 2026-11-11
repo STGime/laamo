@@ -2,13 +2,14 @@
 	import type { Schemas } from '#lib/api/client.ts';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
+	import { listen } from '#lib/feed.svelte.ts';
+	import { busy as running, progressText } from '#lib/progress.ts';
 	import { api, session } from '#lib/session.svelte.ts';
 
 	let helpers = $state<Schemas['Helper'][] | null>(null);
-	let started = $state<string | null>(null);
-	let busy = $state<string | null>(null);
+	let starting = $state<string | null>(null);
 
-	$effect(() => {
+	function load() {
 		const ws = session.workspace;
 		if (!ws) return;
 		api
@@ -16,16 +17,20 @@
 			.then(({ data }) => {
 				helpers = data?.helpers ?? [];
 			});
+	}
+
+	// Progress comes live: run and step changes reload the list.
+	$effect(() => {
+		if (!session.workspace) return;
+		load();
+		return listen(load, () => session.fresh(), ['run', 'step', 'reload']);
 	});
 
 	async function runNow(id: string) {
-		busy = id;
-		const { data } = await api.POST('/helpers/{helperId}/runs', {
-			params: { path: { helperId: id } },
-			body: {}
-		});
-		busy = null;
-		if (data) started = id;
+		starting = id;
+		await api.POST('/helpers/{helperId}/runs', { params: { path: { helperId: id } }, body: {} });
+		load();
+		starting = null;
 	}
 </script>
 
@@ -42,14 +47,26 @@
 					<span class="avatar" aria-hidden="true">{h.avatar ?? '🧱'}</span>
 					<span class="text">
 						<span class="name display">{h.name}</span>
-						<span class="status">{t(`helpers.${h.status}` as Key)} ›</span>
-						{#if started === h.id}<span class="started">{t('helpers.started')}</span>{/if}
+						{#if h.run}
+							<span class="progress">
+								<span class="pulse" aria-hidden="true"></span>{progressText(h.run)}
+							</span>
+							{#if h.run.steps > 0}
+								<span class="bar" aria-hidden="true"
+									><span style:width="{(Math.min(h.run.step, h.run.steps) / h.run.steps) * 100}%"
+									></span></span
+								>
+							{/if}
+						{:else}
+							<span class="status">{t(`helpers.${h.status}` as Key)} ›</span>
+						{/if}
 					</span>
 				</a>
 				<button
 					class="btn"
-					disabled={busy === h.id || h.status === 'draft'}
-					onclick={() => runNow(h.id)}>{t('helpers.runNow')}</button
+					disabled={starting === h.id || running(h.run) || h.status === 'draft'}
+					onclick={() => runNow(h.id)}
+					>{running(h.run) ? t('helpers.busy') : t('helpers.runNow')}</button
 				>
 			</li>
 		{/each}
@@ -98,13 +115,38 @@
 	.name {
 		font-size: var(--text-lg);
 	}
-	.status,
-	.started {
+	.status {
 		color: var(--muted);
 		font-size: var(--text-sm);
 		font-weight: 600;
 	}
-	.started {
-		color: var(--ink);
+	.progress {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		font-weight: 700;
+	}
+	.pulse {
+		width: 10px;
+		height: 10px;
+		border-radius: 2px;
+		background: var(--brick-blue);
+	}
+	.bar {
+		display: block;
+		width: 100%;
+		max-width: 200px;
+		height: 6px;
+		margin-top: var(--space-1);
+		border-radius: 3px;
+		background: var(--gray-200);
+		overflow: hidden;
+	}
+	.bar span {
+		display: block;
+		height: 100%;
+		background: var(--brick-blue);
+		transition: width var(--motion-base) var(--ease);
 	}
 </style>

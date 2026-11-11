@@ -75,14 +75,36 @@ func TestShelfToFirstRun(t *testing.T) {
 		t.Fatalf("jobs %+v", jobs)
 	}
 
-	// Run now, the helper list, and nothing for strangers.
-	run := must(c.StartRunWithResponse(ctx, wsID(h.ID), api.StartRunJSONRequestBody{}))
-	if run.StatusCode() != 202 || len(q.Jobs()) != 2 {
-		t.Fatalf("run now: %d %s", run.StatusCode(), run.Body)
-	}
+	// While the test run is going, the list shows its progress and Run now
+	// is refused.
 	hs := must(c.ListHelpersWithResponse(ctx, wsID(ws.ID)))
 	if hs.StatusCode() != 200 || len(hs.JSON200.Helpers) != 1 || hs.JSON200.Helpers[0].Name != "Morgen-Briefing" {
 		t.Fatalf("helpers %s", hs.Body)
+	}
+	if p := hs.JSON200.Helpers[0].Run; p == nil || p.Status != "queued" || p.Steps != 4 || !p.Test {
+		t.Fatalf("progress %+v", p)
+	}
+	if again := must(c.StartRunWithResponse(ctx, wsID(h.ID), api.StartRunJSONRequestBody{})); again.StatusCode() != 409 {
+		t.Fatalf("second run while one is queued: %d", again.StatusCode())
+	}
+	// It moves on: step 2 of 4, with what the first steps found.
+	step := 2
+	st.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunRunning), NextBrickIndex: &step})
+	for i, b := range []string{"b1", "b2"} {
+		s := store.Step{WorkspaceID: ws.ID, UserID: ws.UserID, RunID: r.ID, BrickID: b, BrickType: "x", Position: i, CardsOut: 10 * i}
+		_ = st.CreateStep(ctx, &s)
+		_, _ = st.UpdateStep(ctx, s.ID, store.StepPatch{Status: new("done")})
+	}
+	d0 := must(c.GetHelperWithResponse(ctx, wsID(h.ID))).JSON200
+	if d0.Helper.Run == nil || d0.Helper.Run.Step != 2 || d0.Steps == nil || len(*d0.Steps) != 2 || (*d0.Steps)[1].CardsOut != 10 {
+		t.Fatalf("live view %+v %+v", d0.Helper.Run, d0.Steps)
+	}
+	st.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunDone)})
+
+	// Done: Run now works again.
+	run := must(c.StartRunWithResponse(ctx, wsID(h.ID), api.StartRunJSONRequestBody{}))
+	if run.StatusCode() != 202 || len(q.Jobs()) != 2 {
+		t.Fatalf("run now: %d %s", run.StatusCode(), run.Body)
 	}
 	// Two runs so far: the test run and Run now.
 	_ = run

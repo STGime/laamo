@@ -6,7 +6,9 @@
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
 	import BrickStack, { type StackItem } from '#lib/components/BrickStack.svelte';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
-	import { api } from '#lib/session.svelte.ts';
+	import { listen } from '#lib/feed.svelte.ts';
+	import { busy as running, progressText } from '#lib/progress.ts';
+	import { api, session } from '#lib/session.svelte.ts';
 	import { ago, when } from '#lib/time.ts';
 
 	let detail = $state<Schemas['HelperDetail'] | null>(null);
@@ -26,14 +28,28 @@
 		if (response.status === 404) missing = true;
 		if (data) detail = data;
 	}
+	// The run view is live: run and step changes reload the page's data.
 	$effect(() => {
-		if (id) load();
+		if (!id) return;
+		load();
+		return listen(load, () => session.fresh(), ['run', 'step', 'reload']);
 	});
 
 	const helper = $derived(detail?.helper);
 	const on = $derived(helper?.status === 'active');
+	const run = $derived(helper?.run);
+	// While a run is going, bricks light up: done ones say what they made,
+	// the current one is at work (or waiting for you), later ones are dim.
+	const current = $derived(run ? run.step : -1);
 	const bricks = $derived<StackItem[]>(
-		(detail?.bricks ?? []).map((b) => ({ id: b.id, group: b.group, title: b.sentence }))
+		(detail?.bricks ?? []).map((b, i) => {
+			const step = run ? detail?.steps?.find((s) => s.brick_id === b.id) : undefined;
+			let sub = '';
+			if (step?.status === 'done' && b.group !== 'when') sub = t('helper.cards', { n: step.cards_out });
+			else if (run && i === current)
+				sub = run.status === 'waiting' ? t('helper.waitsHere') : t('helper.atWork');
+			return { id: b.id, group: b.group, title: b.sentence, sub };
+		})
 	);
 
 	async function patch(body: { name?: string; status?: 'active' | 'paused' }) {
@@ -113,15 +129,17 @@
 					})}{:else}{t('helper.noSchedule')}{/if}
 			</p>
 		</div>
-		<button class="btn primary wide" disabled={busy} onclick={runNow}>{t('helpers.runNow')}</button>
-		{#if started}<p class="started">
+		<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
+			>{run ? progressText(run) : t('helpers.runNow')}</button
+		>
+		{#if started && !run}<p class="started">
 				{t('helpers.started')} <a href="/feed">{t('tab.feed')} →</a>
 			</p>{/if}
 	</header>
 
 	<section>
 		<h2>{t('helper.bricks')}</h2>
-		<BrickStack {bricks} />
+		<BrickStack {bricks} {current} />
 		<p class="hint">{t('helper.editSoon')}</p>
 	</section>
 
