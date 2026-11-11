@@ -155,13 +155,21 @@
 		const mine = Object.entries(profile)
 			.filter(([, v]) => typeof v === 'string' && v.trim())
 			.map(([k]) => `my ${k}`);
-		return [...mine, ...here.context.filter((k) => k === 'answer'), ...here.fields.filter((f) => fieldPills.includes(f))];
+		return [
+			...mine,
+			...here.context.filter((k) => k === 'answer'),
+			...here.fields.filter((f) => fieldPills.includes(f))
+		];
 	});
 
 	async function save() {
 		saving = true;
 		error = '';
-		const { data, error: err, response } = await api.PUT('/helpers/{helperId}/stack', {
+		const {
+			data,
+			error: err,
+			response
+		} = await api.PUT('/helpers/{helperId}/stack', {
 			params: { path: { helperId: id } },
 			body: { stack: stack as Schemas['Stack'], version }
 		});
@@ -264,7 +272,12 @@
 			{#each trayGroup ? tray(trayGroup) : [] as b (b.id)}
 				<li>
 					{#if ready.has(b.id)}
-						<Brick group={b.group} title={b.title[lang]} sub={b.does[lang]} onclick={() => pick(b.id)} />
+						<Brick
+							group={b.group}
+							title={b.title[lang]}
+							sub={b.does[lang]}
+							onclick={() => pick(b.id)}
+						/>
 					{:else}
 						<div class="later">
 							<strong>{b.title[lang]}</strong>
