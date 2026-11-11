@@ -8,6 +8,8 @@
 </script>
 
 <script lang="ts">
+	import { clockText } from '#lib/clock.ts';
+
 	let {
 		group,
 		title,
@@ -25,12 +27,12 @@
 
 {#if onclick}
 	<button type="button" class="brick {group}" data-state={state} {onclick}>
-		<span class="title">{title}</span>
+		<span class="title">{clockText(title)}</span>
 		{#if sub}<span class="sub">{sub}</span>{/if}
 	</button>
 {:else}
 	<div class="brick {group}" data-state={state}>
-		<span class="title">{title}</span>
+		<span class="title">{clockText(title)}</span>
 		{#if sub}<span class="sub">{sub}</span>{/if}
 	</div>
 {/if}

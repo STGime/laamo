@@ -19,10 +19,18 @@ export function browserLang(
 }
 
 let current = $state<Lang>(browserLang());
+// Times: 24h unless the workspace picked 12h (AM/PM).
+let twelve = $state(false);
 
 export const i18n = {
 	get lang(): Lang {
 		return current;
+	},
+	get twelve(): boolean {
+		return twelve;
+	},
+	set twelve(v: boolean) {
+		twelve = v;
 	},
 	set lang(l: Lang) {
 		current = l;

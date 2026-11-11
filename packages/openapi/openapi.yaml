@@ -809,7 +809,7 @@ components:
       enum: [en, de]
     WorkspaceSummary:
       type: object
-      required: [id, name, role, timezone, locale, plan]
+      required: [id, name, role, timezone, locale, time_format, plan]
       properties:
         id:
           type: string
@@ -823,8 +823,15 @@ components:
           example: Europe/Berlin
         locale:
           $ref: '#/components/schemas/Locale'
+        time_format:
+          $ref: '#/components/schemas/TimeFormat'
         plan:
           $ref: '#/components/schemas/Plan'
+    TimeFormat:
+      type: string
+      description: How times are shown; 24h unless the user picks 12h (AM/PM)
+      enum: ['24h', '12h']
+      x-enum-varnames: [TimeFormat24h, TimeFormat12h]
     Me:
       type: object
       required: [user, workspaces]
@@ -898,6 +905,8 @@ components:
           type: string
         locale:
           $ref: '#/components/schemas/Locale'
+        time_format:
+          $ref: '#/components/schemas/TimeFormat'
         profile:
           $ref: '#/components/schemas/Profile'
         needs:

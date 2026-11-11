@@ -609,6 +609,24 @@ func (e StepProgressStatus) Valid() bool {
 	}
 }
 
+// Defines values for TimeFormat.
+const (
+	TimeFormat12h TimeFormat = "12h"
+	TimeFormat24h TimeFormat = "24h"
+)
+
+// Valid indicates whether the value is a known member of the TimeFormat enum.
+func (e TimeFormat) Valid() bool {
+	switch e {
+	case TimeFormat12h:
+		return true
+	case TimeFormat24h:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateHelperJSONBodyStatus.
 const (
 	UpdateHelperJSONBodyStatusActive UpdateHelperJSONBodyStatus = "active"
@@ -1127,6 +1145,9 @@ type StepProgress struct {
 // StepProgressStatus defines model for StepProgress.Status.
 type StepProgressStatus string
 
+// TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
+type TimeFormat string
+
 // User defines model for User.
 type User struct {
 	Email string             `json:"email"`
@@ -1150,6 +1171,9 @@ type Workspace struct {
 	Profile Profile `json:"profile"`
 	Role    Role    `json:"role"`
 
+	// TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
+	TimeFormat TimeFormat `json:"time_format"`
+
 	// Timezone Example: Europe/Berlin
 	Timezone string `json:"timezone"`
 }
@@ -1161,6 +1185,9 @@ type WorkspaceSummary struct {
 	Name   string             `json:"name"`
 	Plan   Plan               `json:"plan"`
 	Role   Role               `json:"role"`
+
+	// TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
+	TimeFormat TimeFormat `json:"time_format"`
 
 	// Timezone Example: Europe/Berlin
 	Timezone string `json:"timezone"`
@@ -1177,8 +1204,11 @@ type WorkspaceUpdate struct {
 	// Profile About me facts by key (see packages/catalog/bricks.json `profile`), used as {my city} etc.
 	//
 	// Example: {"business":"bakery","city":"Berlin"}
-	Profile  *Profile `json:"profile,omitempty"`
-	Timezone *string  `json:"timezone,omitempty"`
+	Profile *Profile `json:"profile,omitempty"`
+
+	// TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
+	TimeFormat *TimeFormat `json:"time_format,omitempty"`
+	Timezone   *string     `json:"timezone,omitempty"`
 }
 
 // FeedCardId defines model for FeedCardId.

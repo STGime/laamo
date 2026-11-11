@@ -21,6 +21,7 @@
 	} from '@laamo/catalog';
 	import type { Schemas } from '#lib/api/client.ts';
 	import BottomSheet from './BottomSheet.svelte';
+	import TimePicker from './TimePicker.svelte';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { fieldPills } from '#lib/builder.ts';
 
@@ -181,12 +182,7 @@
 					<span>{s.ends[0][lang]}</span><span>{s.ends[1][lang]}</span>
 				</p>{/if}
 		{:else if s.type === 'time'}
-			<input
-				{id}
-				type="time"
-				value={str(cfg[s.key])}
-				oninput={(e) => set(s.key, e.currentTarget.value)}
-			/>
+			<TimePicker {id} value={str(cfg[s.key])} onchange={(v) => set(s.key, v)} />
 		{:else if s.type === 'tags'}
 			<input
 				{id}

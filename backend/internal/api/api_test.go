@@ -168,11 +168,20 @@ func TestWorkspaceFlow(t *testing.T) {
 		t.Fatalf("forget city, keep business: %v", upd.JSON200.Profile)
 	}
 
+	// Times: 24h unless 12h is picked.
+	if ws.TimeFormat != api.TimeFormat24h {
+		t.Fatalf("default time format %q", ws.TimeFormat)
+	}
+	if upd := must(asAnna.UpdateWorkspaceWithResponse(ctx, ws.Id, api.WorkspaceUpdate{TimeFormat: new(api.TimeFormat12h)})); upd.StatusCode() != 200 || upd.JSON200.TimeFormat != api.TimeFormat12h {
+		t.Fatalf("12h: %d %s", upd.StatusCode(), upd.Body)
+	}
+
 	// Bad input → 400 with a reason.
 	for name, body := range map[string]api.WorkspaceUpdate{
 		"unknown fact": {Profile: &api.Profile{"shoe_size": "42"}},
 		"long fact":    {Profile: &api.Profile{"offer": strings.Repeat("x", 501)}},
 		"timezone":     {Timezone: new("Mars/Olympus")},
+		"time format":  {TimeFormat: new(api.TimeFormat("13h"))},
 		"empty name":   {Name: new("   ")},
 		"locale":       {Locale: new(api.Locale("fr"))},
 	} {

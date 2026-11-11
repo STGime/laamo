@@ -473,8 +473,14 @@ export interface components {
 			/** @example Europe/Berlin */
 			timezone: string;
 			locale: components['schemas']['Locale'];
+			time_format: components['schemas']['TimeFormat'];
 			plan: components['schemas']['Plan'];
 		};
+		/**
+		 * @description How times are shown; 24h unless the user picks 12h (AM/PM)
+		 * @enum {string}
+		 */
+		TimeFormat: '24h' | '12h';
 		Me: {
 			user: components['schemas']['User'];
 			/** @description Oldest first. Empty for a new user (onboarding creates one). */
@@ -523,6 +529,7 @@ export interface components {
 			name?: string;
 			timezone?: string;
 			locale?: components['schemas']['Locale'];
+			time_format?: components['schemas']['TimeFormat'];
 			profile?: components['schemas']['Profile'];
 			needs?: components['schemas']['Needs'];
 		};
