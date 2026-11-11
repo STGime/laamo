@@ -1,14 +1,5 @@
 // Chats helpers post to (#34).
 
-export const placeIcons: Record<string, string> = {
-	discord: '🎮',
-	slack: '💬',
-	teams: '👥',
-	telegram: '✈️',
-	email: '✉️',
-	posta: '📣'
-};
-
 /** Chat types that can be connected now; the rest come later (M4, post-MVP). */
 export const connectable = ['discord', 'slack'] as const;
 export type Connectable = (typeof connectable)[number];

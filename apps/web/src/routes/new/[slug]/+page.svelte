@@ -8,7 +8,6 @@
 	import { api, session } from '#lib/session.svelte.ts';
 	import { listen } from '#lib/feed.svelte.ts';
 	import { cities } from '#lib/cities.ts';
-	import { placeIcons } from '#lib/places.ts';
 	import { brickProgress, progressText } from '#lib/progress.ts';
 
 	let tpl = $state<Schemas['ShelfTemplate'] | null>(null);
@@ -139,8 +138,7 @@
 										type="button"
 										role="radio"
 										aria-checked={answers[q.key] === p.id}
-										onclick={() => (answers[q.key] = p.id)}
-										>{placeIcons[p.type] ?? '💬'} {p.label}</button
+										onclick={() => (answers[q.key] = p.id)}>{p.label}</button
 									>
 								{/each}
 							</div>

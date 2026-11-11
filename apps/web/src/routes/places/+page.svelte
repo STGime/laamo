@@ -6,7 +6,6 @@
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { ago } from '#lib/time.ts';
-	import { placeIcons } from '#lib/places.ts';
 
 	type Place = Schemas['Place'];
 	let places = $state<Place[] | null>(null);
@@ -54,12 +53,10 @@
 
 <ul class="list">
 	<li class="feed">
-		<span class="icon" aria-hidden="true">📥</span>
 		<span class="text"><strong>{t('places.feed')}</strong><span>{t('places.feedHint')}</span></span>
 	</li>
 	{#each places ?? [] as p (p.id)}
 		<li>
-			<span class="icon" aria-hidden="true">{placeIcons[p.type] ?? '💬'}</span>
 			<span class="text">
 				<strong>{p.label}</strong>
 				<span
@@ -130,9 +127,6 @@
 		min-height: 64px;
 		padding: var(--space-3) var(--gutter);
 		border-bottom: var(--border);
-	}
-	.icon {
-		font-size: 24px;
 	}
 	.text {
 		flex: 1;

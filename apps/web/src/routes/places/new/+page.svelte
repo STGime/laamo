@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
-	import { connectable, guides, placeholders, placeIcons, type Connectable } from '#lib/places.ts';
+	import { connectable, guides, placeholders, type Connectable } from '#lib/places.ts';
 	import { api, session } from '#lib/session.svelte.ts';
 
 	const later = ['telegram', 'teams', 'email'];
@@ -67,13 +67,11 @@
 				class="tile"
 				onclick={() => pick(c)}
 			>
-				<span class="icon" aria-hidden="true">{placeIcons[c]}</span>
 				{t(`places.type.${c}` as Key)}
 			</button>
 		{/each}
 		{#each later as c (c)}
 			<button type="button" class="tile" disabled>
-				<span class="icon" aria-hidden="true">{placeIcons[c]}</span>
 				{t(`places.type.${c}` as Key)}
 				<span class="soon">{t('places.soon')}</span>
 			</button>
@@ -129,7 +127,8 @@
 		flex-direction: column;
 		align-items: flex-start;
 		gap: var(--space-1);
-		min-height: 80px;
+		min-height: 64px;
+		justify-content: center;
 		padding: var(--space-3);
 		border: 2px solid var(--gray-200);
 		border-radius: var(--radius-control);
@@ -145,9 +144,6 @@
 	.tile:disabled {
 		color: var(--muted);
 		cursor: default;
-	}
-	.icon {
-		font-size: 24px;
 	}
 	.soon {
 		color: var(--muted);
