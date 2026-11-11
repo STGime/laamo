@@ -211,7 +211,8 @@ export const en = {
 	'tpl.remember': 'I’ll remember this for all your helpers.',
 	'tpl.feedOnly': 'Just in my Feed',
 	'tpl.test': 'Try it now',
-	'tpl.testHint': 'A test run shows at most 3 results in your Feed and sends nothing.',
+	'tpl.testHint':
+		'A test run uses at most 3 results. Your chat gets them marked as a test; nothing goes to anyone else.',
 	'tpl.failed': 'That didn’t work: {error}',
 	'helpers.runNow': 'Run now',
 	'helpers.started': 'Started. Results land in your Feed.',

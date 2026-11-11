@@ -219,7 +219,7 @@ export const de: Record<Key, string> = {
 	'tpl.feedOnly': 'Nur in meinem Feed',
 	'tpl.test': 'Jetzt ausprobieren',
 	'tpl.testHint':
-		'Ein Testlauf zeigt höchstens 3 Ergebnisse in deinem Feed und schickt nichts raus.',
+		'Ein Testlauf nimmt höchstens 3 Ergebnisse. Dein Chat bekommt sie als Test markiert; an andere geht nichts raus.',
 	'tpl.failed': 'Das hat nicht geklappt: {error}',
 	'helpers.runNow': 'Jetzt ausführen',
 	'helpers.started': 'Läuft. Die Ergebnisse landen in deinem Feed.',
