@@ -100,6 +100,7 @@ func fakeBricks(c *calls, searchResults int) map[string]engine.Brick {
 			card.Kind = "summary"
 			city, _ := rc.Profile("city")
 			card.Set("summary", fmt.Sprintf("%d news for %s", len(in), city), engine.TrustExtracted)
+			card.Set("sources", []any{map[string]any{"title": "Flour", "url": "https://example.com/0"}}, engine.TrustUntrusted)
 			return []engine.Card{card}, rc.AddCost(0.002)
 		}),
 		"do.chat": pass("do.chat"),
@@ -234,7 +235,8 @@ func TestRunToTheEnd(t *testing.T) {
 	if len(feed) != 1 || feed[0].Type != "result" || feed[0].Body == nil || *feed[0].Body != "3 news for Leipzig" {
 		t.Fatalf("feed: %+v", feed)
 	}
-	if feed[0].Title != "Done" || feed[0].StepID == nil || feed[0].Payload["cards"] == nil {
+	links, _ := feed[0].Payload["links"].([]any)
+	if feed[0].Title != "Done" || feed[0].StepID == nil || feed[0].Payload["cards"] == nil || len(links) != 1 {
 		t.Fatalf("result card: %+v", feed[0])
 	}
 

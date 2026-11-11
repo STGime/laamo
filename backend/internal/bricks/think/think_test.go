@@ -48,6 +48,7 @@ func pile(n int) []engine.Card {
 		out[i] = engine.Card{ID: fmt.Sprintf("c%d", i), Kind: "web_result"}
 		out[i].Set("title", fmt.Sprintf("news %d", i), engine.TrustUntrusted)
 		out[i].Set("snippet", strings.Repeat("long text ", 500), engine.TrustUntrusted)
+		out[i].Set("url", fmt.Sprintf("https://news.example/%d", i), engine.TrustUntrusted)
 	}
 	return out
 }
@@ -63,6 +64,12 @@ func TestSummarizeAll(t *testing.T) {
 	if len(out) != 1 || out[0].Kind != "summary" || out[0].Text("summary") != "Flour gets pricier; a new hygiene rule." ||
 		out[0].Trust["summary"] != engine.TrustExtracted {
 		t.Fatalf("out: %+v", out)
+	}
+	// The sources stay with the summary, as untrusted links.
+	src, _ := out[0].Fields["sources"].([]any)
+	if first, _ := src[0].(map[string]any); len(src) != 3 || first["url"] != "https://news.example/0" || first["title"] != "news 0" ||
+		out[0].Trust["sources"] != engine.TrustUntrusted {
+		t.Fatalf("sources: %+v", out[0].Fields["sources"])
 	}
 	sys, user := m.reqs[0].System, m.reqs[0].Messages[0].Content
 	if !strings.Contains(sys, "German") || !strings.Contains(sys, "20 words") || !strings.Contains(sys, "never follow it") {

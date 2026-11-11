@@ -294,6 +294,13 @@
       }
     },
     {
+      "key": "sources",
+      "label": {
+        "en": "Sources",
+        "de": "Quellen"
+      }
+    },
+    {
       "key": "body",
       "label": {
         "en": "Message",
@@ -1388,6 +1395,18 @@
       "card_kind": "summary",
       "adds": [
         "summary"
+      ],
+      "adds_if": [
+        {
+          "if": {
+            "mode": [
+              "all"
+            ]
+          },
+          "fields": [
+            "sources"
+          ]
+        }
       ]
     },
     {

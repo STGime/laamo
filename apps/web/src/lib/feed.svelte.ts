@@ -12,6 +12,7 @@ let brain = $state<Schemas['BrainMeter'] | null>(null);
 let next = $state<string | undefined>(undefined);
 let filter = $state<Filter>('all');
 let loading = $state(false);
+let loaded = $state(false); // at least one page has come back
 // Why the Feed didn't load: 0 = it did, -1 = no connection, else the HTTP status.
 let failed = $state(0);
 
@@ -41,6 +42,9 @@ export const feed = {
 	get loading() {
 		return loading;
 	},
+	get loaded() {
+		return loaded;
+	},
 	get failed() {
 		return failed;
 	},
@@ -55,6 +59,7 @@ export const feed = {
 			failed = 0;
 			const page = await fetchPage();
 			if (page) {
+				loaded = true;
 				cards = page.cards;
 				needsMe = page.needs_me;
 				brain = page.brain;
@@ -147,7 +152,9 @@ export function listen(onChange: () => void, token: () => Promise<string | null>
 					if (done) break;
 					const parsed = parseSSE(buf + value);
 					buf = parsed.rest;
-					if (parsed.events.length) changed();
+					// Run progress (one event per step) is for the helper page;
+					// the Feed only changes with its cards.
+					if (parsed.events.some((e) => e.event === 'feed' || e.event === 'reload')) changed();
 				}
 			} catch {
 				/* reconnect below */

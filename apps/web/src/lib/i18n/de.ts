@@ -159,6 +159,9 @@ export const de: Record<Key, string> = {
 	'pill.tone': 'dein Ton',
 	'pill.signature': 'deine Signatur',
 	'tpl.toFeed': 'Ergebnis in meinen Feed legen',
+	'feed.sources': 'Quellen',
+	'feed.empty.waiting': 'Hier landet, was deine Helfer finden. Noch ist nichts da.',
+	'feed.empty.runOne': 'Jetzt einen Helfer ausführen',
 	'error.offline': 'Laamo ist gerade nicht erreichbar. Versuch es gleich noch mal.',
 	loading: 'Lädt…'
 };

@@ -1,6 +1,7 @@
 package think
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -16,6 +17,9 @@ var lengths = map[string]string{
 	"short":    "at most 80 words; a few short bullet points are fine",
 	"detailed": "at most 250 words, with short paragraphs or bullet points",
 }
+
+// maxSources caps the links a summary keeps.
+const maxSources = 10
 
 // Summarize is the Sum it up brick (think.summarize).
 var Summarize = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in []engine.Card, cfg engine.Config) ([]engine.Card, error) {
@@ -52,6 +56,22 @@ var Summarize = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext
 	var c engine.Card
 	c.Kind = "summary"
 	c.Set("summary", strings.TrimSpace(out.Summary), engine.TrustExtracted)
+	// Where it came from: the summarised cards' titles and links, so people
+	// can read the original (and check the summary).
+	var sources []any
+	for _, card := range in {
+		u := card.Text("url")
+		if u == "" {
+			u = card.Source
+		}
+		if u == "" || len(sources) == maxSources {
+			continue
+		}
+		sources = append(sources, map[string]any{"title": cut(cmp.Or(card.Text("title"), card.Text("name"), u), 160), "url": u})
+	}
+	if len(sources) > 0 {
+		c.Set("sources", sources, engine.TrustUntrusted)
+	}
 	return []engine.Card{c}, nil
 })
 

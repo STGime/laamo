@@ -2,6 +2,7 @@
 <script lang="ts">
 	import type { Schemas } from '#lib/api/client.ts';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
+	import { safeURL } from '#lib/links.ts';
 
 	let {
 		card,
@@ -27,6 +28,7 @@
 		}
 	});
 	// Fields a person may change before something goes out.
+	const href = $derived(safeURL(text('url') || text('website')));
 	const editable = $derived(['email', 'subject', 'title', 'body'].filter((k) => text(k) !== ''));
 	const untrusted = (k: string) => card.trust[k] === 'untrusted';
 
@@ -66,7 +68,10 @@
 			</p>{/if}
 		{#if host}
 			<p class="host">
-				{host}{#if untrusted('url') || untrusted('title')}&nbsp;· {t('feed.fromWeb')}{/if}
+				{#if href}<a {href} target="_blank" rel="noopener noreferrer nofollow">{host} ↗</a
+					>{:else}{host}{/if}{#if untrusted('url') || untrusted('title')}&nbsp;· {t(
+						'feed.fromWeb'
+					)}{/if}
 			</p>
 		{/if}
 	{/if}
@@ -94,6 +99,10 @@
 	.host {
 		color: var(--muted);
 		font-size: var(--text-sm);
+	}
+	.host a {
+		color: var(--ink);
+		font-weight: 600;
 	}
 	label {
 		display: flex;

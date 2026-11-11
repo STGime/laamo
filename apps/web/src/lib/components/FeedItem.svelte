@@ -8,6 +8,7 @@
 	import { feed, type FeedCard } from '#lib/feed.svelte.ts';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { api } from '#lib/session.svelte.ts';
+	import { hostOf, safeURL } from '#lib/links.ts';
 	import { ago, when } from '#lib/time.ts';
 	import BottomSheet from './BottomSheet.svelte';
 	import CardView from './CardView.svelte';
@@ -115,6 +116,13 @@
 		dx = 0;
 	}
 
+	// Where a result came from: links people can open (http(s) only).
+	const links = $derived(
+		((card.payload.links as { title?: string; url?: string }[] | undefined) ?? [])
+			.map((l) => ({ title: l.title ?? '', url: safeURL(l.url) }))
+			.filter((l): l is { title: string; url: string } => !!l.url)
+	);
+
 	const stateKey = $derived(`feed.state.${card.state}` as Key);
 </script>
 
@@ -213,7 +221,19 @@
 		{/if}
 	{:else if asks}
 		<p class="done">{t(stateKey)}</p>
-	{:else if card.type === 'result' && count > 1}
+	{:else if card.type === 'result' && links.length}
+		<ul class="links" aria-label={t('feed.sources')}>
+			{#each links as l (l.url)}
+				<li>
+					<a href={l.url} target="_blank" rel="noopener noreferrer nofollow">
+						<span class="ltitle">{l.title || hostOf(l.url)}</span>
+						<span class="lhost">{hostOf(l.url)} ↗</span>
+					</a>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+	{#if card.type === 'result' && count > 1}
 		<button class="link" type="button" onclick={openPile}
 			>{t('feed.showAll', { n: count })} →</button
 		>
@@ -385,6 +405,30 @@
 		background: none;
 		font-weight: 700;
 		cursor: pointer;
+	}
+	.links {
+		list-style: none;
+		margin: var(--space-3) 0 0;
+		padding: 0;
+		border-top: var(--border);
+	}
+	.links a {
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-2) 0;
+		min-height: var(--tap-min);
+		justify-content: center;
+		border-bottom: var(--border);
+		color: var(--ink);
+		text-decoration: none;
+	}
+	.ltitle {
+		font-weight: 600;
+		line-height: 1.3;
+	}
+	.lhost {
+		color: var(--muted);
+		font-size: var(--text-sm);
 	}
 	.failed {
 		margin: var(--space-2) 0 0;

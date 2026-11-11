@@ -3,7 +3,7 @@
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { feed, listen, type Filter } from '#lib/feed.svelte.ts';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
-	import { session } from '#lib/session.svelte.ts';
+	import { api, session } from '#lib/session.svelte.ts';
 
 	const filters: { id: Filter; key: Key }[] = [
 		{ id: 'all', key: 'feed.filter.all' },
@@ -18,6 +18,19 @@
 			() => feed.load(),
 			() => session.fresh()
 		);
+	});
+
+	// With helpers but no cards yet, the empty Feed says so instead of
+	// offering a first helper.
+	let helperCount = $state<number | null>(null);
+	$effect(() => {
+		const ws = session.workspace;
+		if (!ws || !feed.loaded || feed.cards.length > 0 || helperCount !== null) return;
+		api
+			.GET('/workspaces/{workspaceId}/helpers', { params: { path: { workspaceId: ws.id } } })
+			.then(({ data }) => {
+				helperCount = data?.helpers.length ?? 0;
+			});
 	});
 
 	const pct = $derived(
@@ -75,7 +88,12 @@
 	<p class="note">
 		{feed.failed < 0 ? t('error.offline') : t('feed.loadFailed', { status: feed.failed })}
 	</p>
-{:else if !feed.loading && feed.filter === 'all'}
+{:else if feed.loaded && feed.filter === 'all' && helperCount !== null && helperCount > 0}
+	<p class="note">{t('feed.empty.waiting')}</p>
+	<div class="cta">
+		<a class="btn primary wide" href="/helpers">{t('feed.empty.runOne')}</a>
+	</div>
+{:else if feed.loaded && feed.filter === 'all' && helperCount === 0}
 	<!-- Empty state: an example result, not an illustration. -->
 	<section class="empty">
 		<h2>{t('feed.empty.title')}</h2>
@@ -89,7 +107,7 @@
 	<div class="cta">
 		<a class="btn primary wide" href="/new">{t('feed.empty.cta')}</a>
 	</div>
-{:else if !feed.loading}
+{:else if feed.loaded && feed.filter !== 'all'}
 	<p class="note">{t('feed.empty.title')}</p>
 {/if}
 

@@ -686,6 +686,9 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 				card.StepID = &res.stepID
 				card.Payload["cards"] = res.n
 			}
+			if len(res.links) > 0 {
+				card.Payload["links"] = res.links
+			}
 		}
 	default:
 		card.Type, card.Title = "problem", pick(de, "Something went wrong", "Etwas ist schiefgelaufen")
@@ -704,6 +707,7 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 type result struct {
 	title, body, stepID string
 	n                   int
+	links               []any // {title, url} the result came from
 }
 
 // result describes the last pile for the Result card: a single summary as
@@ -738,6 +742,11 @@ func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
 	res := result{stepID: last.ID, n: len(cards)}
 	if len(cards) == 1 {
 		res.body = truncate(text(cards[0], "summary", "body", "title", "name"), 500)
+		if src, ok := cards[0].Data["sources"].([]any); ok {
+			res.links = src[:min(5, len(src))]
+		} else if u := text(cards[0], "url", "website"); u != "" {
+			res.links = []any{map[string]any{"title": text(cards[0], "title", "name"), "url": u}}
+		}
 		return res
 	}
 	res.title = fmt.Sprintf(pick(de, "%d new cards", "%d neue Karten"), len(cards))
