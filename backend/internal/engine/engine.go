@@ -316,9 +316,17 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 
 	cfg := Config(b.Config(sb.Config))
 	shape := b.ShapeFor(cfg)
-	out, err := e.Bricks[sb.Type].Run(ctx, rc, clonePile(in), cfg)
-	if err == nil {
-		out, err = CheckShape(shape, in, out)
+	runIn, held, stepLog := holdUntrustedTargets(b, cfg, shape, in)
+	var out []Card
+	var err error
+	if len(runIn) > 0 || len(held) == 0 {
+		out, err = e.Bricks[sb.Type].Run(ctx, rc, clonePile(runIn), cfg)
+		if err == nil {
+			out, err = CheckShape(shape, runIn, out)
+		}
+	}
+	if err == nil && len(held) > 0 {
+		out = mergeHeld(in, held, out)
 	}
 	if err == nil && rc.TestMode && len(out) > TestModeMaxCards {
 		out = out[:TestModeMaxCards]
@@ -352,8 +360,47 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 		return nil, err
 	}
 	_, err = e.Store.UpdateStep(ctx, step.ID, store.StepPatch{Status: new("done"), CardsOut: new(len(out)),
-		FinishedAt: &done, CostEUR: &cost})
+		FinishedAt: &done, CostEUR: &cost, Log: stepLog})
 	return out, err
+}
+
+// holdUntrustedTargets splits an Act brick's pile: cards whose recipient
+// (the brick's target fields) came from read content without the user's
+// approval are held back, so the brick never sees them. This is the
+// run-time half of the trust rule; the brick code doesn't have to get it
+// right.
+func holdUntrustedTargets(b *catalog.Brick, cfg Config, shape string, in []Card) (run []Card, held map[int]bool, log []map[string]any) {
+	targets := b.TargetsFor(cfg)
+	if shape != catalog.ShapeAct || len(targets) == 0 {
+		return in, nil, nil
+	}
+	held = map[int]bool{}
+	for i, c := range in {
+		if err := c.CheckTargets(targets...); err != nil {
+			held[i] = true
+			log = append(log, map[string]any{"level": "warn", "code": "held_untrusted_target", "card": c.ID,
+				"msg": fmt.Sprintf("Held back card %d: %v", i+1, err)})
+			continue
+		}
+		run = append(run, c)
+	}
+	return run, held, log
+}
+
+// mergeHeld puts held-back cards back in their places, unchanged, so the
+// pile after an Act brick is the pile before it.
+func mergeHeld(in []Card, held map[int]bool, out []Card) []Card {
+	merged := make([]Card, 0, len(in))
+	j := 0
+	for i, c := range in {
+		if held[i] {
+			merged = append(merged, c.Clone())
+			continue
+		}
+		merged = append(merged, out[j])
+		j++
+	}
+	return merged
 }
 
 var errShape = errors.New("brick returned the wrong kind of pile")

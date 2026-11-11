@@ -10,17 +10,93 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"strconv"
 )
 
 // Trust says where a field's value came from (prompt-injection safety, #22).
+// The rule: content a helper reads can change what it writes, never who
+// receives it. A recipient must be user_entered, or approved by the user in
+// Check first.
 const (
-	TrustUser      = "user_entered" // typed by the user or from About me
-	TrustExtracted = "extracted"    // pulled out by a Think brick from read content
+	TrustUser      = "user_entered" // typed by the user, from About me or My lists, or edited in Check first
+	TrustApproved  = "approved"     // extracted, then approved by the user in Check first
+	TrustExtracted = "extracted"    // pulled out by a Think brick, or a structured field of a listing
 	TrustUntrusted = "untrusted"    // raw web page or inbound email text
 )
+
+// ErrUntrustedTarget: a recipient came from content the helper read and
+// the user hasn't approved it.
+var ErrUntrustedTarget = errors.New("the recipient came from content the helper read and wasn't approved")
+
+func trustRank(t string) int {
+	switch t {
+	case TrustUser:
+		return 3
+	case TrustApproved:
+		return 2
+	case TrustExtracted:
+		return 1
+	}
+	return 0 // untrusted, unknown or missing
+}
+
+// LowestTrust returns the least trusted of ts (untrusted for none).
+func LowestTrust(ts ...string) string {
+	if len(ts) == 0 {
+		return TrustUntrusted
+	}
+	low := ts[0]
+	for _, t := range ts[1:] {
+		if trustRank(t) < trustRank(low) {
+			low = t
+		}
+	}
+	if trustRank(low) == 0 {
+		return TrustUntrusted
+	}
+	return low
+}
+
+// TrustOf returns a field's trust; a field without one is untrusted.
+func (c Card) TrustOf(field string) string {
+	if t := c.Trust[field]; trustRank(t) > 0 {
+		return t
+	}
+	return TrustUntrusted
+}
+
+// CanTarget reports whether a value with this trust may decide who
+// receives something.
+func CanTarget(trust string) bool { return trust == TrustUser || trust == TrustApproved }
+
+// CheckTargets returns ErrUntrustedTarget if any of the card's target
+// fields may not decide a recipient. A missing field is the brick's
+// business (it fails as a missing value), not a trust problem.
+func (c Card) CheckTargets(fields ...string) error {
+	for _, f := range fields {
+		if _, ok := c.Fields[f]; ok && !CanTarget(c.TrustOf(f)) {
+			return fmt.Errorf("%w (%s is %s)", ErrUntrustedTarget, f, c.TrustOf(f))
+		}
+	}
+	return nil
+}
+
+// Approve applies a Check first approval: extracted fields become
+// approved, edited fields take the user's value and become user_entered.
+// Untrusted fields stay untrusted: raw page text is never a recipient.
+func (c *Card) Approve(edits map[string]any) {
+	for f := range c.Fields {
+		if c.TrustOf(f) == TrustExtracted {
+			c.Trust[f] = TrustApproved
+		}
+	}
+	for f, v := range edits {
+		c.Set(f, v, TrustUser)
+	}
+}
 
 // Card is one item in a pile: a search result, a business, an email, a draft.
 // Bricks add fields without schema changes.
