@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -83,7 +84,9 @@ type Fake struct {
 	tables map[string]table
 	rows   map[string][]Row
 	rpcs   map[string]RPCFunc
-	faults []func(*http.Request) *Fault
+	// Objects is project storage, by key.
+	Objects map[string][]byte
+	faults  []func(*http.Request) *Fault
 	// Requests records "METHOD path" for every request received.
 	Requests []string
 }
@@ -92,11 +95,12 @@ type Fake struct {
 // The server is closed when the test ends.
 func New(t interface{ Cleanup(func()) }) *Fake {
 	f := &Fake{
-		Key:    "eb_sk_test",
-		clock:  time.Date(2026, 11, 10, 8, 0, 0, 0, time.UTC),
-		tables: laamoTables(),
-		rows:   map[string][]Row{},
-		rpcs:   map[string]RPCFunc{"insert_cards": insertCards, "claim_jobs": claimJobs, "extend_lease": extendLease, "finish_job": finishJob, "create_workspace": createWorkspace, "add_brain_usage": addBrainUsage},
+		Key:     "eb_sk_test",
+		clock:   time.Date(2026, 11, 10, 8, 0, 0, 0, time.UTC),
+		tables:  laamoTables(),
+		rows:    map[string][]Row{},
+		Objects: map[string][]byte{},
+		rpcs:    map[string]RPCFunc{"insert_cards": insertCards, "claim_jobs": claimJobs, "extend_lease": extendLease, "finish_job": finishJob, "create_workspace": createWorkspace, "add_brain_usage": addBrainUsage},
 	}
 	f.Server = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.Server.Close)
@@ -188,6 +192,10 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	if fault != nil && !fault.After {
 		writeFault(w, fault)
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/v1/storage/") && r.Header.Get("apikey") == f.Key {
+		f.storage(w, r)
 		return
 	}
 	res := f.route(r)
@@ -568,4 +576,45 @@ func insertCards(f *Fake, args map[string]json.RawMessage) (any, error) {
 		out = []Row{}
 	}
 	return out, nil
+}
+
+// storage serves POST /v1/storage/upload (multipart: key, file) and
+// GET/DELETE /v1/storage/{key}.
+func (f *Fake) storage(w http.ResponseWriter, r *http.Request) {
+	key := strings.TrimPrefix(r.URL.Path, "/v1/storage/")
+	switch {
+	case key == "upload" && r.Method == http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, 50<<20)
+		if err := r.ParseMultipartForm(1 << 20); err != nil { //nolint:gosec // G120: body capped above; test server
+			http.Error(w, `{"error":"request must be multipart/form-data"}`, http.StatusBadRequest)
+			return
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, `{"error":"file field is required"}`, http.StatusBadRequest)
+			return
+		}
+		defer func() { _ = file.Close() }()
+		data, _ := io.ReadAll(file)
+		k := r.FormValue("key")
+		f.Objects[k] = data
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(Row{"key": k, "size": len(data)})
+	case r.Method == http.MethodGet:
+		data, ok := f.Objects[key]
+		if !ok {
+			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write(data)
+	case r.Method == http.MethodDelete:
+		if _, ok := f.Objects[key]; !ok {
+			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+			return
+		}
+		delete(f.Objects, key)
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		http.Error(w, `{"error":"no route"}`, http.StatusNotFound)
+	}
 }

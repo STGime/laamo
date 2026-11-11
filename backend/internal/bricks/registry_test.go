@@ -11,12 +11,13 @@ import (
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store/memory"
+	"github.com/STGime/laamo/backend/internal/web"
 )
 
 func TestRegistryMatchesCatalog(t *testing.T) {
 	keys, _ := crypto.ParseKeyring("v1:"+base64.StdEncoding.EncodeToString(make([]byte, 32)), "")
-	all := bricks.All(bricks.Deps{Search: dummy{}, Store: memory.New(), Keys: keys, Chat: &chat.Sender{}})
-	for _, want := range []string{"when.every", "when.tap", "look.search", "think.summarize", "think.keep", "do.chat"} {
+	all := bricks.All(bricks.Deps{Search: dummy{}, Store: memory.New(), Keys: keys, Chat: &chat.Sender{}, Pages: &web.Fetcher{}})
+	for _, want := range []string{"when.every", "when.tap", "look.search", "think.summarize", "think.keep", "do.chat", "look.read_page"} {
 		if _, ok := all[want]; !ok {
 			t.Errorf("%s not registered", want)
 		}
