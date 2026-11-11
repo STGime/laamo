@@ -7,10 +7,13 @@
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { listen } from '#lib/feed.svelte.ts';
+	import { cities } from '#lib/cities.ts';
 	import { brickProgress, progressText } from '#lib/progress.ts';
 
 	let tpl = $state<Schemas['ShelfTemplate'] | null>(null);
 	let answers = $state<Record<string, string>>({});
+	// About me facts the user wants for this helper only.
+	let justHere = $state<string[]>([]);
 	let busy = $state(false);
 	let error = $state('');
 	// After Try it now: the new helper's first run, live.
@@ -78,7 +81,7 @@
 		error = '';
 		const { data, error: err } = await api.POST('/workspaces/{workspaceId}/helpers', {
 			params: { path: { workspaceId: ws.id } },
-			body: { template: tpl.slug, answers, run_test: true }
+			body: { template: tpl.slug, answers, run_test: true, just_this_helper: justHere }
 		});
 		if (!data) {
 			busy = false;
@@ -121,14 +124,38 @@
 								>
 							</div>
 						{:else}
-							<input id="q-{q.key}" bind:value={answers[q.key]} placeholder={q.placeholder ?? ''} />
+							<input
+								id="q-{q.key}"
+								bind:value={answers[q.key]}
+								placeholder={q.placeholder ?? ''}
+								list={q.key === 'city' ? 'cities' : undefined}
+								autocomplete={q.key === 'city' ? 'address-level2' : 'off'}
+							/>
 						{/if}
-						{#if q.profile}<p class="hint">{t('tpl.remember')}</p>{/if}
+						{#if q.profile}
+							<label class="just">
+								<input
+									type="checkbox"
+									checked={justHere.includes(q.key)}
+									onchange={(e) =>
+										(justHere = e.currentTarget.checked
+											? [...justHere, q.key]
+											: justHere.filter((k) => k !== q.key))}
+								/>
+								{t('tpl.justHere')}
+							</label>
+							<p class="hint">
+								{justHere.includes(q.key) ? t('tpl.justHereHint') : t('tpl.remember')}
+							</p>
+						{/if}
 					</div>
 				{/each}
 			</section>
 		{/if}
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
+		<datalist id="cities">
+			{#each cities as c (c)}<option value={c}></option>{/each}
+		</datalist>
 	</div>
 
 	<div class="cta">
@@ -146,6 +173,19 @@
 {/if}
 
 <style>
+	.just {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: var(--tap-min);
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+	.just input {
+		width: 20px;
+		height: 20px;
+		accent-color: var(--ink);
+	}
 	.page {
 		padding-bottom: 180px;
 	}

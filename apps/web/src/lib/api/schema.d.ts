@@ -554,6 +554,8 @@ export interface components {
 			};
 			/** @description Start a test run right away */
 			run_test?: boolean;
+			/** @description About me facts answered here that stay with this helper instead of the workspace profile */
+			just_this_helper?: string[];
 		};
 		Helper: {
 			/** Format: uuid */

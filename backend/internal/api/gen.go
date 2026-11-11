@@ -830,6 +830,9 @@ type Needs = []Need
 type NewHelper struct {
 	Answers map[string]string `json:"answers"`
 
+	// JustThisHelper About me facts answered here that stay with this helper instead of the workspace profile
+	JustThisHelper *[]string `json:"just_this_helper,omitempty"`
+
 	// RunTest Start a test run right away
 	RunTest *bool `json:"run_test,omitempty"`
 

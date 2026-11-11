@@ -50,7 +50,7 @@ func TestPreview(t *testing.T) {
 
 func TestInstallFeedOnly(t *testing.T) {
 	ws := store.Workspace{ID: "w1", Locale: "de", Profile: map[string]any{"business": "Bäckerei"}}
-	stack, profile, err := shelf.Install(cat, tpl(t, "morning-briefing"), ws, map[string]string{"city": "Leipzig", "chat": shelf.FeedOnly}, nil)
+	stack, profile, err := shelf.Install(cat, tpl(t, "morning-briefing"), ws, map[string]string{"city": "Leipzig", "chat": shelf.FeedOnly}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestInstallPlace(t *testing.T) {
 		}
 		return store.Place{}, store.ErrNotFound
 	}
-	stack, profile, err := shelf.Install(cat, tpl(t, "morning-briefing"), ws, map[string]string{"chat": "p1"}, lookup)
+	stack, profile, err := shelf.Install(cat, tpl(t, "morning-briefing"), ws, map[string]string{"chat": "p1"}, nil, lookup)
 	if err != nil || len(profile) != 0 {
 		t.Fatalf("%v %v", err, profile)
 	}
@@ -82,13 +82,30 @@ func TestInstallPlace(t *testing.T) {
 		t.Fatalf("chat brick %+v", stack.Bricks[4])
 	}
 	for _, answers := range []map[string]string{{"chat": "p2"}, {"chat": "nope"}, {}} {
-		if _, _, err := shelf.Install(cat, tpl(t, "morning-briefing"), ws, answers, lookup); !errors.Is(err, shelf.ErrAnswer) {
+		if _, _, err := shelf.Install(cat, tpl(t, "morning-briefing"), ws, answers, nil, lookup); !errors.Is(err, shelf.ErrAnswer) {
 			t.Errorf("%v: %v", answers, err)
 		}
 	}
 	// A missing About me fact is an error, not an empty search.
 	ws.Profile = map[string]any{}
-	if _, _, err := shelf.Install(cat, tpl(t, "weekend-scout"), ws, map[string]string{}, lookup); !errors.Is(err, shelf.ErrAnswer) {
+	if _, _, err := shelf.Install(cat, tpl(t, "weekend-scout"), ws, map[string]string{}, nil, lookup); !errors.Is(err, shelf.ErrAnswer) {
 		t.Fatalf("missing city: %v", err)
+	}
+}
+
+// "Just for this helper": the fact stays with the helper, the workspace
+// profile isn't touched, and the bricks read it.
+func TestInstallJustThisHelper(t *testing.T) {
+	ws := store.Workspace{ID: "w1", Locale: "en", Profile: map[string]any{"business": "bakery"}}
+	stack, profile, err := shelf.Install(cat, tpl(t, "morning-briefing"), ws,
+		map[string]string{"city": "Hamburg", "chat": shelf.FeedOnly}, []string{"city"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profile) != 0 || stack.Profile["city"] != "Hamburg" {
+		t.Fatalf("profile %v, stack profile %v", profile, stack.Profile)
+	}
+	if got := shelf.Describe(cat, stack, ws)[1].Sentence; !strings.Contains(got, "bakery Hamburg") {
+		t.Fatalf("sentence %q", got)
 	}
 }

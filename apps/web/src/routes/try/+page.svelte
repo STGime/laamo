@@ -5,6 +5,7 @@
 	import { guessCity, savePending, solve, type DemoTemplate } from '#lib/demo.ts';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { hostOf, safeURL } from '#lib/links.ts';
+	import { cities } from '#lib/cities.ts';
 
 	const choices: { slug: DemoTemplate; avatar: string; name: Key; what: Key }[] = [
 		{ slug: 'morning-briefing', avatar: '📰', name: 'landing.ex1.name', what: 'try.mb' },
@@ -166,6 +167,7 @@
 					bind:value={city}
 					maxlength="60"
 					autocomplete="address-level2"
+					list="cities"
 					placeholder="Leipzig"
 					disabled={busy}
 				/>
@@ -178,6 +180,9 @@
 			</button>
 		</form>
 		<a class="signup" href="/start">{t('try.skip')}</a>
+		<datalist id="cities">
+			{#each cities as c (c)}<option value={c}></option>{/each}
+		</datalist>
 	{/if}
 </div>
 
