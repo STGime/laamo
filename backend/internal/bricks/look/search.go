@@ -52,7 +52,7 @@ func (s Search) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card
 		}
 		q.Q = strings.TrimSpace(resolved.String("query"))
 		results, err := s.Provider.Search(ctx, q)
-		if errors.Is(err, search.ErrNotConfigured) {
+		if errors.Is(err, search.ErrNotConfigured) || errors.Is(err, search.ErrRejected) {
 			return nil, queue.Permanent(err)
 		}
 		if err != nil {

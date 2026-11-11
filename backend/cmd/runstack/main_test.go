@@ -63,3 +63,12 @@ func TestMorningBriefingGerman(t *testing.T) {
 		t.Errorf("English text in a German run:\n%s", got)
 	}
 }
+
+// A typo like "-lang de," is refused before anything reaches Brave.
+func TestBadLanguage(t *testing.T) {
+	var out strings.Builder
+	err := run(context.Background(), &out, "../../../packages/catalog/templates/morning-briefing.json", options{lang: "de,", tz: "Europe/Berlin"})
+	if err == nil || !strings.Contains(err.Error(), "use en or de") {
+		t.Fatalf("err %v", err)
+	}
+}

@@ -68,7 +68,7 @@ func TestBraveErrors(t *testing.T) {
 	if res, err := (&Brave{APIKey: "brave-test", BaseURL: srv.URL}).Search(ctx, Query{Q: "x"}); err != nil || len(res) != 3 || n.Load() != 2 {
 		t.Fatalf("429 retried: %v (%d calls)", err, n.Load())
 	}
-	if _, err := (&Brave{APIKey: "wrong", BaseURL: srv.URL}).Search(ctx, Query{Q: "x"}); err == nil || !strings.Contains(err.Error(), "401") {
+	if _, err := (&Brave{APIKey: "wrong", BaseURL: srv.URL}).Search(ctx, Query{Q: "x"}); !errors.Is(err, ErrRejected) || !strings.Contains(err.Error(), "401") {
 		t.Fatalf("bad key: %v", err)
 	}
 	if _, err := (&Brave{APIKey: "brave-test", BaseURL: srv.URL}).Search(ctx, Query{Q: "  "}); err == nil {
