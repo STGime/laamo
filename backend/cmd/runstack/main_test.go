@@ -44,3 +44,22 @@ func TestInvalidStackAndSets(t *testing.T) {
 		t.Fatalf("invalid stack: %v\n%s", err, out.String())
 	}
 }
+
+// A German workspace gets the German template text.
+func TestMorningBriefingGerman(t *testing.T) {
+	var out strings.Builder
+	err := run(context.Background(), &out, "../../../packages/catalog/templates/morning-briefing.json",
+		options{profile: "business=Bäckerei,city=Leipzig", lang: "de", tz: "Europe/Berlin"})
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	got := out.String()
+	for _, want := range []string{"Neuigkeiten", "am wichtigsten sind", "DONE"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("output lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "matter most") {
+		t.Errorf("English text in a German run:\n%s", got)
+	}
+}

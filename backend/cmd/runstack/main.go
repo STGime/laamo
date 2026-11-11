@@ -89,7 +89,7 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 	if err != nil {
 		return err
 	}
-	stack, chatFills, err := loadStack(raw)
+	stack, chatFills, err := loadStack(raw, o.lang)
 	if err != nil {
 		return err
 	}
@@ -186,8 +186,8 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 }
 
 // loadStack reads a stack, or a template (its stack plus which Post to chat
-// settings the setup questions fill).
-func loadStack(raw []byte) (catalog.Stack, map[string]bool, error) {
+// settings the setup questions fill), in the workspace language.
+func loadStack(raw []byte, lang string) (catalog.Stack, map[string]bool, error) {
 	var probe struct {
 		Stack *catalog.Stack `json:"stack"`
 	}
@@ -207,7 +207,7 @@ func loadStack(raw []byte) (catalog.Stack, map[string]bool, error) {
 				}
 			}
 		}
-		return t.Stack, fills, nil
+		return t.StackFor(lang), fills, nil
 	}
 	var s catalog.Stack
 	err := json.Unmarshal(raw, &s)

@@ -367,3 +367,48 @@ func Templates() ([]Template, error) {
 	slices.SortFunc(out, func(a, b Template) int { return a.SortOrder - b.SortOrder })
 	return out, nil
 }
+
+// StackFor returns the template's stack in the workspace language. A text
+// setting in a template may be localized ({"en": …, "de": …}); this picks
+// one language (English when the other is missing). Stacks saved for a
+// helper always hold plain values.
+func (t Template) StackFor(lang string) Stack {
+	out := Stack{Schema: t.Stack.Schema, Limits: t.Stack.Limits}
+	for _, b := range t.Stack.Bricks {
+		cfg := make(map[string]any, len(b.Config))
+		for k, v := range b.Config {
+			if txt, ok := LocalizedText(v); ok {
+				v = txt.In(lang)
+			}
+			cfg[k] = v
+		}
+		b.Config = cfg
+		out.Bricks = append(out.Bricks, b)
+	}
+	return out
+}
+
+// LocalizedText reports whether v is a localized text ({"en": …, "de": …}
+// and nothing else) and returns it.
+func LocalizedText(v any) (Text, bool) {
+	m, ok := v.(map[string]any)
+	if !ok || len(m) == 0 || len(m) > 2 {
+		return Text{}, false
+	}
+	var t Text
+	for k, val := range m {
+		s, ok := val.(string)
+		if !ok {
+			return Text{}, false
+		}
+		switch k {
+		case "en":
+			t.En = s
+		case "de":
+			t.De = s
+		default:
+			return Text{}, false
+		}
+	}
+	return t, t.En != ""
+}

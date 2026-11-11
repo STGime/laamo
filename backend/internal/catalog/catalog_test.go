@@ -2,6 +2,7 @@ package catalog_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
 	"regexp"
@@ -285,9 +286,29 @@ func TestTemplates(t *testing.T) {
 					}
 				}
 			}
-			if errs := catalog.Errors(cat.Validate(tpl.Stack, catalog.Options{Pending: pending})); len(errs) > 0 {
-				for _, e := range errs {
-					t.Errorf("%s: %s", e.Brick, e.Message)
+			for _, sb := range tpl.Stack.Bricks {
+				for k, v := range sb.Config {
+					if m, ok := v.(map[string]any); ok {
+						if txt, ok := catalog.LocalizedText(m); !ok || txt.De == "" {
+							t.Errorf("%s.%s: a localized setting needs both en and de", sb.ID, k)
+						}
+					}
+				}
+			}
+			for _, lang := range []string{"en", "de"} {
+				st := tpl.StackFor(lang)
+				if errs := catalog.Errors(cat.Validate(st, catalog.Options{Pending: pending})); len(errs) > 0 {
+					for _, e := range errs {
+						t.Errorf("%s (%s): %s", e.Brick, lang, e.Message)
+					}
+				}
+				for _, sb := range st.Bricks {
+					b, _ := cat.Brick(sb.Type)
+					for _, p := range catalog.Pills(fmt.Sprint(sb.Config)) {
+						if p.Kind == "profile" && !profileAsked(tpl, p.Key) {
+							t.Errorf("%s uses {my %s} but no setup question asks for it", b.ID, p.Key)
+						}
+					}
 				}
 			}
 			need := cat.Requirements(tpl.Stack)
@@ -306,6 +327,10 @@ func TestTemplates(t *testing.T) {
 			}
 		})
 	}
+}
+
+func profileAsked(tpl catalog.Template, key string) bool {
+	return slices.ContainsFunc(tpl.SetupQuestions, func(q catalog.SetupQuestion) bool { return q.Profile == key })
 }
 
 // ---- the validator ----
