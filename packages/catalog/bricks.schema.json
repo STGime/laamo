@@ -644,6 +644,19 @@
             }
           }
         },
+        "targets_if": {
+          "description": "Card fields an Act brick sends to (recipients). At run time, a card's target must be user_entered or approved in Check first, or the card is held back.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["if", "fields"],
+            "properties": {
+              "if": { "$ref": "#/$defs/condition" },
+              "fields": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+            }
+          }
+        },
         "check": {
           "description": "Check first: added by default, and/or mandatory under a condition",
           "type": "object",

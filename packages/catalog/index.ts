@@ -114,6 +114,8 @@ export interface Brick {
 	requires?: Requires;
 	requires_if?: (Requires & { if: Condition })[];
 	check?: { default?: boolean; required_if?: Condition };
+	/** Card fields an Act brick sends to; checked against trust at run time. */
+	targets_if?: { if: Condition; fields: string[] }[];
 }
 
 export interface Catalog {

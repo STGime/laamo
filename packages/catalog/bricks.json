@@ -1907,6 +1907,18 @@
       },
       "adds": [
         "sent_at"
+      ],
+      "targets_if": [
+        {
+          "if": {
+            "to": [
+              "cards"
+            ]
+          },
+          "fields": [
+            "email"
+          ]
+        }
       ]
     },
     {
@@ -2141,6 +2153,18 @@
       },
       "adds": [
         "event_uid"
+      ],
+      "targets_if": [
+        {
+          "if": {
+            "invite_others": [
+              true
+            ]
+          },
+          "fields": [
+            "email"
+          ]
+        }
       ]
     },
     {

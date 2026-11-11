@@ -99,6 +99,19 @@ type Brick struct {
 	Requires   *Requires      `json:"requires,omitempty"`
 	RequiresIf []RequiresRule `json:"requires_if,omitempty"`
 	Check      *CheckRule     `json:"check,omitempty"`
+	TargetsIf  []NeedsRule    `json:"targets_if,omitempty"`
+}
+
+// TargetsFor returns the card fields this Act brick sends to with this
+// config (e.g. "email" for Send an email to people from the cards).
+func (b *Brick) TargetsFor(cfg map[string]any) []string {
+	var out []string
+	for _, r := range b.TargetsIf {
+		if r.If.Matches(cfg) {
+			out = append(out, r.Fields...)
+		}
+	}
+	return out
 }
 
 type ShapeRule struct {
