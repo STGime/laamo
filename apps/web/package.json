@@ -9,7 +9,7 @@
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"test": "vitest run --passWithNoTests",
-		"lint": "prettier --check .",
+		"lint": "prettier --check . && node scripts/check-style.mjs",
 		"format": "prettier --write .",
 		"gen:api": "openapi-typescript ../../packages/openapi/openapi.yaml -o src/lib/api/schema.d.ts && prettier --write src/lib/api/schema.d.ts"
 	},

@@ -1,17 +1,57 @@
 <script lang="ts">
 	import '#lib/styles/tokens.css';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import TabBar from '#lib/components/TabBar.svelte';
+	import { session } from '#lib/session.svelte.ts';
+	import { t } from '#lib/i18n/index.svelte.ts';
+
 	let { children } = $props();
+
+	// Screens that work signed out.
+	const open = (path: string) => path === '/signin' || path === '/kit';
+
+	$effect(() => {
+		session.refresh();
+	});
+	$effect(() => {
+		if (session.status === 'signedOut' && !open(page.url.pathname))
+			goto('/signin', { replaceState: true });
+	});
+	const showTabs = $derived(session.status === 'signedIn' && page.url.pathname !== '/signin');
 </script>
 
-<main class="column">
-	{@render children()}
-</main>
+<div class="app" class:tabs={showTabs}>
+	{#if session.status === 'offline' && !open(page.url.pathname)}
+		<p class="offline">{t('error.offline')}</p>
+	{/if}
+	{#if session.status === 'signedIn' || open(page.url.pathname)}
+		{@render children()}
+	{:else if session.status === 'loading'}
+		<p class="loading">{t('loading')}</p>
+	{/if}
+</div>
+{#if showTabs}<TabBar />{/if}
 
 <style>
-	.column {
+	.app {
 		max-width: var(--column-max);
-		margin: 0 auto;
-		padding: 0 16px;
 		min-height: 100dvh;
+		margin: 0 auto;
+		background: var(--white);
+	}
+	.app.tabs {
+		padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+	}
+	.offline,
+	.loading {
+		margin: 0;
+		padding: var(--space-4) var(--gutter);
+		color: var(--muted);
+	}
+	.offline {
+		background: var(--brick-yellow);
+		color: var(--on-yellow);
+		font-weight: 600;
 	}
 </style>

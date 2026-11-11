@@ -1,14 +1,45 @@
 /*
- * Design tokens. Components use only these values (see Look & feel in the product plan).
- * Full token set, display font and lint rules: issue #30.
+ * Design tokens: the only colors, fonts, radii and motion values the app may
+ * use (Look & feel in the product plan). scripts/check-web-style.mjs fails
+ * the build on raw colors, gradients, glows or extra shadows anywhere else.
  */
+
+/* Display face: Archivo ExtraBold, self-hosted (SIL OFL, static/fonts). */
+@font-face {
+	font-family: 'Archivo';
+	font-style: normal;
+	font-weight: 800;
+	font-display: swap;
+	src: url('/fonts/archivo-latin-800-normal.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'Archivo';
+	font-style: normal;
+	font-weight: 800;
+	font-display: swap;
+	src: url('/fonts/archivo-latin-ext-800-normal.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}
+
 :root {
-	/* Brick colors: solid, flat, each one means something */
-	--brick-yellow: #ffc83d; /* When  – black text */
-	--brick-blue: #2f6bff; /* Look  – white text */
-	--brick-purple: #8b4dff; /* Think – white text */
-	--brick-green: #00b36b; /* Do    – black text */
-	--brick-red: #ff3b5c; /* Ask   – white text */
+	/* Brick colors: solid, flat; each one means something */
+	--brick-yellow: #ffc83d; /* When  */
+	--brick-blue: #2f6bff; /* Look  */
+	--brick-purple: #8b4dff; /* Think */
+	--brick-green: #00b36b; /* Do    */
+	--brick-red: #ff3b5c; /* Ask me, and the brand accent */
+	/* Text on each brick color (WCAG AA) */
+	--on-yellow: #111111;
+	--on-blue: #ffffff;
+	--on-purple: #ffffff;
+	--on-green: #111111;
+	--on-red: #111111;
 
 	/* Neutrals */
 	--white: #ffffff;
@@ -17,36 +48,144 @@
 	--gray-600: #6b6b66;
 	--ink: #111111;
 
-	/* Type: system font for UI; display face added in #30 (self-hosted) */
-	--font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-	--text-body: 16px;
+	/* Meaning */
+	--accent: var(--brick-red);
+	--danger: #c8102e; /* problem text on white (AA) */
+	--focus: var(--brick-blue);
+	--divider: var(--gray-200);
+	--muted: var(--gray-600);
+	--scrim: rgb(17 17 17 / 40%); /* behind bottom sheets */
 
-	/* Shape */
+	/* Type */
+	--font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-display: 'Archivo', var(--font-ui);
+	--text-sm: 14px;
+	--text-body: 16px;
+	--text-lg: 18px;
+	--text-h2: 24px;
+	--text-h1: 34px;
+	--text-number: 44px;
+	--leading-tight: 1.05;
+	--leading-body: 1.45;
+
+	/* Space (4px grid) */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 24px;
+	--space-6: 32px;
+	--space-7: 48px;
+
+	/* Shape: small radii; bricks are the one chunky element */
 	--radius-control: 8px;
+	--radius-small: 6px;
+	--radius-sheet: 12px; /* top corners of a bottom sheet */
 	--brick-edge: 0 2px 0 var(--ink);
+	--border: 1px solid var(--divider);
 
 	/* Layout: one centered column on every screen size */
 	--column-max: 560px;
+	--gutter: 16px;
 	--tap-min: 48px;
+	--tabbar-height: 64px;
 
 	/* Motion: state changes only */
 	--motion-fast: 120ms;
 	--motion-base: 200ms;
-	--ease: ease-out;
+	--ease: cubic-bezier(0.2, 0.7, 0.3, 1); /* ease-out */
+	--press-scale: 0.97;
 }
 
 @media (prefers-reduced-motion: reduce) {
 	:root {
 		--motion-fast: 0ms;
 		--motion-base: 0ms;
+		--press-scale: 1;
 	}
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
 }
 
 html,
 body {
 	margin: 0;
-	background: var(--white);
+	background: var(--gray-50);
 	color: var(--ink);
 	font-family: var(--font-ui);
 	font-size: var(--text-body);
+	line-height: var(--leading-body);
+	-webkit-text-size-adjust: 100%;
+	-webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+.display {
+	font-family: var(--font-display);
+	font-weight: 800;
+	line-height: var(--leading-tight);
+	letter-spacing: -0.01em;
+	margin: 0;
+}
+h1 {
+	font-size: var(--text-h1);
+}
+h2 {
+	font-size: var(--text-h2);
+}
+
+button {
+	font: inherit;
+	color: inherit;
+}
+
+:focus-visible {
+	outline: 3px solid var(--focus);
+	outline-offset: 2px;
+}
+
+/* Buttons: one primary action per screen */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	min-height: var(--tap-min);
+	padding: 0 var(--space-5);
+	border: 0;
+	border-radius: var(--radius-control);
+	background: var(--gray-50);
+	color: var(--ink);
+	font-weight: 700;
+	text-decoration: none;
+	cursor: pointer;
+	transition: transform var(--motion-fast) var(--ease);
+}
+.btn:active {
+	transform: scale(var(--press-scale));
+}
+.btn.primary {
+	background: var(--ink);
+	color: var(--white);
+}
+.btn.wide {
+	width: 100%;
+}
+.btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
 }
