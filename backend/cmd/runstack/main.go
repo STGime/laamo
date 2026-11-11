@@ -13,6 +13,9 @@
 //	-set b2.query=…  set a brick setting (repeatable), e.g. a template's
 //	                 setup answers
 //	-answer text     the Tap Go answer ({answer})
+//	-decide how      answers Ask me cards: approve (default; picks all,
+//	                 answers -reply), skip, or stop (leave the run waiting)
+//	-reply text      the answer to Ask me something
 //	-test            test mode (3 cards, Do bricks to you)
 package main
 
@@ -37,6 +40,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/config"
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/engine/tmpl"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -56,6 +60,8 @@ type options struct {
 	lang    string
 	tz      string
 	answer  string
+	decide  string
+	reply   string
 	test    bool
 	sets    setFlags
 }
@@ -68,6 +74,8 @@ func main() {
 	flag.StringVar(&o.lang, "lang", "en", "workspace language (en, de)")
 	flag.StringVar(&o.tz, "tz", "Europe/Berlin", "workspace timezone")
 	flag.StringVar(&o.answer, "answer", "", "the Tap Go answer ({answer})")
+	flag.StringVar(&o.decide, "decide", "approve", "Ask me cards: approve, skip or stop")
+	flag.StringVar(&o.reply, "reply", "", "the answer to Ask me something")
 	flag.BoolVar(&o.test, "test", false, "test mode")
 	flag.Var(&o.sets, "set", "brick setting, e.g. b2.query=news (repeatable)")
 	flag.Usage = func() {
@@ -160,7 +168,7 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 	h.CurrentVersionID = &v.ID
 	st.PutHelper(h)
 
-	eng := &engine.Engine{Store: st, Catalog: cat, Bricks: bricks.All(deps), Brain: brain, Blobs: &engine.MemoryBlobs{},
+	eng := &engine.Engine{Store: st, Catalog: cat, Bricks: bricks.All(deps), Brain: brain, Blobs: &engine.MemoryBlobs{}, Resolve: tmpl.Config,
 		Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	data := map[string]any{}
 	if o.answer != "" {
@@ -183,7 +191,68 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 	if err := eng.Execute(ctx, r.ID); err != nil {
 		_, _ = fmt.Fprintf(w, "! the run would be retried: %v\n", err)
 	}
+	// Ask me bricks: answer the Feed card as -decide says and go on.
+	for range 10 {
+		cur, err := st.GetRun(ctx, r.ID)
+		if err != nil || cur.Status != store.RunWaiting || o.decide == "stop" {
+			break
+		}
+		if err := decide(ctx, w, st, cur, o); err != nil {
+			return err
+		}
+		if err := eng.Execute(ctx, r.ID); err != nil {
+			_, _ = fmt.Fprintf(w, "! the run would be retried: %v\n", err)
+		}
+	}
 	return report(ctx, w, st, cat, stack, r.ID, o.lang, time.Since(start), place)
+}
+
+// decide answers the Feed card a waiting run waits on, like the app would.
+func decide(ctx context.Context, w io.Writer, st *memory.Store, r store.Run, o options) error {
+	fc, err := st.GetFeedCard(ctx, *r.WaitingOnCardID)
+	if err != nil {
+		return err
+	}
+	shown, err := st.ListCards(ctx, fc.ID)
+	if err != nil {
+		return err
+	}
+	var all []string
+	for _, c := range shown {
+		all = append(all, c.CardID)
+	}
+	state, d := engine.StateApproved, engine.Decision{}
+	switch {
+	case fc.Type == engine.FeedQuestion:
+		state, d.Answer = engine.StateAnswered, o.reply
+		if d.Answer == "" {
+			return fmt.Errorf("%q needs an answer: use -reply", deref(fc.Body))
+		}
+	case fc.Type == engine.FeedPick && o.decide == "skip":
+		state = engine.StateAnswered
+	case fc.Type == engine.FeedPick:
+		state, d.Picked = engine.StateAnswered, all
+	case o.decide == "skip":
+		state, d.Skip = engine.StateSkipped, all
+	}
+	if err := engine.CheckDecision(fc, shown, state, d); err != nil {
+		return err
+	}
+	raw, _ := json.Marshal(d)
+	var m map[string]any
+	_ = json.Unmarshal(raw, &m)
+	if _, err := st.UpdateFeedCard(ctx, fc.ID, store.FeedCardPatch{State: &state, Decision: m}); err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(w, "    ⏸ %s: %s → %s (-decide %s)\n", fc.Type, deref(fc.Body), state, o.decide)
+	return nil
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // loadStack reads a stack, or a template (its stack plus which Post to chat

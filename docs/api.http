@@ -36,3 +36,22 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {"timezone": "Mars/Olympus"}
+
+### A Feed card (Check first / Let me pick show their cards). Set @card to a feed card id.
+@card = 00000000-0000-0000-0000-000000000000
+GET {{base}}/feed-cards/{{card}}
+Authorization: Bearer {{token}}
+
+### Check first: approve all but one, fix one email (card ids from the GET above)
+POST {{base}}/feed-cards/{{card}}/decision
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"state": "edited", "skip": ["<card id>"], "edits": {"<card id>": {"email": "hallo@example.com"}}}
+
+### Ask me something
+POST {{base}}/feed-cards/{{card}}/decision
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"state": "answered", "answer": "Leipzig"}

@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "bricks": [
+    { "id": "b1", "type": "when.tap" },
+    { "id": "b2", "type": "ask.question", "config": { "question": "Which topic in {my city}?", "free_text": true } },
+    { "id": "b3", "type": "look.search", "config": { "query": "{my business} {my city} {answer}", "count": 5, "freshness": "week" } },
+    { "id": "b4", "type": "ask.check", "config": {} },
+    { "id": "b5", "type": "think.summarize", "config": { "length": "short", "mode": "all", "language": "auto" } }
+  ]
+}

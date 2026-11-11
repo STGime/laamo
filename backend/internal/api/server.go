@@ -23,6 +23,8 @@ type Server struct {
 	auth  auth.TokenVerifier
 	http  *http.Client
 	log   *slog.Logger
+	// resume queues a waiting run once its Feed card is decided.
+	resume func(ctx context.Context, runID string) error
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -33,13 +35,17 @@ type Deps struct {
 	Store  store.Store
 	Auth   auth.TokenVerifier
 	Log    *slog.Logger
+	// Resume queues a waiting run after a decision (resume_waiting_runs).
+	// Optional: without it the every-minute sweep picks the run up.
+	Resume func(ctx context.Context, runID string) error
 }
 
 func NewServer(d Deps) *Server {
 	if d.Log == nil {
 		d.Log = slog.Default()
 	}
-	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log}
+	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log,
+		resume: d.Resume}
 }
 
 // maxBody caps request bodies.

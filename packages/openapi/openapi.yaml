@@ -111,6 +111,56 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /feed-cards/{feedCardId}:
+    parameters:
+      - $ref: '#/components/parameters/FeedCardId'
+    get:
+      operationId: getFeedCard
+      summary: A Feed card, with the cards it asks about (Check first, Let me pick)
+      tags: [feed]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedCardDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /feed-cards/{feedCardId}/decision:
+    parameters:
+      - $ref: '#/components/parameters/FeedCardId'
+    post:
+      operationId: decideFeedCard
+      summary: Answer an Ask me card; the waiting run goes on
+      description: |
+        Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+        Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+        Approved cards may then go to the recipients they show; edited fields count as typed by you.
+      tags: [feed]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedDecision'
+      responses:
+        '200':
+          description: Decided; the run continues in the background
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedCard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 components:
   securitySchemes:
     bearerAuth:
@@ -119,6 +169,13 @@ components:
       bearerFormat: JWT
       description: Eurobase end-user access token (ES256)
   parameters:
+    FeedCardId:
+      name: feedCardId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     WorkspaceId:
       name: workspaceId
       in: path
@@ -141,6 +198,12 @@ components:
             $ref: '#/components/schemas/Error'
     Forbidden:
       description: You can see this but not change it
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Already decided or expired
       content:
         application/json:
           schema:
@@ -175,7 +238,7 @@ components:
         code:
           type: string
           description: Stable machine code
-          enum: [bad_request, unauthorized, forbidden, not_found, auth_unavailable, internal]
+          enum: [bad_request, unauthorized, forbidden, not_found, conflict, auth_unavailable, internal]
     User:
       type: object
       required: [id, email]
@@ -271,3 +334,111 @@ components:
           $ref: '#/components/schemas/Locale'
         profile:
           $ref: '#/components/schemas/Profile'
+    FeedCard:
+      type: object
+      required: [id, workspace_id, type, title, payload, state, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        helper_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [result, approval, pick, question, problem]
+        title:
+          type: string
+        body:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+          description: 'Ask me cards: brick_id, brick_type, cards (count), and question/answers/free_text, max_show or on_timeout'
+        state:
+          type: string
+          enum: [open, approved, edited, skipped, answered, expired, dismissed]
+        decision:
+          type: object
+          additionalProperties: true
+        expires_at:
+          type: string
+          format: date-time
+        decided_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    FeedCardDetail:
+      allOf:
+        - $ref: '#/components/schemas/FeedCard'
+        - type: object
+          required: [cards]
+          properties:
+            cards:
+              type: array
+              description: The pile the card asks about, in order (empty for questions and results)
+              items:
+                $ref: '#/components/schemas/Card'
+    Card:
+      type: object
+      required: [id, kind, fields, trust]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The card's identity across steps; use it in skip, edits and picked
+        kind:
+          type: string
+          example: business
+        fields:
+          type: object
+          additionalProperties: true
+        trust:
+          type: object
+          description: Per field, where the value came from
+          additionalProperties:
+            type: string
+            enum: [user_entered, approved, extracted, untrusted]
+        source_url:
+          type: string
+        score:
+          type: number
+        reason:
+          type: string
+    FeedDecision:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [approved, edited, skipped, answered]
+        skip:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+            format: uuid
+        edits:
+          type: object
+          description: Card id → field → new text
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: string
+        picked:
+          type: array
+          maxItems: 500
+          items:
+            type: string
+            format: uuid
+        answer:
+          type: string
+          maxLength: 2000

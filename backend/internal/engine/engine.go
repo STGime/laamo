@@ -30,6 +30,9 @@ type Engine struct {
 	Brain   *llm.Brain // the AI for Think bricks
 	Log     *slog.Logger
 	Now     func() time.Time
+	// Resolve fills pills in a brick's settings (tmpl.Config); the engine
+	// uses it for Ask me card texts. nil: texts are shown as written.
+	Resolve func(rc *RunContext, b *catalog.Brick, cfg Config, card *Card) (Config, error)
 }
 
 func (e *Engine) now() time.Time {
@@ -174,8 +177,8 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 	if err != nil {
 		return err
 	}
-	if finished(r.Status) || r.Status == store.RunWaiting {
-		return nil // already done, or waiting for the user (#20)
+	if finished(r.Status) {
+		return nil
 	}
 	h, err := e.Store.GetHelper(ctx, r.HelperID)
 	if err != nil {
@@ -201,7 +204,7 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		return nil
 	}
 	for _, sb := range stack.Bricks {
-		if _, ok := e.Bricks[sb.Type]; !ok {
+		if _, ok := e.Bricks[sb.Type]; !ok && !Pauses(sb.Type) {
 			b, _ := e.Catalog.Brick(sb.Type)
 			e.finish(ctx, &r, nil, outcome{status: store.RunFailed, err: fmt.Errorf("no executor for %s", sb.Type),
 				problem: fmt.Sprintf("“%s” can't run yet.", b.Title.In(ws.Locale))})
@@ -224,6 +227,16 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		}
 	}
 
+	// Waiting for the user (#20): go on only once the Feed card is decided
+	// or expired.
+	if r.Status == store.RunWaiting {
+		ok, err := e.resume(ctx, &r, stack)
+		if err != nil || !ok {
+			return err
+		}
+		rc.Run = r
+	}
+
 	if r.Status != store.RunRunning || r.StartedAt == nil {
 		now := e.now()
 		r, err = e.Store.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunRunning), StartedAt: &now})
@@ -241,6 +254,18 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 	if err != nil {
 		return err
 	}
+	// Answers to Ask me something, in order: {answer} is the latest.
+	for _, s := range steps {
+		if a, ok := stepDecision(s); ok && s.Status == "done" && a.Answer != "" {
+			rc.SetValue("answer", a.Answer)
+		}
+	}
+	// Everything was skipped (or nothing picked): nothing goes on.
+	if k := r.NextBrickIndex; k > 0 && k < len(stack.Bricks) && len(pile) == 0 &&
+		(stack.Bricks[k-1].Type == "ask.check" || stack.Bricks[k-1].Type == "ask.pick") {
+		e.finish(ctx, &r, rc, outcome{status: store.RunDone, nothing: true})
+		return nil
+	}
 
 	for i := r.NextBrickIndex; i < len(stack.Bricks); i++ {
 		sb := stack.Bricks[i]
@@ -257,6 +282,14 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 			e.finish(ctx, &r, rc, outcome{status: store.RunStopped, err: ErrLimit,
 				problem: fmt.Sprintf("Stopped: this run reached its cost limit of €%.2f.", rc.Limits.MaxCostEUR)})
 			return nil
+		}
+
+		if Pauses(sb.Type) {
+			err := e.pause(ctx, rc, &r, steps, i, sb, b, pile)
+			if errors.Is(err, errPaused) {
+				return nil // the job ends; a decision brings the run back
+			}
+			return err
 		}
 
 		out, stepErr := e.runStep(ctx, rc, &r, steps, i, sb, b, pile)
@@ -554,7 +587,23 @@ func (e *Engine) loadPile(ctx context.Context, r store.Run) ([]Card, error) {
 	if last == nil {
 		return nil, fmt.Errorf("run %s: no finished step before brick %d", r.ID, r.NextBrickIndex)
 	}
-	rows, err := e.Store.ListCards(ctx, last.ID)
+	pile, err := e.loadCards(ctx, last.ID)
+	if err != nil {
+		return nil, err
+	}
+	if Pauses(last.BrickType) {
+		a, ok := stepDecision(*last)
+		if !ok {
+			return nil, fmt.Errorf("run %s: Ask me step %s has no decision", r.ID, last.ID)
+		}
+		pile = a.replay(pile)
+	}
+	return pile, nil
+}
+
+// loadCards returns a step's pile, with large fields read back from Blobs.
+func (e *Engine) loadCards(ctx context.Context, stepID string) ([]Card, error) {
+	rows, err := e.Store.ListCards(ctx, stepID)
 	if err != nil {
 		return nil, err
 	}

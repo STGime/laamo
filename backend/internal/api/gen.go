@@ -20,10 +20,35 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for CardTrust.
+const (
+	CardTrustApproved    CardTrust = "approved"
+	CardTrustExtracted   CardTrust = "extracted"
+	CardTrustUntrusted   CardTrust = "untrusted"
+	CardTrustUserEntered CardTrust = "user_entered"
+)
+
+// Valid indicates whether the value is a known member of the CardTrust enum.
+func (e CardTrust) Valid() bool {
+	switch e {
+	case CardTrustApproved:
+		return true
+	case CardTrustExtracted:
+		return true
+	case CardTrustUntrusted:
+		return true
+	case CardTrustUserEntered:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErrorCode.
 const (
 	ErrorCodeAuthUnavailable ErrorCode = "auth_unavailable"
 	ErrorCodeBadRequest      ErrorCode = "bad_request"
+	ErrorCodeConflict        ErrorCode = "conflict"
 	ErrorCodeForbidden       ErrorCode = "forbidden"
 	ErrorCodeInternal        ErrorCode = "internal"
 	ErrorCodeNotFound        ErrorCode = "not_found"
@@ -37,6 +62,8 @@ func (e ErrorCode) Valid() bool {
 		return true
 	case ErrorCodeBadRequest:
 		return true
+	case ErrorCodeConflict:
+		return true
 	case ErrorCodeForbidden:
 		return true
 	case ErrorCodeInternal:
@@ -44,6 +71,150 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeNotFound:
 		return true
 	case ErrorCodeUnauthorized:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedCardState.
+const (
+	FeedCardStateAnswered  FeedCardState = "answered"
+	FeedCardStateApproved  FeedCardState = "approved"
+	FeedCardStateDismissed FeedCardState = "dismissed"
+	FeedCardStateEdited    FeedCardState = "edited"
+	FeedCardStateExpired   FeedCardState = "expired"
+	FeedCardStateOpen      FeedCardState = "open"
+	FeedCardStateSkipped   FeedCardState = "skipped"
+)
+
+// Valid indicates whether the value is a known member of the FeedCardState enum.
+func (e FeedCardState) Valid() bool {
+	switch e {
+	case FeedCardStateAnswered:
+		return true
+	case FeedCardStateApproved:
+		return true
+	case FeedCardStateDismissed:
+		return true
+	case FeedCardStateEdited:
+		return true
+	case FeedCardStateExpired:
+		return true
+	case FeedCardStateOpen:
+		return true
+	case FeedCardStateSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedCardType.
+const (
+	FeedCardTypeApproval FeedCardType = "approval"
+	FeedCardTypePick     FeedCardType = "pick"
+	FeedCardTypeProblem  FeedCardType = "problem"
+	FeedCardTypeQuestion FeedCardType = "question"
+	FeedCardTypeResult   FeedCardType = "result"
+)
+
+// Valid indicates whether the value is a known member of the FeedCardType enum.
+func (e FeedCardType) Valid() bool {
+	switch e {
+	case FeedCardTypeApproval:
+		return true
+	case FeedCardTypePick:
+		return true
+	case FeedCardTypeProblem:
+		return true
+	case FeedCardTypeQuestion:
+		return true
+	case FeedCardTypeResult:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedCardDetailState.
+const (
+	FeedCardDetailStateAnswered  FeedCardDetailState = "answered"
+	FeedCardDetailStateApproved  FeedCardDetailState = "approved"
+	FeedCardDetailStateDismissed FeedCardDetailState = "dismissed"
+	FeedCardDetailStateEdited    FeedCardDetailState = "edited"
+	FeedCardDetailStateExpired   FeedCardDetailState = "expired"
+	FeedCardDetailStateOpen      FeedCardDetailState = "open"
+	FeedCardDetailStateSkipped   FeedCardDetailState = "skipped"
+)
+
+// Valid indicates whether the value is a known member of the FeedCardDetailState enum.
+func (e FeedCardDetailState) Valid() bool {
+	switch e {
+	case FeedCardDetailStateAnswered:
+		return true
+	case FeedCardDetailStateApproved:
+		return true
+	case FeedCardDetailStateDismissed:
+		return true
+	case FeedCardDetailStateEdited:
+		return true
+	case FeedCardDetailStateExpired:
+		return true
+	case FeedCardDetailStateOpen:
+		return true
+	case FeedCardDetailStateSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedCardDetailType.
+const (
+	FeedCardDetailTypeApproval FeedCardDetailType = "approval"
+	FeedCardDetailTypePick     FeedCardDetailType = "pick"
+	FeedCardDetailTypeProblem  FeedCardDetailType = "problem"
+	FeedCardDetailTypeQuestion FeedCardDetailType = "question"
+	FeedCardDetailTypeResult   FeedCardDetailType = "result"
+)
+
+// Valid indicates whether the value is a known member of the FeedCardDetailType enum.
+func (e FeedCardDetailType) Valid() bool {
+	switch e {
+	case FeedCardDetailTypeApproval:
+		return true
+	case FeedCardDetailTypePick:
+		return true
+	case FeedCardDetailTypeProblem:
+		return true
+	case FeedCardDetailTypeQuestion:
+		return true
+	case FeedCardDetailTypeResult:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedDecisionState.
+const (
+	FeedDecisionStateAnswered FeedDecisionState = "answered"
+	FeedDecisionStateApproved FeedDecisionState = "approved"
+	FeedDecisionStateEdited   FeedDecisionState = "edited"
+	FeedDecisionStateSkipped  FeedDecisionState = "skipped"
+)
+
+// Valid indicates whether the value is a known member of the FeedDecisionState enum.
+func (e FeedDecisionState) Valid() bool {
+	switch e {
+	case FeedDecisionStateAnswered:
+		return true
+	case FeedDecisionStateApproved:
+		return true
+	case FeedDecisionStateEdited:
+		return true
+	case FeedDecisionStateSkipped:
 		return true
 	default:
 		return false
@@ -131,6 +302,26 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Card defines model for Card.
+type Card struct {
+	Fields map[string]interface{} `json:"fields"`
+
+	// Id The card's identity across steps; use it in skip, edits and picked
+	Id openapi_types.UUID `json:"id"`
+
+	// Kind Example: business
+	Kind      string   `json:"kind"`
+	Reason    *string  `json:"reason,omitempty"`
+	Score     *float32 `json:"score,omitempty"`
+	SourceUrl *string  `json:"source_url,omitempty"`
+
+	// Trust Per field, where the value came from
+	Trust map[string]CardTrust `json:"trust"`
+}
+
+// CardTrust defines model for Card.Trust.
+type CardTrust string
+
 // Error defines model for Error.
 type Error struct {
 	// Code Stable machine code
@@ -142,6 +333,73 @@ type Error struct {
 
 // ErrorCode Stable machine code
 type ErrorCode string
+
+// FeedCard defines model for FeedCard.
+type FeedCard struct {
+	Body      *string                 `json:"body,omitempty"`
+	CreatedAt time.Time               `json:"created_at"`
+	DecidedAt *time.Time              `json:"decided_at,omitempty"`
+	Decision  *map[string]interface{} `json:"decision,omitempty"`
+	ExpiresAt *time.Time              `json:"expires_at,omitempty"`
+	HelperId  *openapi_types.UUID     `json:"helper_id,omitempty"`
+	Id        openapi_types.UUID      `json:"id"`
+
+	// Payload Ask me cards: brick_id, brick_type, cards (count), and question/answers/free_text, max_show or on_timeout
+	Payload     map[string]interface{} `json:"payload"`
+	RunId       *openapi_types.UUID    `json:"run_id,omitempty"`
+	State       FeedCardState          `json:"state"`
+	Title       string                 `json:"title"`
+	Type        FeedCardType           `json:"type"`
+	WorkspaceId openapi_types.UUID     `json:"workspace_id"`
+}
+
+// FeedCardState defines model for FeedCard.State.
+type FeedCardState string
+
+// FeedCardType defines model for FeedCard.Type.
+type FeedCardType string
+
+// FeedCardDetail defines model for FeedCardDetail.
+type FeedCardDetail struct {
+	Body *string `json:"body,omitempty"`
+
+	// Cards The pile the card asks about, in order (empty for questions and results)
+	Cards     []Card                  `json:"cards"`
+	CreatedAt time.Time               `json:"created_at"`
+	DecidedAt *time.Time              `json:"decided_at,omitempty"`
+	Decision  *map[string]interface{} `json:"decision,omitempty"`
+	ExpiresAt *time.Time              `json:"expires_at,omitempty"`
+	HelperId  *openapi_types.UUID     `json:"helper_id,omitempty"`
+	Id        openapi_types.UUID      `json:"id"`
+
+	// Payload Ask me cards: brick_id, brick_type, cards (count), and question/answers/free_text, max_show or on_timeout
+	Payload     map[string]interface{} `json:"payload"`
+	RunId       *openapi_types.UUID    `json:"run_id,omitempty"`
+	State       FeedCardDetailState    `json:"state"`
+	Title       string                 `json:"title"`
+	Type        FeedCardDetailType     `json:"type"`
+	WorkspaceId openapi_types.UUID     `json:"workspace_id"`
+}
+
+// FeedCardDetailState defines model for FeedCardDetail.State.
+type FeedCardDetailState string
+
+// FeedCardDetailType defines model for FeedCardDetail.Type.
+type FeedCardDetailType string
+
+// FeedDecision defines model for FeedDecision.
+type FeedDecision struct {
+	Answer *string `json:"answer,omitempty"`
+
+	// Edits Card id → field → new text
+	Edits  *map[string]map[string]string `json:"edits,omitempty"`
+	Picked *[]openapi_types.UUID         `json:"picked,omitempty"`
+	Skip   *[]openapi_types.UUID         `json:"skip,omitempty"`
+	State  FeedDecisionState             `json:"state"`
+}
+
+// FeedDecisionState defines model for FeedDecision.State.
+type FeedDecisionState string
 
 // Health defines model for Health.
 type Health struct {
@@ -239,11 +497,17 @@ type WorkspaceUpdate struct {
 	Timezone *string  `json:"timezone,omitempty"`
 }
 
+// FeedCardId defines model for FeedCardId.
+type FeedCardId = openapi_types.UUID
+
 // WorkspaceId defines model for WorkspaceId.
 type WorkspaceId = openapi_types.UUID
 
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
+
+// Conflict defines model for Conflict.
+type Conflict = Error
 
 // Forbidden defines model for Forbidden.
 type Forbidden = Error
@@ -253,6 +517,9 @@ type NotFound = Error
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// DecideFeedCardJSONRequestBody defines body for DecideFeedCard for application/json ContentType.
+type DecideFeedCardJSONRequestBody = FeedDecision
 
 // CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
 type CreateWorkspaceJSONRequestBody = NewWorkspace
@@ -334,6 +601,33 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
+	// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
+	//
+	// Corresponds with GET /feed-cards/{feedCardId} (the `GetFeedCard` operationId).
+	GetFeedCard(ctx context.Context, feedCardId FeedCardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideFeedCardWithBody Answer an Ask me card; the waiting run goes on
+	//
+	// Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+	// Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+	// Approved cards may then go to the recipients they show; edited fields count as typed by you.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /feed-cards/{feedCardId}/decision (the `DecideFeedCard` operationId).
+	DecideFeedCardWithBody(ctx context.Context, feedCardId FeedCardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DecideFeedCard Answer an Ask me card; the waiting run goes on
+	//
+	// Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+	// Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+	// Approved cards may then go to the recipients they show; edited fields count as typed by you.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /feed-cards/{feedCardId}/decision (the `DecideFeedCard` operationId).
+	DecideFeedCard(ctx context.Context, feedCardId FeedCardId, body DecideFeedCardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetHealth Service health
 	//
 	// Corresponds with GET /healthz (the `GetHealth` operationId).
@@ -380,6 +674,63 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /workspaces/{workspaceId} (the `UpdateWorkspace` operationId).
 	UpdateWorkspace(ctx context.Context, workspaceId WorkspaceId, body UpdateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
+//
+// Corresponds with GET /feed-cards/{feedCardId} (the `GetFeedCard` operationId).
+func (c *Client) GetFeedCard(ctx context.Context, feedCardId FeedCardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetFeedCardRequest(c.Server, feedCardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DecideFeedCardWithBody Answer an Ask me card; the waiting run goes on
+//
+// Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+// Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+// Approved cards may then go to the recipients they show; edited fields count as typed by you.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /feed-cards/{feedCardId}/decision (the `DecideFeedCard` operationId).
+func (c *Client) DecideFeedCardWithBody(ctx context.Context, feedCardId FeedCardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideFeedCardRequestWithBody(c.Server, feedCardId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DecideFeedCard Answer an Ask me card; the waiting run goes on
+//
+// Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+// Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+// Approved cards may then go to the recipients they show; edited fields count as typed by you.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /feed-cards/{feedCardId}/decision (the `DecideFeedCard` operationId).
+func (c *Client) DecideFeedCard(ctx context.Context, feedCardId FeedCardId, body DecideFeedCardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecideFeedCardRequest(c.Server, feedCardId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 // GetHealth Service health
@@ -497,6 +848,87 @@ func (c *Client) UpdateWorkspace(ctx context.Context, workspaceId WorkspaceId, b
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetFeedCardRequest constructs an http.Request for the GetFeedCard method
+func NewGetFeedCardRequest(server string, feedCardId FeedCardId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "feedCardId", feedCardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/feed-cards/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDecideFeedCardRequest calls the generic DecideFeedCard builder with application/json body
+func NewDecideFeedCardRequest(server string, feedCardId FeedCardId, body DecideFeedCardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDecideFeedCardRequestWithBody(server, feedCardId, "application/json", bodyReader)
+}
+
+// NewDecideFeedCardRequestWithBody constructs an http.Request for the DecideFeedCard method, with any body, and a specified content type
+func NewDecideFeedCardRequestWithBody(server string, feedCardId FeedCardId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "feedCardId", feedCardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/feed-cards/%s/decision", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewGetHealthRequest constructs an http.Request for the GetHealth method
@@ -718,6 +1150,35 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// GetFeedCardWithResponse A Feed card, with the cards it asks about (Check first, Let me pick)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /feed-cards/{feedCardId} (the `GetFeedCard` operationId).
+	GetFeedCardWithResponse(ctx context.Context, feedCardId FeedCardId, reqEditors ...RequestEditorFn) (*GetFeedCardResponse, error)
+
+	// DecideFeedCardWithBodyWithResponse Answer an Ask me card; the waiting run goes on
+	//
+	// Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+	// Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+	// Approved cards may then go to the recipients they show; edited fields count as typed by you.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /feed-cards/{feedCardId}/decision (the `DecideFeedCard` operationId).
+	DecideFeedCardWithBodyWithResponse(ctx context.Context, feedCardId FeedCardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideFeedCardResponse, error)
+
+	// DecideFeedCardWithResponse Answer an Ask me card; the waiting run goes on
+	//
+	// Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+	// Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+	// Approved cards may then go to the recipients they show; edited fields count as typed by you.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /feed-cards/{feedCardId}/decision (the `DecideFeedCard` operationId).
+	DecideFeedCardWithResponse(ctx context.Context, feedCardId FeedCardId, body DecideFeedCardJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideFeedCardResponse, error)
+
 	// GetHealthWithResponse Service health
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -770,6 +1231,130 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PATCH /workspaces/{workspaceId} (the `UpdateWorkspace` operationId).
 	UpdateWorkspaceWithResponse(ctx context.Context, workspaceId WorkspaceId, body UpdateWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateWorkspaceResponse, error)
+}
+
+type GetFeedCardResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *FeedCardDetail
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetFeedCardResponse) GetJSON200() *FeedCardDetail {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetFeedCardResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetFeedCardResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetFeedCardResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetFeedCardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetFeedCardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetFeedCardResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DecideFeedCardResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *FeedCard
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DecideFeedCardResponse) GetJSON200() *FeedCard {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r DecideFeedCardResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DecideFeedCardResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DecideFeedCardResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r DecideFeedCardResponse) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetBody returns the raw response body bytes
+func (r DecideFeedCardResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DecideFeedCardResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DecideFeedCardResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DecideFeedCardResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type GetHealthResponse struct {
@@ -1040,6 +1625,53 @@ func (r UpdateWorkspaceResponse) ContentType() string {
 	return ""
 }
 
+// GetFeedCardWithResponse A Feed card, with the cards it asks about (Check first, Let me pick)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /feed-cards/{feedCardId} (the `GetFeedCard` operationId).
+func (c *ClientWithResponses) GetFeedCardWithResponse(ctx context.Context, feedCardId FeedCardId, reqEditors ...RequestEditorFn) (*GetFeedCardResponse, error) {
+	rsp, err := c.GetFeedCard(ctx, feedCardId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetFeedCardResponse(rsp)
+}
+
+// DecideFeedCardWithBodyWithResponse Answer an Ask me card; the waiting run goes on
+//
+// Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+// Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+// Approved cards may then go to the recipients they show; edited fields count as typed by you.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /feed-cards/{feedCardId}/decision (the `DecideFeedCard` operationId).
+func (c *ClientWithResponses) DecideFeedCardWithBodyWithResponse(ctx context.Context, feedCardId FeedCardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecideFeedCardResponse, error) {
+	rsp, err := c.DecideFeedCardWithBody(ctx, feedCardId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideFeedCardResponse(rsp)
+}
+
+// DecideFeedCardWithResponse Answer an Ask me card; the waiting run goes on
+//
+// Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+// Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+// Approved cards may then go to the recipients they show; edited fields count as typed by you.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /feed-cards/{feedCardId}/decision (the `DecideFeedCard` operationId).
+func (c *ClientWithResponses) DecideFeedCardWithResponse(ctx context.Context, feedCardId FeedCardId, body DecideFeedCardJSONRequestBody, reqEditors ...RequestEditorFn) (*DecideFeedCardResponse, error) {
+	rsp, err := c.DecideFeedCard(ctx, feedCardId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecideFeedCardResponse(rsp)
+}
+
 // GetHealthWithResponse Service health
 //
 // Returns a wrapper object for the known response body format(s).
@@ -1133,6 +1765,100 @@ func (c *ClientWithResponses) UpdateWorkspaceWithResponse(ctx context.Context, w
 		return nil, err
 	}
 	return ParseUpdateWorkspaceResponse(rsp)
+}
+
+// ParseGetFeedCardResponse parses an HTTP response from a GetFeedCardWithResponse call
+func ParseGetFeedCardResponse(rsp *http.Response) (*GetFeedCardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetFeedCardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FeedCardDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDecideFeedCardResponse parses an HTTP response from a DecideFeedCardWithResponse call
+func ParseDecideFeedCardResponse(rsp *http.Response) (*DecideFeedCardResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DecideFeedCardResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FeedCard
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetHealthResponse parses an HTTP response from a GetHealthWithResponse call
@@ -1330,6 +2056,12 @@ func ParseUpdateWorkspaceResponse(rsp *http.Response) (*UpdateWorkspaceResponse,
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
+	// (GET /feed-cards/{feedCardId})
+	GetFeedCard(w http.ResponseWriter, r *http.Request, feedCardId FeedCardId)
+	// DecideFeedCard Answer an Ask me card; the waiting run goes on
+	// (POST /feed-cards/{feedCardId}/decision)
+	DecideFeedCard(w http.ResponseWriter, r *http.Request, feedCardId FeedCardId)
 	// GetHealth Service health
 	// (GET /healthz)
 	GetHealth(w http.ResponseWriter, r *http.Request)
@@ -1355,6 +2087,58 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetFeedCard operation middleware
+func (siw *ServerInterfaceWrapper) GetFeedCard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "feedCardId" -------------
+	var feedCardId FeedCardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "feedCardId", r.PathValue("feedCardId"), &feedCardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "feedCardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetFeedCard(w, r, feedCardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DecideFeedCard operation middleware
+func (siw *ServerInterfaceWrapper) DecideFeedCard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "feedCardId" -------------
+	var feedCardId FeedCardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "feedCardId", r.PathValue("feedCardId"), &feedCardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "feedCardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DecideFeedCard(w, r, feedCardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetHealth operation middleware
 func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
@@ -1575,17 +2359,150 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces", wrapper.CreateWorkspace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}", wrapper.GetWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/workspaces/{workspaceId}", wrapper.UpdateWorkspace)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/feed-cards/{feedCardId}", wrapper.GetFeedCard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/feed-cards/{feedCardId}/decision", wrapper.DecideFeedCard)
 
 	return m
 }
 
 type BadRequestJSONResponse Error
 
+type ConflictJSONResponse Error
+
 type ForbiddenJSONResponse Error
 
 type NotFoundJSONResponse Error
 
 type UnauthorizedJSONResponse Error
+
+type GetFeedCardRequestObject struct {
+	FeedCardId FeedCardId `json:"feedCardId"`
+}
+
+type GetFeedCardResponseObject interface {
+	VisitGetFeedCardResponse(w http.ResponseWriter) error
+}
+
+type GetFeedCard200JSONResponse FeedCardDetail
+
+func (response GetFeedCard200JSONResponse) VisitGetFeedCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetFeedCard401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetFeedCard401JSONResponse) VisitGetFeedCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetFeedCard404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetFeedCard404JSONResponse) VisitGetFeedCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideFeedCardRequestObject struct {
+	FeedCardId FeedCardId `json:"feedCardId"`
+	Body       *DecideFeedCardJSONRequestBody
+}
+
+type DecideFeedCardResponseObject interface {
+	VisitDecideFeedCardResponse(w http.ResponseWriter) error
+}
+
+type DecideFeedCard200JSONResponse FeedCard
+
+func (response DecideFeedCard200JSONResponse) VisitDecideFeedCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideFeedCard400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DecideFeedCard400JSONResponse) VisitDecideFeedCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideFeedCard401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DecideFeedCard401JSONResponse) VisitDecideFeedCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideFeedCard404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DecideFeedCard404JSONResponse) VisitDecideFeedCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DecideFeedCard409JSONResponse struct{ ConflictJSONResponse }
+
+func (response DecideFeedCard409JSONResponse) VisitDecideFeedCardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type GetHealthRequestObject struct {
 }
@@ -1824,6 +2741,12 @@ func (response UpdateWorkspace404JSONResponse) VisitUpdateWorkspaceResponse(w ht
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// GetFeedCard A Feed card, with the cards it asks about (Check first, Let me pick)
+	// (GET /feed-cards/{feedCardId})
+	GetFeedCard(ctx context.Context, request GetFeedCardRequestObject) (GetFeedCardResponseObject, error)
+	// DecideFeedCard Answer an Ask me card; the waiting run goes on
+	// (POST /feed-cards/{feedCardId}/decision)
+	DecideFeedCard(ctx context.Context, request DecideFeedCardRequestObject) (DecideFeedCardResponseObject, error)
 	// GetHealth Service health
 	// (GET /healthz)
 	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
@@ -1878,6 +2801,65 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// GetFeedCard operation middleware
+func (sh *strictHandler) GetFeedCard(w http.ResponseWriter, r *http.Request, feedCardId FeedCardId) {
+	var request GetFeedCardRequestObject
+
+	request.FeedCardId = feedCardId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetFeedCard(ctx, request.(GetFeedCardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetFeedCard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetFeedCardResponseObject); ok {
+		if err := validResponse.VisitGetFeedCardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DecideFeedCard operation middleware
+func (sh *strictHandler) DecideFeedCard(w http.ResponseWriter, r *http.Request, feedCardId FeedCardId) {
+	var request DecideFeedCardRequestObject
+
+	request.FeedCardId = feedCardId
+
+	var body DecideFeedCardJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DecideFeedCard(ctx, request.(DecideFeedCardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DecideFeedCard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DecideFeedCardResponseObject); ok {
+		if err := validResponse.VisitDecideFeedCardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetHealth operation middleware

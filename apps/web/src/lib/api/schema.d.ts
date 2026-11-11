@@ -78,6 +78,49 @@ export interface paths {
 		patch: operations['updateWorkspace'];
 		trace?: never;
 	};
+	'/feed-cards/{feedCardId}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				feedCardId: components['parameters']['FeedCardId'];
+			};
+			cookie?: never;
+		};
+		/** A Feed card, with the cards it asks about (Check first, Let me pick) */
+		get: operations['getFeedCard'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/feed-cards/{feedCardId}/decision': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				feedCardId: components['parameters']['FeedCardId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Answer an Ask me card; the waiting run goes on
+		 * @description Check first (`approval`): `approved` (optionally with `skip`), `edited` (with `edits`, optionally `skip`) or `skipped` (everything).
+		 *     Let me pick (`pick`): `answered` with `picked`. Ask me something (`question`): `answered` with `answer`.
+		 *     Approved cards may then go to the recipients they show; edited fields count as typed by you.
+		 */
+		post: operations['decideFeedCard'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -102,6 +145,7 @@ export interface components {
 				| 'unauthorized'
 				| 'forbidden'
 				| 'not_found'
+				| 'conflict'
 				| 'auth_unavailable'
 				| 'internal';
 		};
@@ -162,6 +206,71 @@ export interface components {
 			locale?: components['schemas']['Locale'];
 			profile?: components['schemas']['Profile'];
 		};
+		FeedCard: {
+			/** Format: uuid */
+			id: string;
+			/** Format: uuid */
+			workspace_id: string;
+			/** Format: uuid */
+			helper_id?: string;
+			/** Format: uuid */
+			run_id?: string;
+			/** @enum {string} */
+			type: 'result' | 'approval' | 'pick' | 'question' | 'problem';
+			title: string;
+			body?: string;
+			/** @description Ask me cards: brick_id, brick_type, cards (count), and question/answers/free_text, max_show or on_timeout */
+			payload: {
+				[key: string]: unknown;
+			};
+			/** @enum {string} */
+			state: 'open' | 'approved' | 'edited' | 'skipped' | 'answered' | 'expired' | 'dismissed';
+			decision?: {
+				[key: string]: unknown;
+			};
+			/** Format: date-time */
+			expires_at?: string;
+			/** Format: date-time */
+			decided_at?: string;
+			/** Format: date-time */
+			created_at: string;
+		};
+		FeedCardDetail: components['schemas']['FeedCard'] & {
+			/** @description The pile the card asks about, in order (empty for questions and results) */
+			cards: components['schemas']['Card'][];
+		};
+		Card: {
+			/**
+			 * Format: uuid
+			 * @description The card's identity across steps; use it in skip, edits and picked
+			 */
+			id: string;
+			/** @example business */
+			kind: string;
+			fields: {
+				[key: string]: unknown;
+			};
+			/** @description Per field, where the value came from */
+			trust: {
+				[key: string]: 'user_entered' | 'approved' | 'extracted' | 'untrusted';
+			};
+			source_url?: string;
+			score?: number;
+			reason?: string;
+		};
+		FeedDecision: {
+			/** @enum {string} */
+			state: 'approved' | 'edited' | 'skipped' | 'answered';
+			skip?: string[];
+			/** @description Card id → field → new text */
+			edits?: {
+				[key: string]: {
+					[key: string]: string;
+				};
+			};
+			picked?: string[];
+			answer?: string;
+		};
 	};
 	responses: {
 		/** @description The request is invalid; error says why */
@@ -191,6 +300,15 @@ export interface components {
 				'application/json': components['schemas']['Error'];
 			};
 		};
+		/** @description Already decided or expired */
+		Conflict: {
+			headers: {
+				[name: string]: unknown;
+			};
+			content: {
+				'application/json': components['schemas']['Error'];
+			};
+		};
 		/** @description Not found, or not yours */
 		NotFound: {
 			headers: {
@@ -202,6 +320,7 @@ export interface components {
 		};
 	};
 	parameters: {
+		FeedCardId: string;
 		WorkspaceId: string;
 	};
 	requestBodies: never;
@@ -329,6 +448,60 @@ export interface operations {
 			401: components['responses']['Unauthorized'];
 			403: components['responses']['Forbidden'];
 			404: components['responses']['NotFound'];
+		};
+	};
+	getFeedCard: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				feedCardId: components['parameters']['FeedCardId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FeedCardDetail'];
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	decideFeedCard: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				feedCardId: components['parameters']['FeedCardId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['FeedDecision'];
+			};
+		};
+		responses: {
+			/** @description Decided; the run continues in the background */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['FeedCard'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+			409: components['responses']['Conflict'];
 		};
 	};
 }

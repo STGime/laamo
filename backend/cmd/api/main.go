@@ -31,11 +31,15 @@ func main() {
 		log.Error("config", "err", "EUROBASE_PRIVATE_KEY is required for the api")
 		os.Exit(1)
 	}
+	client := eb.New(cfg.EurobaseURL, cfg.EurobaseSecretKey)
 	server := api.NewServer(api.Deps{
 		Config: cfg,
-		Store:  sebs.New(eb.New(cfg.EurobaseURL, cfg.EurobaseSecretKey)),
+		Store:  sebs.New(client),
 		Auth:   auth.NewVerifier(cfg.EurobaseURL, cfg.EurobaseProjectID),
 		Log:    log,
+		Resume: func(ctx context.Context, runID string) error {
+			return client.RPC(ctx, "resume_waiting_runs", map[string]any{"p_run": runID}, nil)
+		},
 	})
 
 	srv := &http.Server{
