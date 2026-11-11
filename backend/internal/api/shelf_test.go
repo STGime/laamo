@@ -118,6 +118,11 @@ func TestShelfToFirstRun(t *testing.T) {
 		!strings.Contains(d.JSON200.Bricks[1].Sentence, "Bäckerei Leipzig Neuigkeiten") {
 		t.Fatalf("detail %d %s", d.StatusCode(), d.Body)
 	}
+	for _, rs := range d.JSON200.Runs {
+		if rs.Id.String() == r.ID && (rs.CardsOut == nil || *rs.CardsOut != 10) {
+			t.Fatalf("history: the done run ended with %v cards, want 10", rs.CardsOut)
+		}
+	}
 	two := must(c.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "morning-briefing", Answers: map[string]string{"chat": "feed"}}))
 	if two.StatusCode() != 201 || two.JSON201.Helper.Name != "Morgen-Briefing (2)" {
 		t.Fatalf("second copy: %d %s", two.StatusCode(), two.Body)

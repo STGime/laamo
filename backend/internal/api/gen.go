@@ -821,6 +821,8 @@ type RunStarted struct {
 
 // RunSummary defines model for RunSummary.
 type RunSummary struct {
+	// CardsOut Cards the run ended with (its last finished brick), once it is done
+	CardsOut    *int               `json:"cards_out,omitempty"`
 	CostEur     float32            `json:"cost_eur"`
 	CreatedAt   time.Time          `json:"created_at"`
 	FinishedAt  *time.Time         `json:"finished_at,omitempty"`

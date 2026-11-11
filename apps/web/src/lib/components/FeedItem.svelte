@@ -238,6 +238,9 @@
 			>{t('feed.showAll', { n: count })} →</button
 		>
 	{/if}
+	{#if card.type === 'problem' && card.helper_id}
+		<a class="link" href="/helpers/{card.helper_id}">{t('feed.openHelper')} →</a>
+	{/if}
 	{#if failed}<p class="failed" role="alert">{t('feed.failed')}</p>{/if}
 </article>
 
@@ -398,8 +401,12 @@
 		font: inherit;
 	}
 	.link {
+		display: inline-flex;
+		align-items: center;
 		margin-top: var(--space-2);
 		padding: 0;
+		color: inherit;
+		text-decoration: none;
 		min-height: 40px;
 		border: 0;
 		background: none;

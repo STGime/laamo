@@ -386,6 +386,20 @@ func TestSafetyStop(t *testing.T) {
 			t.Fatalf("run: %s", r.Status)
 		}
 	})
+	t.Run("says why in German", func(t *testing.T) {
+		e := newEnv(t, morningBriefing(), func(s *catalog.Stack) { s.Limits = &catalog.Limits{MaxExternalEmails: new(0)} })
+		w := e.ws
+		w.Locale = "de"
+		e.store.PutWorkspace(w)
+		e.eng.Bricks["do.chat"] = engine.BrickFunc(func(_ context.Context, rc *engine.RunContext, in []engine.Card, _ engine.Config) ([]engine.Card, error) {
+			return in, rc.UseExternalEmail()
+		})
+		r := e.run(e.start("manual", false))
+		f := e.feed(r.ID)
+		if len(f) != 1 || f[0].Title != "Zur Sicherheit gestoppt" || !strings.Contains(*f[0].Body, "höchstens 0 E-Mails an andere pro Lauf") {
+			t.Fatalf("feed: %+v %v", f, *f[0].Body)
+		}
+	})
 }
 
 // Test mode: Look and Think bricks see the whole pile (a filter needs

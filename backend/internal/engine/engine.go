@@ -275,13 +275,17 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		// Safety stop: always on.
 		if len(pile) > rc.Limits.MaxCards {
 			e.finish(ctx, &r, rc, outcome{status: store.RunStopped,
-				err:     fmt.Errorf("%w: %d cards, max %d", ErrLimit, len(pile), rc.Limits.MaxCards),
-				problem: fmt.Sprintf("Stopped before “%s”: %d cards is more than the limit of %d.", b.Title.In(ws.Locale), len(pile), rc.Limits.MaxCards)})
+				err: limitErr("%d cards, max %d", "%d Karten, höchstens %d", len(pile), rc.Limits.MaxCards),
+				problem: pick(ws.Locale == "de",
+					fmt.Sprintf("Stopped before “%s”: %d cards is more than the limit of %d.", b.Title.In(ws.Locale), len(pile), rc.Limits.MaxCards),
+					fmt.Sprintf("Vor „%s“ gestoppt: %d Karten sind mehr als die Grenze von %d.", b.Title.In(ws.Locale), len(pile), rc.Limits.MaxCards))})
 			return nil
 		}
 		if rc.Limits.MaxCostEUR > 0 && rc.Cost() >= rc.Limits.MaxCostEUR {
 			e.finish(ctx, &r, rc, outcome{status: store.RunStopped, err: ErrLimit,
-				problem: fmt.Sprintf("Stopped: this run reached its cost limit of €%.2f.", rc.Limits.MaxCostEUR)})
+				problem: pick(ws.Locale == "de",
+					fmt.Sprintf("Stopped: this run reached its cost limit of €%.2f.", rc.Limits.MaxCostEUR),
+					fmt.Sprintf("Gestoppt: Dieser Lauf hat seine Kostengrenze von %.2f € erreicht.", rc.Limits.MaxCostEUR))})
 			return nil
 		}
 
@@ -390,7 +394,9 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunStopped, err: err, problem: msg}}
 		case errors.Is(err, ErrLimit):
 			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunStopped, err: err,
-				problem: fmt.Sprintf("Stopped at “%s”: %s.", title, limitText(err))}}
+				problem: pick(rc.Workspace.Locale == "de",
+					fmt.Sprintf("Stopped at “%s”: %s.", title, limitText(err, "en")),
+					fmt.Sprintf("Bei „%s“ gestoppt: %s.", title, limitText(err, "de")))}}
 		case errors.Is(err, queue.ErrPermanent), errors.Is(err, errShape), errors.Is(err, ErrMissingValue),
 			errors.Is(err, llm.ErrBadOutput), errors.Is(err, llm.ErrNotConfigured):
 			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunFailed, err: err,
@@ -780,7 +786,10 @@ func friendly(err error) string {
 	return truncate(msg, 300)
 }
 
-func limitText(err error) string {
+func limitText(err error, lang string) string {
+	if le, ok := errors.AsType[*LimitError](err); ok {
+		return le.In(lang)
+	}
 	msg := err.Error()
 	if _, after, ok := strings.Cut(msg, ErrLimit.Error()+": "); ok {
 		return after

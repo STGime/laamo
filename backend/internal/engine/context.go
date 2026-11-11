@@ -62,6 +62,26 @@ const TestModeMaxCards = 3
 // ErrLimit is wrapped by errors that stop a run because a limit was hit.
 var ErrLimit = errors.New("limit reached")
 
+// LimitError is a Safety stop: why the run stopped, in the user's words.
+// errors.Is(err, ErrLimit) holds for it.
+type LimitError struct{ EN, DE string }
+
+func (e *LimitError) Error() string { return ErrLimit.Error() + ": " + e.EN }
+
+func (e *LimitError) Is(target error) bool { return target == ErrLimit }
+
+// In returns the reason in the workspace language.
+func (e *LimitError) In(lang string) string {
+	if lang == "de" && e.DE != "" {
+		return e.DE
+	}
+	return e.EN
+}
+
+func limitErr(en, de string, a ...any) error {
+	return &LimitError{EN: fmt.Sprintf(en, a...), DE: fmt.Sprintf(de, a...)}
+}
+
 // ErrMissingValue is wrapped by errors for a pill without a value ({email}
 // on a card that has none, an unset {my city}). The run fails with a Problem
 // card saying what's missing; retrying wouldn't help.
@@ -133,7 +153,7 @@ func (rc *RunContext) AddCost(eur float64) error {
 	defer rc.mu.Unlock()
 	rc.costEUR += eur
 	if rc.Limits.MaxCostEUR > 0 && rc.costEUR > rc.Limits.MaxCostEUR {
-		return fmt.Errorf("%w: this run cost more than €%.2f", ErrLimit, rc.Limits.MaxCostEUR)
+		return limitErr("this run cost more than €%.2f", "dieser Lauf hat mehr als %.2f € gekostet", rc.Limits.MaxCostEUR)
 	}
 	return nil
 }
@@ -151,7 +171,7 @@ func (rc *RunContext) UseExternalEmail() error {
 	rc.mu.Lock()
 	defer rc.mu.Unlock()
 	if rc.extEmails >= rc.Limits.MaxExternalEmails {
-		return fmt.Errorf("%w: at most %d emails to other people per run", ErrLimit, rc.Limits.MaxExternalEmails)
+		return limitErr("at most %d emails to other people per run", "höchstens %d E-Mails an andere pro Lauf", rc.Limits.MaxExternalEmails)
 	}
 	rc.extEmails++
 	return nil
@@ -183,7 +203,7 @@ func (rc *RunContext) AddTokens(in, out int) error {
 	rc.tokensIn += in
 	rc.tokensOut += out
 	if rc.tokensIn+rc.tokensOut > MaxRunTokens {
-		return fmt.Errorf("%w: this run used more than %d AI tokens", ErrLimit, MaxRunTokens)
+		return limitErr("this run used more than %d AI tokens", "dieser Lauf hat mehr als %d KI-Tokens verbraucht", MaxRunTokens)
 	}
 	return nil
 }

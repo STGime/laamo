@@ -56,6 +56,7 @@ export const de: Record<Key, string> = {
 	'feed.brainTitle': 'Noch {left} von {total} Brain-Credits diesen Monat',
 	'feed.more': 'Ältere zeigen',
 	'feed.dismiss': 'Ausblenden',
+	'feed.openHelper': 'Helfer öffnen',
 	'feed.showAll': 'Alle {n} zeigen',
 	'feed.check.title': 'Prüfe {n}, bevor es rausgeht',
 	'feed.check.approveAll': 'Alle freigeben',

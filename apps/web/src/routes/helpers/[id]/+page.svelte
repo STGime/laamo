@@ -154,7 +154,11 @@
 						<span class="what"
 							>{t(`run.status.${r.status}` as Key)}{r.test ? ` · ${t('run.test')}` : ''}</span
 						>
-						<span class="meta">{ago(r.created_at)} · €{r.cost_eur.toFixed(4)}</span>
+						<span class="meta"
+							>{r.cards_out != null ? `${t('helper.cards', { n: r.cards_out })} · ` : ''}{ago(
+								r.created_at
+							)} · €{r.cost_eur.toFixed(4)}</span
+						>
 					</li>
 				{/each}
 			</ul>

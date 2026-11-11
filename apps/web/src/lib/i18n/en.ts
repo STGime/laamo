@@ -55,6 +55,7 @@ export const en = {
 	'feed.brainTitle': '{left} of {total} brain credits left this month',
 	'feed.more': 'Show older',
 	'feed.dismiss': 'Hide',
+	'feed.openHelper': 'Open helper',
 	'feed.showAll': 'Show all {n}',
 	'feed.check.title': 'Check {n} before they go out',
 	'feed.check.approveAll': 'Approve all',

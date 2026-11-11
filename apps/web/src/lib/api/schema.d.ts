@@ -539,6 +539,8 @@ export interface components {
 			/** Format: date-time */
 			finished_at?: string;
 			cost_eur: number;
+			/** @description Cards the run ended with (its last finished brick), once it is done */
+			cards_out?: number;
 		};
 		CreatedHelper: {
 			helper: components['schemas']['Helper'];

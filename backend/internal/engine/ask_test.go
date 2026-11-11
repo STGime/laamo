@@ -153,6 +153,21 @@ func TestPausePick(t *testing.T) {
 	}
 }
 
+// Let me pick shows at most max_show cards; the rest don't go on.
+func TestPausePickMaxShow(t *testing.T) {
+	e := newEnv(t, []sb{
+		{ID: "b1", Type: "when.tap"},
+		{ID: "b2", Type: "look.search", Config: cfg{"query": "bakery news"}},
+		{ID: "b3", Type: "ask.pick", Config: cfg{"max_show": 2}},
+		{ID: "b4", Type: "do.chat", Config: cfg{"place": "p1"}},
+	})
+	r := e.run(e.start("manual", false))
+	fc := e.waiting(r)
+	if n := len(e.cards(fc.ID)); n != 2 || fmt.Sprint(fc.Payload["cards"]) != "2" {
+		t.Fatalf("shown %d, payload %v", n, fc.Payload)
+	}
+}
+
 // Ask me something at the top: the answer fills {answer} further down.
 func TestPauseQuestion(t *testing.T) {
 	e := newEnv(t, []sb{

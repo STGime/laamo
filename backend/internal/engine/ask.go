@@ -260,6 +260,11 @@ func (e *Engine) pause(ctx context.Context, rc *RunContext, r *store.Run, steps 
 		}
 	}
 	rc.StepID, rc.BrickID, rc.Brick = step.ID, sb.ID, b
+	cfg := Config(b.Config(sb.Config))
+	// Let me pick shows at most max_show cards; the rest don't go on.
+	if n := cfg.Int("max_show"); sb.Type == "ask.pick" && n > 0 && len(pile) > n {
+		pile = pile[:n]
+	}
 	if existing, err := e.Store.ListCards(ctx, step.ID); err != nil {
 		return err
 	} else if len(existing) == 0 && len(pile) > 0 {
@@ -268,7 +273,6 @@ func (e *Engine) pause(ctx context.Context, rc *RunContext, r *store.Run, steps 
 		}
 	}
 
-	cfg := Config(b.Config(sb.Config))
 	if e.Resolve != nil {
 		if resolved, err := e.Resolve(rc, b, cfg, nil); err == nil {
 			cfg = resolved
