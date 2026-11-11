@@ -363,7 +363,7 @@ func (s *Service) run(ctx context.Context, in Input) (Result, float64, error) {
 			answers[q.Key] = shelf.FeedOnly
 		}
 	}
-	stack, profile, err := shelf.Install(s.Catalog, t, ws, answers, func(string) (store.Place, error) {
+	stack, profile, err := shelf.Install(s.Catalog, t, ws, answers, nil, func(string) (store.Place, error) {
 		return store.Place{}, store.ErrNotFound
 	})
 	if err != nil {

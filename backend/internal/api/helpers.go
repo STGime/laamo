@@ -136,7 +136,11 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 		return bad("unknown template " + req.Body.Template)
 	}
 	cat := catalog.Default()
-	stack, profile, err := shelf.Install(cat, t, w, req.Body.Answers, func(id string) (store.Place, error) {
+	var just []string
+	if req.Body.JustThisHelper != nil {
+		just = *req.Body.JustThisHelper
+	}
+	stack, profile, err := shelf.Install(cat, t, w, req.Body.Answers, just, func(id string) (store.Place, error) {
 		return s.store.GetPlace(ctx, id)
 	})
 	if errors.Is(err, shelf.ErrAnswer) {

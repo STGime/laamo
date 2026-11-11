@@ -99,13 +99,14 @@ func Preview(cat *catalog.Catalog, t catalog.Template, ws store.Workspace) View 
 // About me facts filled in.
 func Describe(cat *catalog.Catalog, stack catalog.Stack, ws store.Workspace) []Brick {
 	out := make([]Brick, 0, len(stack.Bricks))
+	profile := stack.WithProfile(ws.Profile)
 	for _, sb := range stack.Bricks {
 		b, _ := cat.Brick(sb.Type)
 		group := ""
 		if b != nil {
 			group = b.Group
 		}
-		out = append(out, Brick{ID: sb.ID, Type: sb.Type, Group: group, Sentence: fillProfile(cat.Sentence(sb, ws.Locale), ws.Profile)})
+		out = append(out, Brick{ID: sb.ID, Type: sb.Type, Group: group, Sentence: fillProfile(cat.Sentence(sb, ws.Locale), profile)})
 	}
 	return out
 }
@@ -123,8 +124,9 @@ func Sort(views []View) {
 
 // Install builds the stack a helper gets from a template and the answers,
 // and the About me facts to remember (asked once, used by every helper).
+// Facts named in just stay with this helper (stack.Profile) instead.
 // It checks the stack against the catalog.
-func Install(cat *catalog.Catalog, t catalog.Template, ws store.Workspace, answers map[string]string,
+func Install(cat *catalog.Catalog, t catalog.Template, ws store.Workspace, answers map[string]string, just []string,
 	place func(id string) (store.Place, error)) (catalog.Stack, map[string]any, error) {
 	stack := t.StackFor(ws.Locale)
 	profile := map[string]any{}
@@ -142,7 +144,14 @@ func Install(cat *catalog.Catalog, t catalog.Template, ws store.Workspace, answe
 			if utf8.RuneCountInString(v) > 200 {
 				return stack, nil, bad("%s is too long", q.Profile)
 			}
-			profile[q.Profile] = v
+			if slices.Contains(just, q.Profile) {
+				if stack.Profile == nil {
+					stack.Profile = map[string]string{}
+				}
+				stack.Profile[q.Profile] = v
+			} else {
+				profile[q.Profile] = v
+			}
 			continue
 		}
 		v := strings.TrimSpace(answers[q.Key])

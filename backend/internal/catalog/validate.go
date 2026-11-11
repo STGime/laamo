@@ -15,6 +15,24 @@ type Stack struct {
 	Schema int          `json:"schema"`
 	Bricks []StackBrick `json:"bricks"`
 	Limits *Limits      `json:"limits,omitempty"`
+	// Profile: About me facts just for this helper; they win over the
+	// workspace's ("Just for this helper").
+	Profile map[string]string `json:"profile,omitempty"`
+}
+
+// WithProfile returns the workspace profile with the stack's own facts on top.
+func (s Stack) WithProfile(profile map[string]any) map[string]any {
+	if len(s.Profile) == 0 {
+		return profile
+	}
+	out := make(map[string]any, len(profile)+len(s.Profile))
+	for k, v := range profile {
+		out[k] = v
+	}
+	for k, v := range s.Profile {
+		out[k] = v
+	}
+	return out
 }
 
 type StackBrick struct {

@@ -953,6 +953,13 @@ components:
         run_test:
           type: boolean
           description: Start a test run right away
+        just_this_helper:
+          type: array
+          description: About me facts answered here that stay with this helper instead of the workspace profile
+          items:
+            type: string
+            maxLength: 40
+          maxItems: 10
     Helper:
       type: object
       required: [id, name, status, created_at]

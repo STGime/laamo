@@ -212,6 +212,7 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		}
 	}
 
+	ws.Profile = stack.WithProfile(ws.Profile) // "Just for this helper" facts win
 	rc := &RunContext{
 		Run: r, Helper: h, Workspace: ws, TestMode: r.TestMode,
 		Limits: limitsFor(stack), Blobs: e.Blobs, Brain: e.Brain, Log: e.log().With("run", r.ID), Now: e.now,
