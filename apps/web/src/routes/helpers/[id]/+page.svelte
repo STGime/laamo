@@ -7,7 +7,7 @@
 	import BrickStack, { type StackItem } from '#lib/components/BrickStack.svelte';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { listen } from '#lib/feed.svelte.ts';
-	import { busy as running, progressText } from '#lib/progress.ts';
+	import { brickProgress, busy as running, progressText } from '#lib/progress.ts';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { ago, when } from '#lib/time.ts';
 
@@ -38,20 +38,16 @@
 	const helper = $derived(detail?.helper);
 	const on = $derived(helper?.status === 'active');
 	const run = $derived(helper?.run);
-	// While a run is going, bricks light up: done ones say what they made,
-	// the current one is at work (or waiting for you), later ones are dim.
-	const current = $derived(run ? run.step : -1);
-	const bricks = $derived<StackItem[]>(
-		(detail?.bricks ?? []).map((b, i) => {
-			const step = run ? detail?.steps?.find((s) => s.brick_id === b.id) : undefined;
-			let sub = '';
-			if (step?.status === 'done' && b.group !== 'when')
-				sub = t('helper.cards', { n: step.cards_out });
-			else if (run && i === current)
-				sub = run.status === 'waiting' ? t('helper.waitsHere') : t('helper.atWork');
-			return { id: b.id, group: b.group, title: b.sentence, sub };
-		})
+	// While a run is going, bricks light up (see brickProgress).
+	const view = $derived(
+		brickProgress(
+			(detail?.bricks ?? []).map((b) => ({ id: b.id, group: b.group, title: b.sentence })),
+			run,
+			detail?.steps
+		)
 	);
+	const bricks = $derived(view.items as StackItem[]);
+	const current = $derived(view.current);
 
 	async function patch(body: { name?: string; status?: 'active' | 'paused' }) {
 		busy = true;

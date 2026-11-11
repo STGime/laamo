@@ -98,7 +98,7 @@ func demoService(cfg config.Config, log *slog.Logger) *demo.Service {
 	}
 	return &demo.Service{
 		Catalog: catalog.Default(),
-		Chat:    &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel},
+		Chat:    &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel, Log: log},
 		Model:   cfg.LLMModel,
 		Secret:  []byte(cfg.DemoSecret),
 		Log:     log,

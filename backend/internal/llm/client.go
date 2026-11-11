@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"strconv"
@@ -67,6 +68,11 @@ type Client struct {
 	// effects, so retrying is safe.
 	Retries int
 	Sleep   func(context.Context, time.Duration) error
+	// AttemptTimeout cuts one slow attempt short so a retry can go
+	// (default 30s; a normal Keep or Summarize answer takes 2 to 10s).
+	AttemptTimeout time.Duration
+	// Log gets one line per call: time, attempts, and why attempts failed.
+	Log *slog.Logger
 }
 
 // APIError is a non-2xx answer from the provider.
@@ -129,26 +135,62 @@ func (c *Client) Chat(ctx context.Context, req Request) (Response, error) {
 	if retries == 0 {
 		retries = 2
 	}
+	timeout := c.AttemptTimeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	start := time.Now()
 	var lastErr error
+	var failures []string
+	logCall := func(res Response, err error, attempts int) {
+		log := c.Log
+		if log == nil {
+			log = slog.Default()
+		}
+		args := []any{"model", c.Model, "ms", time.Since(start).Milliseconds(), "attempts", attempts,
+			"tokens_in", res.TokensIn, "tokens_out", res.TokensOut}
+		if len(failures) > 0 {
+			args = append(args, "failed_attempts", strings.Join(failures, "; "))
+		}
+		if err != nil {
+			log.Warn("llm call failed", append(args, "err", err)...)
+		} else if len(failures) > 0 || time.Since(start) > 15*time.Second {
+			log.Warn("llm call slow", args...)
+		} else {
+			log.Info("llm call", args...)
+		}
+	}
 	for attempt := 0; attempt <= retries; attempt++ {
 		if attempt > 0 {
 			if err := c.sleep(ctx, backoff(attempt, lastErr)); err != nil {
+				logCall(Response{}, err, attempt)
 				return Response{}, err
 			}
 		}
-		res, err := c.once(ctx, payload)
+		actx, cancel := context.WithTimeout(ctx, timeout)
+		t0 := time.Now()
+		res, err := c.once(actx, payload)
+		cancel()
 		if err == nil {
+			logCall(res, nil, attempt+1)
 			return res, nil
 		}
+		if ctx.Err() == nil && errors.Is(err, context.DeadlineExceeded) {
+			err = fmt.Errorf("llm: no answer within %s: %w", timeout, err)
+		}
 		lastErr = err
+		failures = append(failures, fmt.Sprintf("#%d after %dms: %v", attempt+1, time.Since(t0).Milliseconds(), err))
 		var apiErr *APIError
 		if errors.As(err, &apiErr) && apiErr.Status != http.StatusTooManyRequests && apiErr.Status < 500 {
+			logCall(Response{}, err, attempt+1)
 			return Response{}, err // bad request, auth, …: retrying won't help
 		}
 		if ctx.Err() != nil {
+			logCall(Response{}, ctx.Err(), attempt+1)
 			return Response{}, ctx.Err()
 		}
 	}
+	logCall(Response{}, lastErr, retries+1)
 	return Response{}, lastErr
 }
 

@@ -61,7 +61,7 @@ func run(log *slog.Logger) error {
 		Catalog: catalog.Default(),
 		Bricks:  bricks.All(brickDeps(cfg, log, st)),
 		Brain: &llm.Brain{
-			Chat:  &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel},
+			Chat:  &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel, Log: log},
 			Model: cfg.LLMModel,
 			Store: st,
 		},
