@@ -34,6 +34,9 @@ let workspaceId = $state<string | null>(null);
 export const api = createApi({ token: () => token });
 
 export const session = {
+	get token() {
+		return token;
+	},
 	get status() {
 		return status;
 	},

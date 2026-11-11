@@ -37,7 +37,7 @@ func (s *Server) feedCard(ctx context.Context, id string) (store.FeedCard, strin
 }
 
 func (s *Server) shownCards(ctx context.Context, fc store.FeedCard) ([]store.Card, error) {
-	if fc.StepID == nil || (fc.Type != engine.FeedApproval && fc.Type != engine.FeedPick) {
+	if fc.StepID == nil || (fc.Type != engine.FeedApproval && fc.Type != engine.FeedPick && fc.Type != "result") {
 		return nil, nil
 	}
 	return s.store.ListCards(ctx, *fc.StepID)
@@ -55,8 +55,8 @@ func (s *Server) GetFeedCard(ctx context.Context, req GetFeedCardRequestObject) 
 	if err != nil {
 		return nil, err
 	}
-	f := feedCardOut(fc)
-	out := FeedCardDetail{Id: f.Id, WorkspaceId: f.WorkspaceId, HelperId: f.HelperId, RunId: f.RunId,
+	f := feedCardOut(fc, s.helperRefs(ctx, fc))
+	out := FeedCardDetail{Id: f.Id, WorkspaceId: f.WorkspaceId, HelperId: f.HelperId, RunId: f.RunId, Helper: f.Helper,
 		Type: FeedCardDetailType(f.Type), Title: f.Title, Body: f.Body, Payload: f.Payload,
 		State: FeedCardDetailState(f.State), Decision: f.Decision, ExpiresAt: f.ExpiresAt, DecidedAt: f.DecidedAt,
 		CreatedAt: f.CreatedAt, Cards: make([]Card, 0, len(shown))}
@@ -130,7 +130,7 @@ func (s *Server) DecideFeedCard(ctx context.Context, req DecideFeedCardRequestOb
 			s.log.Warn("resume run", "run", *fc.RunID, "err", err)
 		}
 	}
-	return DecideFeedCard200JSONResponse(feedCardOut(fc)), nil
+	return DecideFeedCard200JSONResponse(feedCardOut(fc, s.helperRefs(ctx, fc))), nil
 }
 
 func ids(list *[]openapi_types.UUID) []string {
@@ -151,7 +151,7 @@ func uuidPtr(s *string) *openapi_types.UUID {
 	return new(uuid(*s))
 }
 
-func feedCardOut(fc store.FeedCard) FeedCard {
+func feedCardOut(fc store.FeedCard, helpers map[string]HelperRef) FeedCard {
 	out := FeedCard{Id: uuid(fc.ID), WorkspaceId: uuid(fc.WorkspaceID), HelperId: uuidPtr(fc.HelperID),
 		RunId: uuidPtr(fc.RunID), Type: FeedCardType(fc.Type), Title: fc.Title, Body: fc.Body, Payload: fc.Payload,
 		State: FeedCardState(fc.State), ExpiresAt: fc.ExpiresAt, DecidedAt: fc.DecidedAt, CreatedAt: fc.CreatedAt}
@@ -161,7 +161,107 @@ func feedCardOut(fc store.FeedCard) FeedCard {
 	if len(fc.Decision) > 0 {
 		out.Decision = &fc.Decision
 	}
+	if fc.HelperID != nil {
+		if h, ok := helpers[*fc.HelperID]; ok {
+			out.Helper = &h
+		}
+	}
 	return out
+}
+
+// helperRefs loads the helpers of these cards (name and avatar for the
+// Feed). A deleted helper is simply left out.
+func (s *Server) helperRefs(ctx context.Context, cards ...store.FeedCard) map[string]HelperRef {
+	out := map[string]HelperRef{}
+	for _, c := range cards {
+		if c.HelperID == nil {
+			continue
+		}
+		if _, done := out[*c.HelperID]; done {
+			continue
+		}
+		h, err := s.store.GetHelper(ctx, *c.HelperID)
+		if err != nil {
+			continue
+		}
+		out[h.ID] = HelperRef{Id: uuid(h.ID), Name: h.Name, Avatar: h.Avatar}
+	}
+	return out
+}
+
+var askTypes = []string{engine.FeedApproval, engine.FeedPick, engine.FeedQuestion}
+
+func (s *Server) ListFeed(ctx context.Context, req ListFeedRequestObject) (ListFeedResponseObject, error) {
+	_, m, ok, err := s.member(ctx, req.WorkspaceId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return ListFeed404JSONResponse{NotFoundJSONResponse(notFound)}, nil
+	}
+	limit := 30
+	if req.Params.Limit != nil {
+		limit = min(max(*req.Params.Limit, 1), 100)
+	}
+	f := store.FeedFilter{WorkspaceID: m.WorkspaceID, Before: req.Params.Before, Limit: limit + 1}
+	filter := All
+	if req.Params.Filter != nil {
+		filter = *req.Params.Filter
+	}
+	switch filter {
+	case NeedsMe:
+		f.Types, f.States = askTypes, []string{engine.StateOpen}
+	case Results:
+		f.Types, f.NotStates = []string{"result", "problem"}, []string{engine.StateDismiss}
+	default:
+		f.NotStates = []string{engine.StateDismiss}
+	}
+	cards, err := s.store.ListFeedCards(ctx, f)
+	if err != nil {
+		return nil, err
+	}
+	page := FeedPage{Cards: make([]FeedCard, 0, len(cards))}
+	if len(cards) > limit {
+		cards = cards[:limit]
+		page.NextBefore = &cards[limit-1].CreatedAt
+	}
+	helpers := s.helperRefs(ctx, cards...)
+	for _, c := range cards {
+		page.Cards = append(page.Cards, feedCardOut(c, helpers))
+	}
+	open, err := s.store.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: m.WorkspaceID, Types: askTypes,
+		States: []string{engine.StateOpen}, Limit: 100})
+	if err != nil {
+		return nil, err
+	}
+	page.NeedsMe = len(open)
+	page.Brain = BrainMeter{Mode: Included, AllowanceCredits: 500, CreditsLeft: 500}
+	if b, err := s.store.GetBrain(ctx, m.WorkspaceID); err == nil {
+		page.Brain = BrainMeter{Mode: BrainMeterMode(b.Mode), AllowanceCredits: float32(b.AllowanceCredits),
+			CreditsLeft: float32(max(0, b.CreditsLeft(time.Now())))}
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return nil, err
+	}
+	return ListFeed200JSONResponse(page), nil
+}
+
+func (s *Server) DismissFeedCard(ctx context.Context, req DismissFeedCardRequestObject) (DismissFeedCardResponseObject, error) {
+	fc, _, ok, err := s.feedCard(ctx, req.FeedCardId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return DismissFeedCard404JSONResponse{NotFoundJSONResponse(feedNotFound)}, nil
+	}
+	if fc.State == engine.StateOpen && fc.Type != "result" && fc.Type != "problem" {
+		return DismissFeedCard409JSONResponse{ConflictJSONResponse(apiErr(ErrorCodeConflict, "answer this card first"))}, nil
+	}
+	if fc.State != engine.StateDismiss {
+		if fc, err = s.store.UpdateFeedCard(ctx, fc.ID, store.FeedCardPatch{State: new(engine.StateDismiss)}); err != nil {
+			return nil, err
+		}
+	}
+	return DismissFeedCard200JSONResponse(feedCardOut(fc, s.helperRefs(ctx, fc))), nil
 }
 
 func cardOut(c store.Card) Card {

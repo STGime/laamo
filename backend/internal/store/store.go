@@ -97,6 +97,8 @@ type FeedStore interface {
 	CreateFeedCard(ctx context.Context, c *FeedCard) error
 	GetFeedCard(ctx context.Context, id string) (FeedCard, error)
 	UpdateFeedCard(ctx context.Context, id string, p FeedCardPatch) (FeedCard, error)
+	// ListFeedCards returns a workspace's Feed, newest first.
+	ListFeedCards(ctx context.Context, f FeedFilter) ([]FeedCard, error)
 }
 
 type ListStore interface {

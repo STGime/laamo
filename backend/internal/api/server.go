@@ -25,6 +25,7 @@ type Server struct {
 	log   *slog.Logger
 	// resume queues a waiting run once its Feed card is decided.
 	resume func(ctx context.Context, runID string) error
+	events *Hub
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -38,6 +39,8 @@ type Deps struct {
 	// Resume queues a waiting run after a decision (resume_waiting_runs).
 	// Optional: without it the every-minute sweep picks the run up.
 	Resume func(ctx context.Context, runID string) error
+	// Events feeds live updates (GET /api/workspaces/{id}/events). Optional.
+	Events *Hub
 }
 
 func NewServer(d Deps) *Server {
@@ -45,7 +48,7 @@ func NewServer(d Deps) *Server {
 		d.Log = slog.Default()
 	}
 	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log,
-		resume: d.Resume}
+		resume: d.Resume, events: d.Events}
 }
 
 // maxBody caps request bodies.
@@ -73,6 +76,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("/", routes)
 	// The contract itself, for API tools (Postman, Bruno, Insomnia import it).
 	mux.HandleFunc("GET "+BaseURL+"/openapi.yaml", serveSpec)
+	// Live updates as Server-Sent Events (streaming, so outside the spec's
+	// generated handlers; documented on listFeed).
+	mux.HandleFunc("GET "+BaseURL+"/workspaces/{workspaceId}/events", s.serveEvents)
 
 	public := func(r *http.Request) bool {
 		return r.Method == http.MethodGet && (r.URL.Path == BaseURL+"/healthz" || r.URL.Path == BaseURL+"/openapi.yaml")

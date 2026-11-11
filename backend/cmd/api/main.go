@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +17,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/auth"
 	"github.com/STGime/laamo/backend/internal/config"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
+	"github.com/STGime/laamo/backend/internal/realtime"
 	sebs "github.com/STGime/laamo/backend/internal/store/eurobase"
 )
 
@@ -31,7 +33,12 @@ func main() {
 		log.Error("config", "err", "EUROBASE_PRIVATE_KEY is required for the api")
 		os.Exit(1)
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	client := eb.New(cfg.EurobaseURL, cfg.EurobaseSecretKey)
+	// One realtime connection for all browsers' live updates.
+	events := api.NewHub(realtime.Subscribe(ctx, cfg.EurobaseURL, cfg.EurobaseSecretKey, []string{"feed_cards", "runs"}, log))
 	server := api.NewServer(api.Deps{
 		Config: cfg,
 		Store:  sebs.New(client),
@@ -40,16 +47,16 @@ func main() {
 		Resume: func(ctx context.Context, runID string) error {
 			return client.RPC(ctx, "resume_waiting_runs", map[string]any{"p_run": runID}, nil)
 		},
+		Events: events,
 	})
 
 	srv := &http.Server{
 		Addr:              cfg.APIAddr,
 		Handler:           server.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
+		// Requests share ctx, so open event streams end on shutdown.
+		BaseContext: func(net.Listener) context.Context { return ctx },
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		log.Info("api listening", "addr", cfg.APIAddr, "env", cfg.Env, "project", cfg.EurobaseProjectID)

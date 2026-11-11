@@ -56,3 +56,19 @@ Errors are always `{"error": "...", "code": "..."}`, with code `bad_request`, `u
 - Create a 6th workspace → 400.
 - Sign up a second user and open the first user's workspace id → 404.
 - Set About me facts: allowed keys are `name`, `business`, `offer`, `city`, `website`, `tone` and `signature`. Anything else → 400.
+
+## The Feed in the app, with real runs
+
+1. Start everything: `task dev` (api on :8787, worker, web on :5173).
+2. Get a token for your test user: `scripts/dev-token.sh you@example.com`. Paste it on the app's sign-in screen; this dev-only screen is replaced by onboarding in #32.
+3. Run a helper into your workspace (the id comes from `GET /api/me`):
+
+   ```sh
+   cd backend
+   go run ./cmd/runstack -workspace <workspace-id> ../examples/stacks/news-deep-read.json   # a Result card
+   go run ./cmd/runstack -workspace <workspace-id> ../examples/stacks/news-check-first.json # a question, then Check first
+   ```
+
+   Cards appear in the Feed live. Answer an Ask me card in the app: the API queues the run, and the worker carries on. With `-workspace`, runstack uses real search and AI, the workspace's language, About me facts and brain allowance. A stack that posts to chat also needs `-webhook` and `LAAMO_MASTER_KEYS`.
+
+Live updates come from `GET /api/workspaces/{id}/events` (Server-Sent Events). The api holds one Eurobase realtime connection and forwards each member only their workspace's events.
