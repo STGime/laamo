@@ -325,6 +325,26 @@ func (s *Store) CreateHelper(_ context.Context, h *store.Helper, v *store.Helper
 	return nil
 }
 
+func (s *Store) AddHelperVersion(_ context.Context, v *store.HelperVersion) error {
+	s.mu.Lock()
+	h, ok := s.helpers[v.HelperID]
+	n := 0
+	for _, x := range s.versions {
+		if x.HelperID == v.HelperID {
+			n = max(n, x.Version)
+		}
+	}
+	s.mu.Unlock()
+	if !ok {
+		return store.ErrNotFound
+	}
+	v.ID, v.WorkspaceID, v.UserID, v.Version = "", h.WorkspaceID, h.UserID, n+1
+	*v = s.PutHelperVersion(*v)
+	h.CurrentVersionID = &v.ID
+	s.PutHelper(h)
+	return nil
+}
+
 func (s *Store) UpdateHelper(_ context.Context, id string, p store.HelperPatch) (store.Helper, error) {
 	if p.Status != nil && *p.Status != "active" && *p.Status != "paused" && *p.Status != "draft" {
 		return store.Helper{}, fmt.Errorf("%w: status %q", store.ErrInvalid, *p.Status)

@@ -9,16 +9,18 @@ import (
 // omitzero leaves zero values out of inserts so the database defaults apply.
 
 type Workspace struct {
-	ID        string         `json:"id"`
-	UserID    string         `json:"user_id"` // owner
-	Name      string         `json:"name"`
-	Timezone  string         `json:"timezone"`
-	Locale    string         `json:"locale"`
-	Plan      string         `json:"plan"`
-	Profile   map[string]any `json:"profile"` // About me facts
-	Needs     []string       `json:"needs"`   // onboarding chips (template categories), at most 3
-	CreatedAt time.Time      `json:"created_at,omitzero"`
-	UpdatedAt time.Time      `json:"updated_at,omitzero"`
+	ID       string `json:"id"`
+	UserID   string `json:"user_id"` // owner
+	Name     string `json:"name"`
+	Timezone string `json:"timezone"`
+	Locale   string `json:"locale"`
+	// TimeFormat: "24h" (default) or "12h" (AM/PM), for showing times.
+	TimeFormat string         `json:"time_format,omitempty"`
+	Plan       string         `json:"plan"`
+	Profile    map[string]any `json:"profile"` // About me facts
+	Needs      []string       `json:"needs"`   // onboarding chips (template categories), at most 3
+	CreatedAt  time.Time      `json:"created_at,omitzero"`
+	UpdatedAt  time.Time      `json:"updated_at,omitzero"`
 }
 
 // NewWorkspace is the input to CreateWorkspace.
@@ -30,11 +32,12 @@ type NewWorkspace struct {
 }
 
 type WorkspacePatch struct {
-	Name     *string        `json:"name,omitempty"`
-	Timezone *string        `json:"timezone,omitempty"`
-	Locale   *string        `json:"locale,omitempty"`
-	Profile  map[string]any `json:"profile,omitempty"` // replaces the whole profile
-	Needs    *[]string      `json:"needs,omitempty"`   // replaces the list
+	Name       *string        `json:"name,omitempty"`
+	Timezone   *string        `json:"timezone,omitempty"`
+	Locale     *string        `json:"locale,omitempty"`
+	TimeFormat *string        `json:"time_format,omitempty"`
+	Profile    map[string]any `json:"profile,omitempty"` // replaces the whole profile
+	Needs      *[]string      `json:"needs,omitempty"`   // replaces the list
 }
 
 // Member roles.

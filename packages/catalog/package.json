@@ -8,7 +8,8 @@
 		".": "./index.ts",
 		"./bricks.json": "./bricks.json",
 		"./templates/*": "./templates/*",
-		"./validate": "./validate.ts"
+		"./validate": "./validate.ts",
+		"./describe": "./describe.ts"
 	},
 	"scripts": {
 		"test": "node validate.mjs && vitest run",

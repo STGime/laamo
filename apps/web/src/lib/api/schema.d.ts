@@ -278,6 +278,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/helpers/{helperId}/stack': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		/** A helper's current stack for the builder, with what each brick gave last time */
+		get: operations['getHelperStack'];
+		/** Save an edited stack as the helper's next version */
+		put: operations['saveHelperStack'];
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/feed-cards/{feedCardId}/dismiss': {
 		parameters: {
 			query?: never;
@@ -453,8 +473,14 @@ export interface components {
 			/** @example Europe/Berlin */
 			timezone: string;
 			locale: components['schemas']['Locale'];
+			time_format: components['schemas']['TimeFormat'];
 			plan: components['schemas']['Plan'];
 		};
+		/**
+		 * @description How times are shown; 24h unless the user picks 12h (AM/PM)
+		 * @enum {string}
+		 */
+		TimeFormat: '24h' | '12h';
 		Me: {
 			user: components['schemas']['User'];
 			/** @description Oldest first. Empty for a new user (onboarding creates one). */
@@ -503,6 +529,7 @@ export interface components {
 			name?: string;
 			timezone?: string;
 			locale?: components['schemas']['Locale'];
+			time_format?: components['schemas']['TimeFormat'];
 			profile?: components['schemas']['Profile'];
 			needs?: components['schemas']['Needs'];
 		};
@@ -614,6 +641,53 @@ export interface components {
 			paid: boolean;
 			/** @description How well it fits your needs (0 = not one of them) */
 			match: number;
+		};
+		HelperStack: {
+			version: number;
+			stack: components['schemas']['Stack'];
+			/** @description Cards each brick (by stack brick id) gave in the last finished run */
+			last_out: {
+				[key: string]: number;
+			};
+		};
+		/** @description A stack as in packages/catalog (schema 1); checked against bricks.json */
+		Stack: {
+			schema: number;
+			bricks: components['schemas']['StackBrick'][];
+			limits?: {
+				[key: string]: unknown;
+			};
+			profile?: {
+				[key: string]: string;
+			};
+		} & {
+			[key: string]: unknown;
+		};
+		StackBrick: {
+			id: string;
+			type: string;
+			config: {
+				[key: string]: unknown;
+			};
+		};
+		SaveStack: {
+			stack: components['schemas']['Stack'];
+			/** @description The version the edit started from */
+			version: number;
+		};
+		StackProblems: {
+			error: string;
+			issues: components['schemas']['StackIssue'][];
+		};
+		StackIssue: {
+			brick?: string;
+			index: number;
+			/** @enum {string} */
+			level: 'error' | 'hint';
+			code: string;
+			setting?: string;
+			field?: string;
+			message: string;
 		};
 		BrickPreview: {
 			id: string;
@@ -1277,6 +1351,77 @@ export interface operations {
 			401: components['responses']['Unauthorized'];
 			404: components['responses']['NotFound'];
 			409: components['responses']['Conflict'];
+		};
+	};
+	getHelperStack: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HelperStack'];
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	saveHelperStack: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['SaveStack'];
+			};
+		};
+		responses: {
+			/** @description Saved; runs from now on use this version */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HelperStack'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+			/** @description Someone saved a newer version first; reload */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Error'];
+				};
+			};
+			/** @description The stack has problems; nothing was saved */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['StackProblems'];
+				};
+			};
 		};
 	};
 	dismissFeedCard: {

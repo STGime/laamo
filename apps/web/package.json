@@ -33,6 +33,7 @@
 	},
 	"dependencies": {
 		"@laamo/catalog": "workspace:*",
-		"openapi-fetch": "0.17.0"
+		"openapi-fetch": "0.17.0",
+		"svelte-dnd-action": "^0.9.80"
 	}
 }

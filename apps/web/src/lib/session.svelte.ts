@@ -107,6 +107,7 @@ export const session = {
 			me = data;
 			status = 'signedIn';
 			i18n.lang = (this.workspace?.locale as 'en' | 'de' | undefined) ?? browserLang();
+			i18n.twelve = this.workspace?.time_format === '12h';
 		} catch {
 			status = 'offline';
 		}

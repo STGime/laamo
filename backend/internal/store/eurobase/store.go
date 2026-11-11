@@ -125,6 +125,28 @@ func (s *Store) CreateHelper(ctx context.Context, h *store.Helper, v *store.Help
 	return err
 }
 
+func (s *Store) AddHelperVersion(ctx context.Context, v *store.HelperVersion) error {
+	h, err := s.GetHelper(ctx, v.HelperID)
+	if err != nil {
+		return err
+	}
+	q := eb.NewQuery().Eq("helper_id", h.ID).Order("version", true)
+	last, err := listRows[store.HelperVersion](ctx, s, "helper_versions", q, 1)
+	if err != nil {
+		return err
+	}
+	v.WorkspaceID, v.UserID, v.Version = h.WorkspaceID, h.UserID, 1
+	if len(last) > 0 {
+		v.Version = last[0].Version + 1
+	}
+	v.ID = ""
+	if err := insertRow(ctx, s, "helper_versions", &v.ID, v); err != nil {
+		return err // ErrConflict: (helper_id, version) is taken
+	}
+	_, err = updateRow[store.Helper](ctx, s, "helpers", h.ID, map[string]string{"current_version_id": v.ID})
+	return err
+}
+
 func (s *Store) UpdateHelper(ctx context.Context, id string, p store.HelperPatch) (store.Helper, error) {
 	return updateRow[store.Helper](ctx, s, "helpers", id, p)
 }

@@ -49,6 +49,17 @@
 			await session.refresh();
 		}
 	}
+	async function setClock(twelve: boolean) {
+		i18n.twelve = twelve;
+		const ws = session.workspace;
+		if (ws && ws.role === 'owner') {
+			await api.PATCH('/workspaces/{workspaceId}', {
+				params: { path: { workspaceId: ws.id } },
+				body: { time_format: twelve ? '12h' : '24h' }
+			});
+			await session.refresh();
+		}
+	}
 	function signOut() {
 		session.signOut();
 		goto('/signin');
@@ -70,6 +81,17 @@
 			>
 			<button type="button" aria-pressed={i18n.lang === 'en'} onclick={() => setLang('en')}
 				>English</button
+			>
+		</dd>
+	</div>
+	<div>
+		<dt>{t('me.timeFormat')}</dt>
+		<dd class="seg" role="group" aria-label={t('me.timeFormat')}>
+			<button type="button" aria-pressed={!i18n.twelve} onclick={() => setClock(false)}
+				>14:30</button
+			>
+			<button type="button" aria-pressed={i18n.twelve} onclick={() => setClock(true)}
+				>2:30 PM</button
 			>
 		</dd>
 	</div>

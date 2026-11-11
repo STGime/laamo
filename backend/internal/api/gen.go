@@ -564,6 +564,24 @@ func (e SetupQuestionKind) Valid() bool {
 	}
 }
 
+// Defines values for StackIssueLevel.
+const (
+	StackIssueLevelError StackIssueLevel = "error"
+	StackIssueLevelHint  StackIssueLevel = "hint"
+)
+
+// Valid indicates whether the value is a known member of the StackIssueLevel enum.
+func (e StackIssueLevel) Valid() bool {
+	switch e {
+	case StackIssueLevelError:
+		return true
+	case StackIssueLevelHint:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepProgressStatus.
 const (
 	StepProgressStatusDone    StepProgressStatus = "done"
@@ -585,6 +603,24 @@ func (e StepProgressStatus) Valid() bool {
 	case StepProgressStatusSkipped:
 		return true
 	case StepProgressStatusWaiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TimeFormat.
+const (
+	TimeFormat12h TimeFormat = "12h"
+	TimeFormat24h TimeFormat = "24h"
+)
+
+// Valid indicates whether the value is a known member of the TimeFormat enum.
+func (e TimeFormat) Valid() bool {
+	switch e {
+	case TimeFormat12h:
+		return true
+	case TimeFormat24h:
 		return true
 	default:
 		return false
@@ -869,6 +905,16 @@ type HelperRef struct {
 	Name   string             `json:"name"`
 }
 
+// HelperStack defines model for HelperStack.
+type HelperStack struct {
+	// LastOut Cards each brick (by stack brick id) gave in the last finished run
+	LastOut map[string]int `json:"last_out"`
+
+	// Stack A stack as in packages/catalog (schema 1); checked against bricks.json
+	Stack   Stack `json:"stack"`
+	Version int   `json:"version"`
+}
+
 // Locale defines model for Locale.
 type Locale string
 
@@ -1002,6 +1048,15 @@ type RunSummary struct {
 // RunSummaryStatus defines model for RunSummary.Status.
 type RunSummaryStatus string
 
+// SaveStack defines model for SaveStack.
+type SaveStack struct {
+	// Stack A stack as in packages/catalog (schema 1); checked against bricks.json
+	Stack Stack `json:"stack"`
+
+	// Version The version the edit started from
+	Version int `json:"version"`
+}
+
 // SetupQuestion defines model for SetupQuestion.
 type SetupQuestion struct {
 	// Fills Bricks this answer fills (for a place answered with `feed`, these are left out)
@@ -1043,6 +1098,42 @@ type ShelfTemplate struct {
 	Slug string `json:"slug"`
 }
 
+// Stack A stack as in packages/catalog (schema 1); checked against bricks.json
+type Stack struct {
+	Bricks               []StackBrick            `json:"bricks"`
+	Limits               *map[string]interface{} `json:"limits,omitempty"`
+	Profile              *map[string]string      `json:"profile,omitempty"`
+	Schema               int                     `json:"schema"`
+	AdditionalProperties map[string]interface{}  `json:"-"`
+}
+
+// StackBrick defines model for StackBrick.
+type StackBrick struct {
+	Config map[string]interface{} `json:"config"`
+	Id     string                 `json:"id"`
+	Type   string                 `json:"type"`
+}
+
+// StackIssue defines model for StackIssue.
+type StackIssue struct {
+	Brick   *string         `json:"brick,omitempty"`
+	Code    string          `json:"code"`
+	Field   *string         `json:"field,omitempty"`
+	Index   int             `json:"index"`
+	Level   StackIssueLevel `json:"level"`
+	Message string          `json:"message"`
+	Setting *string         `json:"setting,omitempty"`
+}
+
+// StackIssueLevel defines model for StackIssue.Level.
+type StackIssueLevel string
+
+// StackProblems defines model for StackProblems.
+type StackProblems struct {
+	Error  string       `json:"error"`
+	Issues []StackIssue `json:"issues"`
+}
+
 // StepProgress defines model for StepProgress.
 type StepProgress struct {
 	BrickId  string             `json:"brick_id"`
@@ -1053,6 +1144,9 @@ type StepProgress struct {
 
 // StepProgressStatus defines model for StepProgress.Status.
 type StepProgressStatus string
+
+// TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
+type TimeFormat string
 
 // User defines model for User.
 type User struct {
@@ -1077,6 +1171,9 @@ type Workspace struct {
 	Profile Profile `json:"profile"`
 	Role    Role    `json:"role"`
 
+	// TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
+	TimeFormat TimeFormat `json:"time_format"`
+
 	// Timezone Example: Europe/Berlin
 	Timezone string `json:"timezone"`
 }
@@ -1088,6 +1185,9 @@ type WorkspaceSummary struct {
 	Name   string             `json:"name"`
 	Plan   Plan               `json:"plan"`
 	Role   Role               `json:"role"`
+
+	// TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
+	TimeFormat TimeFormat `json:"time_format"`
 
 	// Timezone Example: Europe/Berlin
 	Timezone string `json:"timezone"`
@@ -1104,8 +1204,11 @@ type WorkspaceUpdate struct {
 	// Profile About me facts by key (see packages/catalog/bricks.json `profile`), used as {my city} etc.
 	//
 	// Example: {"business":"bakery","city":"Berlin"}
-	Profile  *Profile `json:"profile,omitempty"`
-	Timezone *string  `json:"timezone,omitempty"`
+	Profile *Profile `json:"profile,omitempty"`
+
+	// TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
+	TimeFormat *TimeFormat `json:"time_format,omitempty"`
+	Timezone   *string     `json:"timezone,omitempty"`
 }
 
 // FeedCardId defines model for FeedCardId.
@@ -1181,6 +1284,9 @@ type UpdateHelperJSONRequestBody UpdateHelperJSONBody
 // StartRunJSONRequestBody defines body for StartRun for application/json ContentType.
 type StartRunJSONRequestBody StartRunJSONBody
 
+// SaveHelperStackJSONRequestBody defines body for SaveHelperStack for application/json ContentType.
+type SaveHelperStackJSONRequestBody = SaveStack
+
 // CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
 type CreateWorkspaceJSONRequestBody = NewWorkspace
 
@@ -1192,6 +1298,117 @@ type CreateHelperJSONRequestBody = NewHelper
 
 // CreatePlaceJSONRequestBody defines body for CreatePlace for application/json ContentType.
 type CreatePlaceJSONRequestBody = NewPlace
+
+// Getter for additional properties for Stack. Returns the specified
+// element and whether it was found
+func (a Stack) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for Stack
+func (a *Stack) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for Stack to handle AdditionalProperties
+func (a *Stack) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["bricks"]; found {
+		err = json.Unmarshal(raw, &a.Bricks)
+		if err != nil {
+			return fmt.Errorf("error reading 'bricks': %w", err)
+		}
+		delete(object, "bricks")
+	}
+
+	if raw, found := object["limits"]; found {
+		err = json.Unmarshal(raw, &a.Limits)
+		if err != nil {
+			return fmt.Errorf("error reading 'limits': %w", err)
+		}
+		delete(object, "limits")
+	}
+
+	if raw, found := object["profile"]; found {
+		err = json.Unmarshal(raw, &a.Profile)
+		if err != nil {
+			return fmt.Errorf("error reading 'profile': %w", err)
+		}
+		delete(object, "profile")
+	}
+
+	if raw, found := object["schema"]; found {
+		err = json.Unmarshal(raw, &a.Schema)
+		if err != nil {
+			return fmt.Errorf("error reading 'schema': %w", err)
+		}
+		delete(object, "schema")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for Stack to handle AdditionalProperties
+func (a Stack) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Bricks != nil {
+		object["bricks"], err = json.Marshal(a.Bricks)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'bricks': %w", err)
+		}
+	}
+
+	if a.Limits != nil {
+		object["limits"], err = json.Marshal(a.Limits)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'limits': %w", err)
+		}
+	}
+
+	if a.Profile != nil {
+		object["profile"], err = json.Marshal(a.Profile)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'profile': %w", err)
+		}
+	}
+
+	object["schema"], err = json.Marshal(a.Schema)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'schema': %w", err)
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -1360,6 +1577,25 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
 	StartRun(ctx context.Context, helperId HelperId, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetHelperStack A helper's current stack for the builder, with what each brick gave last time
+	//
+	// Corresponds with GET /helpers/{helperId}/stack (the `GetHelperStack` operationId).
+	GetHelperStack(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SaveHelperStackWithBody Save an edited stack as the helper's next version
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
+	SaveHelperStackWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SaveHelperStack Save an edited stack as the helper's next version
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
+	SaveHelperStack(ctx context.Context, helperId HelperId, body SaveHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetMe The signed-in user and their workspaces
 	//
@@ -1697,6 +1933,55 @@ func (c *Client) StartRunWithBody(ctx context.Context, helperId HelperId, conten
 // Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
 func (c *Client) StartRun(ctx context.Context, helperId HelperId, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStartRunRequest(c.Server, helperId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetHelperStack A helper's current stack for the builder, with what each brick gave last time
+//
+// Corresponds with GET /helpers/{helperId}/stack (the `GetHelperStack` operationId).
+func (c *Client) GetHelperStack(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetHelperStackRequest(c.Server, helperId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SaveHelperStackWithBody Save an edited stack as the helper's next version
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
+func (c *Client) SaveHelperStackWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSaveHelperStackRequestWithBody(c.Server, helperId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SaveHelperStack Save an edited stack as the helper's next version
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
+func (c *Client) SaveHelperStack(ctx context.Context, helperId HelperId, body SaveHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSaveHelperStackRequest(c.Server, helperId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2340,6 +2625,87 @@ func NewStartRunRequestWithBody(server string, helperId HelperId, contentType st
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetHelperStackRequest constructs an http.Request for the GetHelperStack method
+func NewGetHelperStackRequest(server string, helperId HelperId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s/stack", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSaveHelperStackRequest calls the generic SaveHelperStack builder with application/json body
+func NewSaveHelperStackRequest(server string, helperId HelperId, body SaveHelperStackJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSaveHelperStackRequestWithBody(server, helperId, "application/json", bodyReader)
+}
+
+// NewSaveHelperStackRequestWithBody constructs an http.Request for the SaveHelperStack method, with any body, and a specified content type
+func NewSaveHelperStackRequestWithBody(server string, helperId HelperId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s/stack", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -2995,6 +3361,27 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /helpers/{helperId}/runs (the `StartRun` operationId).
 	StartRunWithResponse(ctx context.Context, helperId HelperId, body StartRunJSONRequestBody, reqEditors ...RequestEditorFn) (*StartRunResponse, error)
+
+	// GetHelperStackWithResponse A helper's current stack for the builder, with what each brick gave last time
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /helpers/{helperId}/stack (the `GetHelperStack` operationId).
+	GetHelperStackWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*GetHelperStackResponse, error)
+
+	// SaveHelperStackWithBodyWithResponse Save an edited stack as the helper's next version
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
+	SaveHelperStackWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveHelperStackResponse, error)
+
+	// SaveHelperStackWithResponse Save an edited stack as the helper's next version
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
+	SaveHelperStackWithResponse(ctx context.Context, helperId HelperId, body SaveHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveHelperStackResponse, error)
 
 	// GetMeWithResponse The signed-in user and their workspaces
 	//
@@ -3675,6 +4062,137 @@ func (r StartRunResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StartRunResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetHelperStackResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *HelperStack
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetHelperStackResponse) GetJSON200() *HelperStack {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetHelperStackResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetHelperStackResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetHelperStackResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetHelperStackResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetHelperStackResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetHelperStackResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SaveHelperStackResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *HelperStack
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *StackProblems
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SaveHelperStackResponse) GetJSON200() *HelperStack {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r SaveHelperStackResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r SaveHelperStackResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r SaveHelperStackResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r SaveHelperStackResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r SaveHelperStackResponse) GetJSON422() *StackProblems {
+	return r.JSON422
+}
+
+// GetBody returns the raw response body bytes
+func (r SaveHelperStackResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SaveHelperStackResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SaveHelperStackResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SaveHelperStackResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -4560,6 +5078,45 @@ func (c *ClientWithResponses) StartRunWithResponse(ctx context.Context, helperId
 	return ParseStartRunResponse(rsp)
 }
 
+// GetHelperStackWithResponse A helper's current stack for the builder, with what each brick gave last time
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /helpers/{helperId}/stack (the `GetHelperStack` operationId).
+func (c *ClientWithResponses) GetHelperStackWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*GetHelperStackResponse, error) {
+	rsp, err := c.GetHelperStack(ctx, helperId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetHelperStackResponse(rsp)
+}
+
+// SaveHelperStackWithBodyWithResponse Save an edited stack as the helper's next version
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
+func (c *ClientWithResponses) SaveHelperStackWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveHelperStackResponse, error) {
+	rsp, err := c.SaveHelperStackWithBody(ctx, helperId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSaveHelperStackResponse(rsp)
+}
+
+// SaveHelperStackWithResponse Save an edited stack as the helper's next version
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
+func (c *ClientWithResponses) SaveHelperStackWithResponse(ctx context.Context, helperId HelperId, body SaveHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveHelperStackResponse, error) {
+	rsp, err := c.SaveHelperStack(ctx, helperId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSaveHelperStackResponse(rsp)
+}
+
 // GetMeWithResponse The signed-in user and their workspaces
 //
 // Returns a wrapper object for the known response body format(s).
@@ -5193,6 +5750,107 @@ func ParseStartRunResponse(rsp *http.Response) (*StartRunResponse, error) {
 	return response, nil
 }
 
+// ParseGetHelperStackResponse parses an HTTP response from a GetHelperStackWithResponse call
+func ParseGetHelperStackResponse(rsp *http.Response) (*GetHelperStackResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetHelperStackResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest HelperStack
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSaveHelperStackResponse parses an HTTP response from a SaveHelperStackWithResponse call
+func ParseSaveHelperStackResponse(rsp *http.Response) (*SaveHelperStackResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SaveHelperStackResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest HelperStack
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest StackProblems
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetMeResponse parses an HTTP response from a GetMeWithResponse call
 func ParseGetMeResponse(rsp *http.Response) (*GetMeResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -5733,6 +6391,12 @@ type ServerInterface interface {
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	// (POST /helpers/{helperId}/runs)
 	StartRun(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// GetHelperStack A helper's current stack for the builder, with what each brick gave last time
+	// (GET /helpers/{helperId}/stack)
+	GetHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// SaveHelperStack Save an edited stack as the helper's next version
+	// (PUT /helpers/{helperId}/stack)
+	SaveHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
@@ -5995,6 +6659,58 @@ func (siw *ServerInterfaceWrapper) StartRun(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StartRun(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetHelperStack operation middleware
+func (siw *ServerInterfaceWrapper) GetHelperStack(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetHelperStack(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveHelperStack operation middleware
+func (siw *ServerInterfaceWrapper) SaveHelperStack(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveHelperStack(w, r, helperId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6473,6 +7189,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}", wrapper.GetHelper)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/helpers/{helperId}", wrapper.UpdateHelper)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/runs", wrapper.StartRun)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.GetHelperStack)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.SaveHelperStack)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/feed-cards/{feedCardId}/dismiss", wrapper.DismissFeedCard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/feed-cards/{feedCardId}", wrapper.GetFeedCard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/feed-cards/{feedCardId}/decision", wrapper.DecideFeedCard)
@@ -7013,6 +7731,149 @@ func (response StartRun409JSONResponse) VisitStartRunResponse(w http.ResponseWri
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHelperStackRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+}
+
+type GetHelperStackResponseObject interface {
+	VisitGetHelperStackResponse(w http.ResponseWriter) error
+}
+
+type GetHelperStack200JSONResponse HelperStack
+
+func (response GetHelperStack200JSONResponse) VisitGetHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHelperStack401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetHelperStack401JSONResponse) VisitGetHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetHelperStack404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetHelperStack404JSONResponse) VisitGetHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveHelperStackRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+	Body     *SaveHelperStackJSONRequestBody
+}
+
+type SaveHelperStackResponseObject interface {
+	VisitSaveHelperStackResponse(w http.ResponseWriter) error
+}
+
+type SaveHelperStack200JSONResponse HelperStack
+
+func (response SaveHelperStack200JSONResponse) VisitSaveHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveHelperStack400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SaveHelperStack400JSONResponse) VisitSaveHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveHelperStack401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SaveHelperStack401JSONResponse) VisitSaveHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveHelperStack404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SaveHelperStack404JSONResponse) VisitSaveHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveHelperStack409JSONResponse Error
+
+func (response SaveHelperStack409JSONResponse) VisitSaveHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SaveHelperStack422JSONResponse StackProblems
+
+func (response SaveHelperStack422JSONResponse) VisitSaveHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -7706,6 +8567,12 @@ type StrictServerInterface interface {
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	// (POST /helpers/{helperId}/runs)
 	StartRun(ctx context.Context, request StartRunRequestObject) (StartRunResponseObject, error)
+	// GetHelperStack A helper's current stack for the builder, with what each brick gave last time
+	// (GET /helpers/{helperId}/stack)
+	GetHelperStack(ctx context.Context, request GetHelperStackRequestObject) (GetHelperStackResponseObject, error)
+	// SaveHelperStack Save an edited stack as the helper's next version
+	// (PUT /helpers/{helperId}/stack)
+	SaveHelperStack(ctx context.Context, request SaveHelperStackRequestObject) (SaveHelperStackResponseObject, error)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
@@ -8061,6 +8928,65 @@ func (sh *strictHandler) StartRun(w http.ResponseWriter, r *http.Request, helper
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(StartRunResponseObject); ok {
 		if err := validResponse.VisitStartRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetHelperStack operation middleware
+func (sh *strictHandler) GetHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request GetHelperStackRequestObject
+
+	request.HelperId = helperId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetHelperStack(ctx, request.(GetHelperStackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetHelperStack")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetHelperStackResponseObject); ok {
+		if err := validResponse.VisitGetHelperStackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SaveHelperStack operation middleware
+func (sh *strictHandler) SaveHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request SaveHelperStackRequestObject
+
+	request.HelperId = helperId
+
+	var body SaveHelperStackJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SaveHelperStack(ctx, request.(SaveHelperStackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SaveHelperStack")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SaveHelperStackResponseObject); ok {
+		if err := validResponse.VisitSaveHelperStackResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

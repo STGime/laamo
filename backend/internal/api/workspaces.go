@@ -179,6 +179,13 @@ func (s *Server) UpdateWorkspace(ctx context.Context, req UpdateWorkspaceRequest
 		}
 		p.Locale = &loc
 	}
+	if b.TimeFormat != nil {
+		f := string(*b.TimeFormat)
+		if f != "24h" && f != "12h" {
+			return bad("time format must be 24h or 12h")
+		}
+		p.TimeFormat = &f
+	}
 	if b.Profile != nil {
 		w, err := s.store.GetWorkspace(ctx, m.WorkspaceID)
 		if err != nil {
@@ -258,8 +265,12 @@ func uuid(s string) openapi_types.UUID {
 }
 
 func summary(w store.Workspace, role string) WorkspaceSummary {
-	return WorkspaceSummary{Id: uuid(w.ID), Name: w.Name, Role: Role(role), Timezone: w.Timezone,
-		Locale: Locale(w.Locale), Plan: Plan(w.Plan)}
+	out := WorkspaceSummary{Id: uuid(w.ID), Name: w.Name, Role: Role(role), Timezone: w.Timezone,
+		Locale: Locale(w.Locale), TimeFormat: TimeFormat24h, Plan: Plan(w.Plan)}
+	if w.TimeFormat == "12h" {
+		out.TimeFormat = TimeFormat12h
+	}
+	return out
 }
 
 func full(w store.Workspace, role string) Workspace {
@@ -272,7 +283,7 @@ func full(w store.Workspace, role string) Workspace {
 	for _, n := range w.Needs {
 		needs = append(needs, Need(n))
 	}
-	return Workspace{Id: s.Id, Name: s.Name, Role: s.Role, Timezone: s.Timezone, Locale: s.Locale, Plan: s.Plan,
+	return Workspace{Id: s.Id, Name: s.Name, Role: s.Role, Timezone: s.Timezone, Locale: s.Locale, TimeFormat: s.TimeFormat, Plan: s.Plan,
 		Profile: profile, Needs: &needs, CreatedAt: w.CreatedAt}
 }
 

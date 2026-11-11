@@ -19,10 +19,18 @@ export function browserLang(
 }
 
 let current = $state<Lang>(browserLang());
+// Times: 24h unless the workspace picked 12h (AM/PM).
+let twelve = $state(false);
 
 export const i18n = {
 	get lang(): Lang {
 		return current;
+	},
+	get twelve(): boolean {
+		return twelve;
+	},
+	set twelve(v: boolean) {
+		twelve = v;
 	},
 	set lang(l: Lang) {
 		current = l;
@@ -30,12 +38,15 @@ export const i18n = {
 	}
 };
 
-/** Translate key, filling {name} placeholders from params. */
+/** Translate key, filling {name} placeholders from params; n = 1 picks the "key.one" form. */
 export function t(
 	key: Key,
 	params: Record<string, string | number> = {},
 	lang: Lang = current
 ): string {
+	// Plurals: "x.one" is used when n is 1 (→ 1 card).
+	const one = `${key}.one` as Key;
+	if (params.n === 1 && one in en) key = one;
 	const text = dicts[lang][key] ?? en[key] ?? key;
 	return text.replace(/\{(\w+)\}/g, (m, name: string) =>
 		name in params ? String(params[name]) : m
