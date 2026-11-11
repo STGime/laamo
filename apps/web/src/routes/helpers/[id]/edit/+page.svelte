@@ -55,9 +55,11 @@
 				base = data.stack as Stack;
 				lastOut = data.last_out;
 				bricks = structuredClone(data.stack.bricks) as StackBrick[];
+				// Back from Connect a chat: the edit from before, once.
 				try {
 					const d = JSON.parse(sessionStorage.getItem(draftKey) ?? 'null');
-					if (d?.version === version) bricks = d.bricks;
+					sessionStorage.removeItem(draftKey);
+					if (d?.via === 'chat' && d.version === version) bricks = d.bricks;
 				} catch {
 					/* no draft */
 				}
@@ -76,15 +78,15 @@
 
 	const stack = $derived<Stack>({ ...(base ?? { schema: 1 }), schema: 1, bricks });
 	const dirty = $derived(!!base && JSON.stringify(base.bricks) !== JSON.stringify(bricks));
-	$effect(() => {
-		if (!base) return;
+	// Only a trip to Connect a chat keeps an unsaved edit; Cancel or
+	// leaving any other way drops it.
+	function keepDraft() {
 		try {
-			if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ version, bricks }));
-			else sessionStorage.removeItem(draftKey);
+			if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ via: 'chat', version, bricks }));
 		} catch {
 			/* private mode */
 		}
-	});
+	}
 
 	// Live checks, the same as the server's (#41 adds one-tap fixes).
 	const issues = $derived(validate(stack));
@@ -196,11 +198,6 @@
 		});
 		saving = false;
 		if (data) {
-			try {
-				sessionStorage.removeItem(draftKey);
-			} catch {
-				/* private mode */
-			}
 			goto(`/helpers/${id}`, { replaceState: true });
 			return;
 		}
@@ -285,6 +282,7 @@
 			lastOut={lastOut[editing]}
 			{pills}
 			onfact={rememberFact}
+			onleave={keepDraft}
 			back="/helpers/{id}/edit"
 			onremove={remove}
 		/>

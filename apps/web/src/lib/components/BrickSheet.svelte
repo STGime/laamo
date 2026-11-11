@@ -32,6 +32,7 @@
 		lastOut,
 		pills = [],
 		onfact,
+		onleave,
 		back,
 		onremove
 	}: {
@@ -44,6 +45,8 @@
 		pills?: Pill[];
 		/** Remembers an About me fact; false when it didn't save. */
 		onfact?: (key: string, value: string) => Promise<boolean>;
+		/** Called before going to Connect a chat (to keep an unsaved edit). */
+		onleave?: () => void;
 		/** Where "Connect a chat" comes back to. */
 		back: string;
 		onremove: () => void;
@@ -146,7 +149,9 @@
 					>
 				{/each}
 			</div>
-			<a class="add" href="/places/new?back={encodeURIComponent(back)}">+ {t('tpl.addChat')}</a>
+			<a class="add" href="/places/new?back={encodeURIComponent(back)}" onclick={() => onleave?.()}
+				>+ {t('tpl.addChat')}</a
+			>
 		{:else if s.type === 'toggle'}
 			<input
 				{id}
