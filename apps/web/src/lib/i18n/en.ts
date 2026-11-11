@@ -84,6 +84,7 @@ export const en = {
 	'field.subject': 'Subject',
 	'field.title': 'Title',
 	'field.body': 'Text',
+	'feed.loadFailed': 'Couldn’t load your Feed (error {status}). Try again in a moment.',
 	'error.offline': 'Can’t reach Laamo right now. Try again in a moment.',
 	loading: 'Loading…'
 } as const;

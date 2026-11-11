@@ -12,14 +12,16 @@ let brain = $state<Schemas['BrainMeter'] | null>(null);
 let next = $state<string | undefined>(undefined);
 let filter = $state<Filter>('all');
 let loading = $state(false);
-let failed = $state(false);
+// Why the Feed didn't load: 0 = it did, -1 = no connection, else the HTTP status.
+let failed = $state(0);
 
 async function fetchPage(before?: string) {
 	const ws = session.workspace;
 	if (!ws) return null;
-	const { data } = await api.GET('/workspaces/{workspaceId}/feed', {
+	const { data, response } = await api.GET('/workspaces/{workspaceId}/feed', {
 		params: { path: { workspaceId: ws.id }, query: { filter, before, limit: 30 } }
 	});
+	if (!data) failed = response.status;
 	return data ?? null;
 }
 
@@ -50,8 +52,8 @@ export const feed = {
 		filter = f;
 		loading = true;
 		try {
+			failed = 0;
 			const page = await fetchPage();
-			failed = !page;
 			if (page) {
 				cards = page.cards;
 				needsMe = page.needs_me;
@@ -59,7 +61,7 @@ export const feed = {
 				next = page.next_before;
 			}
 		} catch {
-			failed = true;
+			failed = -1;
 		} finally {
 			loading = false;
 		}

@@ -72,7 +72,9 @@
 		</div>
 	{/if}
 {:else if feed.failed}
-	<p class="note">{t('error.offline')}</p>
+	<p class="note">
+		{feed.failed < 0 ? t('error.offline') : t('feed.loadFailed', { status: feed.failed })}
+	</p>
 {:else if !feed.loading && feed.filter === 'all'}
 	<!-- Empty state: an example result, not an illustration. -->
 	<section class="empty">

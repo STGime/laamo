@@ -85,6 +85,8 @@ export const de: Record<Key, string> = {
 	'field.subject': 'Betreff',
 	'field.title': 'Titel',
 	'field.body': 'Text',
+	'feed.loadFailed':
+		'Dein Feed konnte nicht geladen werden (Fehler {status}). Versuch es gleich noch mal.',
 	'error.offline': 'Laamo ist gerade nicht erreichbar. Versuch es gleich noch mal.',
 	loading: 'Lädt…'
 };
