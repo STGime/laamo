@@ -218,6 +218,12 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		Limits: limitsFor(stack), Blobs: e.Blobs, Brain: e.Brain, Log: e.log().With("run", r.ID), Now: e.now,
 		usage: e.Store, costEUR: float64(r.CostEUR), tokensIn: r.TokensIn, tokensOut: r.TokensOut,
 	}
+	if learnsFrom(e.Catalog, stack) {
+		if rc.Learned, err = e.learned(ctx, h.ID); err != nil {
+			rc.Log.Warn("couldn't load what the helper learned", "err", err)
+			rc.Learned = nil
+		}
+	}
 	for k, val := range r.TriggerData {
 		if s, ok := val.(string); ok {
 			if k == "answer" {

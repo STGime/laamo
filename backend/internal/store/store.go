@@ -43,6 +43,7 @@ type Store interface {
 	TriggerStore
 	PlaceStore
 	OutboundStore
+	LearnStore
 }
 
 // Create* methods fill in a missing ID and copy back server defaults
@@ -159,4 +160,18 @@ type OutboundStore interface {
 	CreateOutbound(ctx context.Context, m *OutboundMessage) error
 	GetOutboundByKey(ctx context.Context, key string) (OutboundMessage, error)
 	UpdateOutbound(ctx context.Context, id string, p OutboundPatch) (OutboundMessage, error)
+}
+
+// LearnStore keeps what users kept or skipped on Let me pick cards (#76).
+type LearnStore interface {
+	// AddPickExamples records swipes. Ones already recorded (same step and
+	// card) are skipped; a helper keeps its newest 200.
+	AddPickExamples(ctx context.Context, ex []PickExample) error
+	// PickExamples returns a helper's newest kept (or skipped) examples, at
+	// most limit.
+	PickExamples(ctx context.Context, helperID string, kept bool, limit int) ([]PickExample, error)
+	// CountPickExamples returns how many swipes a helper has learned from.
+	CountPickExamples(ctx context.Context, helperID string) (int, error)
+	// ForgetPickExamples deletes everything a helper learned from swipes.
+	ForgetPickExamples(ctx context.Context, helperID string) error
 }

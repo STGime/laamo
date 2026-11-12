@@ -342,6 +342,11 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 			}
 		}
 	}
+	// Shown whenever there's something to forget, even if the stack no
+	// longer learns.
+	if out.Learned, err = s.store.CountPickExamples(ctx, h.ID); err != nil {
+		return nil, err
+	}
 	runs, err := s.store.ListRuns(ctx, store.RunFilter{HelperID: h.ID, Limit: 10})
 	if err != nil {
 		return nil, err
@@ -418,6 +423,22 @@ func (s *Server) DeleteHelper(ctx context.Context, req DeleteHelperRequestObject
 	}
 	s.log.Info("helper deleted", "helper", h.ID, "workspace", h.WorkspaceID)
 	return DeleteHelper204Response{}, nil
+}
+
+// ForgetLearned deletes what a helper learned from Let me pick swipes (#76).
+func (s *Server) ForgetLearned(ctx context.Context, req ForgetLearnedRequestObject) (ForgetLearnedResponseObject, error) {
+	h, ok, err := s.helper(ctx, req.HelperId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return ForgetLearned404JSONResponse{NotFoundJSONResponse(helperNotFound)}, nil
+	}
+	if err := s.store.ForgetPickExamples(ctx, h.ID); err != nil {
+		return nil, err
+	}
+	s.log.Info("helper forgot its swipes", "helper", h.ID)
+	return ForgetLearned204Response{}, nil
 }
 
 // uniqueName adds " (2)", " (3)", … when the workspace already has a helper

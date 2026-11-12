@@ -890,6 +890,9 @@ type HelperDetail struct {
 	Bricks []BrickPreview `json:"bricks"`
 	Helper Helper         `json:"helper"`
 
+	// Learned How many Let me pick swipes the helper learns from (0 when it doesn't learn)
+	Learned int `json:"learned"`
+
 	// Runs The last 10 runs, newest first
 	Runs []RunSummary `json:"runs"`
 
@@ -1576,6 +1579,11 @@ type ClientInterface interface {
 	// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
 	UpdateHelper(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ForgetLearned Forget what the helper learned from Let me pick swipes
+	//
+	// Corresponds with DELETE /helpers/{helperId}/learned (the `ForgetLearned` operationId).
+	ForgetLearned(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// StartRunWithBody Run a helper now (Tap Go, or a test run with at most 3 cards)
 	//
 	// Takes any type of body and a specified content type.
@@ -1925,6 +1933,21 @@ func (c *Client) UpdateHelperWithBody(ctx context.Context, helperId HelperId, co
 // Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
 func (c *Client) UpdateHelper(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateHelperRequest(c.Server, helperId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ForgetLearned Forget what the helper learned from Let me pick swipes
+//
+// Corresponds with DELETE /helpers/{helperId}/learned (the `ForgetLearned` operationId).
+func (c *Client) ForgetLearned(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewForgetLearnedRequest(c.Server, helperId)
 	if err != nil {
 		return nil, err
 	}
@@ -2643,6 +2666,40 @@ func NewUpdateHelperRequestWithBody(server string, helperId HelperId, contentTyp
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewForgetLearnedRequest constructs an http.Request for the ForgetLearned method
+func NewForgetLearnedRequest(server string, helperId HelperId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s/learned", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -3455,6 +3512,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
 	UpdateHelperWithResponse(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateHelperResponse, error)
 
+	// ForgetLearnedWithResponse Forget what the helper learned from Let me pick swipes
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /helpers/{helperId}/learned (the `ForgetLearned` operationId).
+	ForgetLearnedWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*ForgetLearnedResponse, error)
+
 	// StartRunWithBodyWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -4121,6 +4185,54 @@ func (r UpdateHelperResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateHelperResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ForgetLearnedResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ForgetLearnedResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ForgetLearnedResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ForgetLearnedResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ForgetLearnedResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ForgetLearnedResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ForgetLearnedResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -5249,6 +5361,19 @@ func (c *ClientWithResponses) UpdateHelperWithResponse(ctx context.Context, help
 	return ParseUpdateHelperResponse(rsp)
 }
 
+// ForgetLearnedWithResponse Forget what the helper learned from Let me pick swipes
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /helpers/{helperId}/learned (the `ForgetLearned` operationId).
+func (c *ClientWithResponses) ForgetLearnedWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*ForgetLearnedResponse, error) {
+	rsp, err := c.ForgetLearned(ctx, helperId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseForgetLearnedResponse(rsp)
+}
+
 // StartRunWithBodyWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -5906,6 +6031,42 @@ func ParseUpdateHelperResponse(rsp *http.Response) (*UpdateHelperResponse, error
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseForgetLearnedResponse parses an HTTP response from a ForgetLearnedWithResponse call
+func ParseForgetLearnedResponse(rsp *http.Response) (*ForgetLearnedResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ForgetLearnedResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Unauthorized
@@ -6672,6 +6833,9 @@ type ServerInterface interface {
 	// UpdateHelper Rename a helper, or switch it on or off
 	// (PATCH /helpers/{helperId})
 	UpdateHelper(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// ForgetLearned Forget what the helper learned from Let me pick swipes
+	// (DELETE /helpers/{helperId}/learned)
+	ForgetLearned(w http.ResponseWriter, r *http.Request, helperId HelperId)
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	// (POST /helpers/{helperId}/runs)
 	StartRun(w http.ResponseWriter, r *http.Request, helperId HelperId)
@@ -6920,6 +7084,32 @@ func (siw *ServerInterfaceWrapper) UpdateHelper(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateHelper(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ForgetLearned operation middleware
+func (siw *ServerInterfaceWrapper) ForgetLearned(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ForgetLearned(w, r, helperId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7501,6 +7691,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/helpers/{helperId}", wrapper.DeleteHelper)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}", wrapper.GetHelper)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/helpers/{helperId}", wrapper.UpdateHelper)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/helpers/{helperId}/learned", wrapper.ForgetLearned)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/runs", wrapper.StartRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.GetHelperStack)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.SaveHelperStack)
@@ -7973,6 +8164,50 @@ func (response UpdateHelper401JSONResponse) VisitUpdateHelperResponse(w http.Res
 type UpdateHelper404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response UpdateHelper404JSONResponse) VisitUpdateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ForgetLearnedRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+}
+
+type ForgetLearnedResponseObject interface {
+	VisitForgetLearnedResponse(w http.ResponseWriter) error
+}
+
+type ForgetLearned204Response struct {
+}
+
+func (response ForgetLearned204Response) VisitForgetLearnedResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ForgetLearned401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ForgetLearned401JSONResponse) VisitForgetLearnedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ForgetLearned404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ForgetLearned404JSONResponse) VisitForgetLearnedResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -8971,6 +9206,9 @@ type StrictServerInterface interface {
 	// UpdateHelper Rename a helper, or switch it on or off
 	// (PATCH /helpers/{helperId})
 	UpdateHelper(ctx context.Context, request UpdateHelperRequestObject) (UpdateHelperResponseObject, error)
+	// ForgetLearned Forget what the helper learned from Let me pick swipes
+	// (DELETE /helpers/{helperId}/learned)
+	ForgetLearned(ctx context.Context, request ForgetLearnedRequestObject) (ForgetLearnedResponseObject, error)
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	// (POST /helpers/{helperId}/runs)
 	StartRun(ctx context.Context, request StartRunRequestObject) (StartRunResponseObject, error)
@@ -9302,6 +9540,32 @@ func (sh *strictHandler) UpdateHelper(w http.ResponseWriter, r *http.Request, he
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateHelperResponseObject); ok {
 		if err := validResponse.VisitUpdateHelperResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ForgetLearned operation middleware
+func (sh *strictHandler) ForgetLearned(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request ForgetLearnedRequestObject
+
+	request.HelperId = helperId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ForgetLearned(ctx, request.(ForgetLearnedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ForgetLearned")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ForgetLearnedResponseObject); ok {
+		if err := validResponse.VisitForgetLearnedResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

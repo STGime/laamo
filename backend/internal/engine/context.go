@@ -104,8 +104,12 @@ type RunContext struct {
 	Limits    Limits
 	Blobs     Blobs
 	Brain     *llm.Brain // the AI for Think bricks: rc.Brain.Ask(ctx, rc, req)
-	Log       *slog.Logger
-	Now       func() time.Time
+	// Learned: what the user kept or skipped on this helper's Let me pick
+	// cards, newest first (#76). Only set when a Keep the good ones brick
+	// comes before a Let me pick that learns.
+	Learned []store.PickExample
+	Log     *slog.Logger
+	Now     func() time.Time
 
 	usage store.UsageStore
 

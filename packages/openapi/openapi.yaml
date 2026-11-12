@@ -403,6 +403,20 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /helpers/{helperId}/learned:
+    parameters:
+      - $ref: '#/components/parameters/HelperId'
+    delete:
+      operationId: forgetLearned
+      summary: Forget what the helper learned from Let me pick swipes
+      tags: [helpers]
+      responses:
+        '204':
+          description: Forgotten
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /helpers/{helperId}/runs:
     parameters:
       - $ref: '#/components/parameters/HelperId'
@@ -1337,10 +1351,13 @@ components:
           type: integer
     HelperDetail:
       type: object
-      required: [helper, bricks, runs]
+      required: [helper, bricks, runs, learned]
       properties:
         helper:
           $ref: '#/components/schemas/Helper'
+        learned:
+          type: integer
+          description: How many Let me pick swipes the helper learns from (0 when it doesn't learn)
         bricks:
           type: array
           items:

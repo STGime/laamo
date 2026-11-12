@@ -39,6 +39,7 @@ type Store struct {
 	listRows   map[string]store.ListRow
 	usage      map[string]store.UsageEntry
 	outbound   map[string]store.OutboundMessage
+	examples   []store.PickExample
 }
 
 var _ store.Store = (*Store)(nil)
@@ -386,6 +387,7 @@ func (s *Store) DeleteHelper(_ context.Context, id string) error {
 	maps.DeleteFunc(s.steps, func(_ string, st store.Step) bool { return runs[st.RunID] })
 	maps.DeleteFunc(s.cards, func(_ string, c store.Card) bool { return runs[c.RunID] })
 	maps.DeleteFunc(s.feed, func(_ string, f store.FeedCard) bool { return f.HelperID != nil && *f.HelperID == id })
+	s.examples = slices.DeleteFunc(s.examples, func(e store.PickExample) bool { return e.HelperID == id })
 	return nil
 }
 
@@ -687,6 +689,83 @@ func (s *Store) ListRows(_ context.Context, listID string, n int) ([]store.ListR
 		return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(b.ID, a.ID))
 	})
 	return limit(out, n), nil
+}
+
+// ---- learning from swipes ----
+
+func (s *Store) AddPickExamples(_ context.Context, ex []store.PickExample) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	helpers := map[string]bool{}
+	for _, e := range ex {
+		if slices.ContainsFunc(s.examples, func(o store.PickExample) bool { return o.StepID == e.StepID && o.CardID == e.CardID }) {
+			continue
+		}
+		if e.ID == "" {
+			e.ID = store.NewID()
+		}
+		if e.CreatedAt.IsZero() {
+			e.CreatedAt = s.now()
+		}
+		s.examples = append(s.examples, e)
+		helpers[e.HelperID] = true
+	}
+	// Each helper keeps its newest 200.
+	for h := range helpers {
+		var mine []store.PickExample
+		for _, e := range s.examples {
+			if e.HelperID == h {
+				mine = append(mine, e)
+			}
+		}
+		sortNewest(mine)
+		if len(mine) > 200 {
+			drop := map[string]bool{}
+			for _, e := range mine[200:] {
+				drop[e.ID] = true
+			}
+			s.examples = slices.DeleteFunc(s.examples, func(e store.PickExample) bool { return drop[e.ID] })
+		}
+	}
+	return nil
+}
+
+func sortNewest(ex []store.PickExample) {
+	slices.SortStableFunc(ex, func(a, b store.PickExample) int {
+		return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(b.ID, a.ID))
+	})
+}
+
+func (s *Store) PickExamples(_ context.Context, helperID string, kept bool, n int) ([]store.PickExample, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.PickExample
+	for _, e := range s.examples {
+		if e.HelperID == helperID && e.Kept == kept {
+			out = append(out, e)
+		}
+	}
+	sortNewest(out)
+	return limit(out, n), nil
+}
+
+func (s *Store) CountPickExamples(_ context.Context, helperID string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for _, e := range s.examples {
+		if e.HelperID == helperID {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (s *Store) ForgetPickExamples(_ context.Context, helperID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.examples = slices.DeleteFunc(s.examples, func(e store.PickExample) bool { return e.HelperID == helperID })
+	return nil
 }
 
 // ---- usage, outbound ----
