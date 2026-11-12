@@ -10,14 +10,21 @@
 
 	let {
 		feedCardId,
-		cardIds,
+		cardIds = [],
+		links,
+		quiet = false,
 		ondone
 	}: {
 		feedCardId: string;
 		/** The chosen cards; empty means all of them. */
-		cardIds: string[];
+		cardIds?: string[];
+		/** A result's source links instead of cards: the chosen ones, or all. */
+		links?: { chosen: string[]; all: string[] };
+		/** A small text button instead of a big one (under Feed links). */
+		quiet?: boolean;
 		ondone?: () => void;
 	} = $props();
+	const chosenCount = $derived(links ? links.chosen.length : cardIds.length);
 
 	let picking = $state(false);
 	let lists = $state<Schemas['ListSummary'][]>([]);
@@ -45,7 +52,9 @@
 		error = '';
 		const { data } = await api.POST('/lists/{listId}/rows', {
 			params: { path: { listId } },
-			body: { feed_card_id: feedCardId, card_ids: cardIds.length ? cardIds : undefined }
+			body: links
+				? { feed_card_id: feedCardId, links: links.chosen.length ? links.chosen : links.all }
+				: { feed_card_id: feedCardId, card_ids: cardIds.length ? cardIds : undefined }
 		});
 		busy = false;
 		if (!data) return (error = t('lists.failed'));
@@ -98,8 +107,10 @@
 		</form>
 		<button class="btn wide" onclick={() => (picking = false)}>{t('helper.cancel')}</button>
 	{:else}
-		<button class="btn primary wide" onclick={start}
-			>{cardIds.length ? t('lists.addSome', { n: cardIds.length }) : t('lists.addAll')}</button
+		<button class={quiet ? 'quiet' : 'btn primary wide'} onclick={start}
+			>{chosenCount ? t('lists.addSome', { n: chosenCount }) : t('lists.addAll')}{quiet
+				? ' →'
+				: ''}</button
 		>
 	{/if}
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -109,6 +120,16 @@
 	.add {
 		display: grid;
 		gap: var(--space-2);
+	}
+	.quiet {
+		justify-self: start;
+		padding: var(--space-2) 0;
+		background: none;
+		border: 0;
+		color: var(--ink);
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
 	}
 	.label,
 	.done {

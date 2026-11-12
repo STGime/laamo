@@ -596,6 +596,8 @@ export interface components {
 			feed_card_id: string;
 			/** @description Which of its cards (Card.id); all of them when left out */
 			card_ids?: string[];
+			/** @description Instead of cards, some of a result's source links (their url). With neither, all of the cards, or all links when the result has no cards */
+			links?: string[];
 		};
 		ListRowsAdded: {
 			added: number;

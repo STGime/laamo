@@ -691,6 +691,9 @@ type AddListRows struct {
 
 	// FeedCardId The Feed card whose cards to add (a result, Check first or Let me pick card)
 	FeedCardId openapi_types.UUID `json:"feed_card_id"`
+
+	// Links Instead of cards, some of a result's source links (their url). With neither, all of the cards, or all links when the result has no cards
+	Links *[]string `json:"links,omitempty"`
 }
 
 // BrainMeter defines model for BrainMeter.

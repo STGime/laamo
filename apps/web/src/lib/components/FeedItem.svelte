@@ -35,8 +35,13 @@
 	let editing = $state<string | null>(null);
 	// Let me pick
 	let picked = $state<string[]>([]);
-	// A result: the cards chosen for "Add to list" (none = all).
+	// A result: the cards (or source links) chosen for "Add to list" (none = all).
 	let chosen = $state<string[]>([]);
+	let chosenLinks = $state<string[]>([]);
+	const toggleLink = (u: string) =>
+		(chosenLinks = chosenLinks.includes(u)
+			? chosenLinks.filter((x) => x !== u)
+			: [...chosenLinks, u]);
 	// Ask me something
 	let answer = $state('');
 
@@ -233,9 +238,21 @@
 						<span class="ltitle">{l.title || hostOf(l.url)}</span>
 						<span class="lhost">{hostOf(l.url)} ↗</span>
 					</a>
+					<button
+						class="pick-link"
+						aria-pressed={chosenLinks.includes(l.url)}
+						aria-label={t('lists.choose')}
+						onclick={() => toggleLink(l.url)}>{chosenLinks.includes(l.url) ? '✓' : '+'}</button
+					>
 				</li>
 			{/each}
 		</ul>
+		<AddToList
+			feedCardId={card.id}
+			links={{ chosen: chosenLinks, all: links.map((l) => l.url) }}
+			quiet
+			ondone={() => (chosenLinks = [])}
+		/>
 	{/if}
 	{#if card.type === 'result' && count > 1}
 		<button class="link" type="button" onclick={openPile}
@@ -319,6 +336,21 @@
 {/if}
 
 <style>
+	.pick-link {
+		flex: none;
+		width: var(--tap-min);
+		height: var(--tap-min);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		background: var(--white);
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.pick-link[aria-pressed='true'] {
+		background: var(--ink);
+		color: var(--white);
+	}
 	.choose {
 		margin-top: var(--space-2);
 		min-height: var(--tap-min);
@@ -456,13 +488,20 @@
 		padding: 0;
 		border-top: var(--border);
 	}
+	.links li {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		border-bottom: var(--border);
+	}
 	.links a {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		padding: var(--space-2) 0;
 		min-height: var(--tap-min);
 		justify-content: center;
-		border-bottom: var(--border);
 		color: var(--ink);
 		text-decoration: none;
 	}

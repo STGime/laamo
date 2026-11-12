@@ -1030,6 +1030,13 @@ components:
           items:
             type: string
             format: uuid
+        links:
+          type: array
+          maxItems: 50
+          description: Instead of cards, some of a result's source links (their url). With neither, all of the cards, or all links when the result has no cards
+          items:
+            type: string
+            maxLength: 2000
     ListRowsAdded:
       type: object
       required: [added, duplicates, list]

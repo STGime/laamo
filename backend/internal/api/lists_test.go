@@ -172,6 +172,32 @@ func TestAddToListFromFeed(t *testing.T) {
 	if r := must(c.AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(fc.ID), CardIds: &bad})); r.StatusCode() != 400 {
 		t.Fatalf("unknown card: %d", r.StatusCode())
 	}
+	// A summary's source links (Morning Briefing): chosen by their url.
+	sum := store.FeedCard{WorkspaceID: ws.ID, UserID: anna.ID, RunID: &runID, Type: "result", Title: "Done",
+		Payload: map[string]any{"links": []any{
+			map[string]any{"title": "Metzger-Ranking", "url": "https://www.rbb24.de/metzger"},
+			map[string]any{"title": "Insolvenz", "url": "https://bild.de/insolvenz"},
+			map[string]any{"title": "Bad", "url": "javascript:alert(1)"},
+		}}}
+	_ = st.CreateFeedCard(ctx, &sum)
+	links := []string{"https://www.rbb24.de/metzger"}
+	r = must(c.AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(sum.ID), Links: &links}))
+	if r.StatusCode() != 200 || r.JSON200.Added != 1 {
+		t.Fatalf("link: %d %s", r.StatusCode(), r.Body)
+	}
+	if row, _ := st.GetListRowByKey(ctx, l.Id.String(), "url:https://rbb24.de/metzger"); row.Data["title"] != "Metzger-Ranking" {
+		t.Fatalf("link row %+v", row)
+	}
+	links = []string{"https://evil.example/not-on-the-card"}
+	if r := must(c.AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(sum.ID), Links: &links})); r.StatusCode() != 400 {
+		t.Fatalf("made-up link: %d", r.StatusCode())
+	}
+	// No step, no cards: everything means its (safe) links.
+	r = must(c.AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(sum.ID)}))
+	if r.JSON200.Added != 1 || r.JSON200.Duplicates != 1 {
+		t.Fatalf("all links: %s", r.Body)
+	}
+
 	// Someone else can't add to it.
 	if r := must(e.client(t, "ben").AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(fc.ID)})); r.StatusCode() != 404 {
 		t.Fatalf("ben: %d", r.StatusCode())
