@@ -175,16 +175,17 @@ func cut(s string, n int) string {
 
 func cardText(c engine.Card) string {
 	var b strings.Builder
-	title := c.Text("title")
-	if title == "" {
-		title = c.Text("name")
-	}
-	if title != "" {
+	if title := firstNonEmpty(c.Text("title"), c.Text("name"), c.Text("subject")); title != "" {
 		b.WriteString("**" + cut(title, 200) + "**\n")
+	}
+	// A draft from Write it is shown whole (Discord allows 2000 characters).
+	n := 600
+	if c.Kind == "draft" {
+		n = 1500
 	}
 	for _, f := range []string{"summary", "body", "snippet", "text"} {
 		if v := c.Text(f); v != "" {
-			b.WriteString(cut(v, 600) + "\n")
+			b.WriteString(cut(v, n) + "\n")
 			break
 		}
 	}

@@ -31,6 +31,8 @@ func All(d Deps) map[string]engine.Brick {
 		"when.tap":        when.Tap,
 		"think.summarize": think.Summarize,
 		"think.keep":      think.Keep,
+		"think.extract":   think.Extract,
+		"think.write":     think.Write,
 	}
 	if d.Store != nil && d.Keys != nil && d.Chat != nil {
 		m["do.chat"] = do.Chat{Store: d.Store, Keys: d.Keys, Sender: d.Chat}

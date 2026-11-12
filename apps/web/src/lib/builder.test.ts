@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { StackBrick } from '@laamo/catalog';
-import { add, applyFix, fillProfile, nextId, ready, startOnTop, tray } from './builder.ts';
+import {
+	add,
+	applyFix,
+	detailKey,
+	fillProfile,
+	nextId,
+	ready,
+	startOnTop,
+	tray
+} from './builder.ts';
 
 const b = (id: string, type: string): StackBrick => ({ id, type, config: {} });
 
@@ -49,5 +58,14 @@ describe('builder', () => {
 		expect(r.bricks[2].config.timeout_h).toBe(48);
 		const start = applyFix([b('b1', 'look.search')], { insert: 'when.tap', before: 'b1' });
 		expect(start.bricks.map((x) => x.type)).toEqual(['when.tap', 'look.search']);
+	});
+});
+
+describe('detailKey', () => {
+	it('turns words into a detail name', () => {
+		expect(detailKey('Opening days')).toBe('opening_days');
+		expect(detailKey('  Öffnungstage! ')).toBe('oeffnungstage');
+		expect(detailKey('2nd phone')).toBe('x_2nd_phone');
+		expect(detailKey('?!')).toBe('');
 	});
 });
