@@ -668,8 +668,8 @@ func (s *Store) ListLists(_ context.Context, workspaceID string) ([]store.List, 
 			out = append(out, clone(l))
 		}
 	}
-	slices.SortFunc(out, func(a, b store.List) int {
-		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	slices.SortFunc(out, func(a, b store.List) int { // newest first
+		return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(b.ID, a.ID))
 	})
 	return out, nil
 }
@@ -968,8 +968,8 @@ func (s *Store) ListPlaces(_ context.Context, workspaceID string) ([]store.Place
 			out = append(out, clone(p))
 		}
 	}
-	slices.SortFunc(out, func(a, b store.Place) int {
-		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	slices.SortFunc(out, func(a, b store.Place) int { // newest first
+		return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(b.ID, a.ID))
 	})
 	return out, nil
 }

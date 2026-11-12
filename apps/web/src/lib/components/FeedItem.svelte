@@ -10,6 +10,7 @@
 	import { api } from '#lib/session.svelte.ts';
 	import { hostOf, safeURL } from '#lib/links.ts';
 	import { ago, when } from '#lib/time.ts';
+	import AddToList from './AddToList.svelte';
 	import BottomSheet from './BottomSheet.svelte';
 	import CardView from './CardView.svelte';
 	import SwipeStack from './SwipeStack.svelte';
@@ -34,6 +35,8 @@
 	let editing = $state<string | null>(null);
 	// Let me pick
 	let picked = $state<string[]>([]);
+	// A result: the cards chosen for "Add to list" (none = all).
+	let chosen = $state<string[]>([]);
 	// Ask me something
 	let answer = $state('');
 
@@ -48,6 +51,7 @@
 		skip = {};
 		edits = {};
 		picked = [];
+		chosen = [];
 		sheet = true;
 	}
 
@@ -291,12 +295,45 @@
 {:else}
 	<BottomSheet bind:open={sheet} title={card.title}>
 		<ul class="pile">
-			{#each pile as c (c.id)}<li><CardView card={c} /></li>{/each}
+			{#each pile as c (c.id)}
+				<li>
+					<CardView card={c} />
+					<button
+						class="choose"
+						aria-pressed={chosen.includes(c.id)}
+						onclick={() =>
+							(chosen = chosen.includes(c.id)
+								? chosen.filter((x) => x !== c.id)
+								: [...chosen, c.id])}
+						>{chosen.includes(c.id) ? `✓ ${t('lists.chosen')}` : t('lists.choose')}</button
+					>
+				</li>
+			{/each}
 		</ul>
+		{#snippet footer()}
+			{#if pile.length}
+				<AddToList feedCardId={card.id} cardIds={chosen} ondone={() => (chosen = [])} />
+			{/if}
+		{/snippet}
 	</BottomSheet>
 {/if}
 
 <style>
+	.choose {
+		margin-top: var(--space-2);
+		min-height: var(--tap-min);
+		padding: 0 var(--space-4);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		background: var(--white);
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.choose[aria-pressed='true'] {
+		background: var(--ink);
+		color: var(--white);
+	}
 	.item {
 		position: relative;
 		padding: var(--space-4) var(--gutter);

@@ -51,11 +51,11 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 		return nil, err
 	}
 	dedupe := cfg.String("dedupe")
-	columns := columnKeys(list.Columns)
+	var saved []map[string]any
 	added := 0
 	for i := range in {
 		c := &in[i]
-		data := rowData(*c)
+		data := RowData(c.Fields, c.Source)
 		row := store.ListRow{
 			// The same card in the same run always gets the same row id, so
 			// a retried job finds its own rows instead of seeing duplicates.
@@ -63,7 +63,7 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 			WorkspaceID: rc.Run.WorkspaceID, UserID: rc.Run.UserID, ListID: list.ID, Data: data,
 			SourceRunID: &rc.Run.ID,
 		}
-		if key := dedupeKey(dedupe, *c); key != "" {
+		if key := DedupeKey(dedupe, c.Text(dedupe)); key != "" {
 			row.DedupeKey = &key
 		}
 		if existing, ok, err := l.known(ctx, row); err != nil {
@@ -91,20 +91,10 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 		count++
 		added++
 		c.Set("list_row_id", row.ID, engine.TrustUser)
-		for k := range data {
-			if !slices.Contains(columns, k) {
-				columns = append(columns, k)
-			}
-		}
+		saved = append(saved, data)
 	}
-	if cols := sortColumns(columns); !slices.Equal(cols, columnKeys(list.Columns)) {
-		out := make([]map[string]any, len(cols))
-		for i, k := range cols {
-			out[i] = map[string]any{"key": k}
-		}
-		if _, err := l.Store.UpdateList(ctx, list.ID, store.ListPatch{Columns: &out}); err != nil {
-			return nil, err
-		}
+	if err := AddColumns(ctx, l.Store, list, saved...); err != nil {
+		return nil, err
 	}
 	rc.Log.Info("saved to list", "list", list.ID, "added", added, "duplicates", len(in)-added)
 	return in, nil
@@ -135,11 +125,34 @@ func cmpErr(err, fallback error) error {
 	return fallback
 }
 
-// rowData is what a card puts in its row: its text, numbers and yes/no
-// fields, shortened.
-func rowData(c engine.Card) map[string]any {
+// AddColumns adds the columns new rows brought to the list (the usual ones
+// first).
+func AddColumns(ctx context.Context, st store.ListStore, list store.List, rows ...map[string]any) error {
+	columns := columnKeys(list.Columns)
+	for _, data := range rows {
+		for k := range data {
+			if !slices.Contains(columns, k) {
+				columns = append(columns, k)
+			}
+		}
+	}
+	cols := sortColumns(columns)
+	if slices.Equal(cols, columnKeys(list.Columns)) {
+		return nil
+	}
+	out := make([]map[string]any, len(cols))
+	for i, k := range cols {
+		out[i] = map[string]any{"key": k}
+	}
+	_, err := st.UpdateList(ctx, list.ID, store.ListPatch{Columns: &out})
+	return err
+}
+
+// RowData is what a card puts in its row: its text, numbers and yes/no
+// fields, shortened, and where it came from.
+func RowData(fields map[string]any, source string) map[string]any {
 	data := map[string]any{}
-	for k, v := range c.Fields {
+	for k, v := range fields {
 		if skipFields[k] {
 			continue
 		}
@@ -152,16 +165,16 @@ func rowData(c engine.Card) map[string]any {
 			data[k] = x
 		}
 	}
-	if _, ok := data["url"]; !ok && c.Source != "" {
-		data["url"] = c.Source
+	if _, ok := data["url"]; !ok && source != "" {
+		data["url"] = source
 	}
 	return data
 }
 
-// dedupeKey is what makes two cards the same row, e.g. "website:baeckerei-klein.de".
+// DedupeKey is what makes two cards the same row, e.g. "website:baeckerei-klein.de".
 // Empty when the card doesn't have that detail (it's saved anyway).
-func dedupeKey(field string, c engine.Card) string {
-	v := strings.ToLower(strings.TrimSpace(c.Text(field)))
+func DedupeKey(field, value string) string {
+	v := strings.ToLower(strings.TrimSpace(value))
 	switch field {
 	case "email":
 		v = strings.TrimPrefix(v, "mailto:")
@@ -173,6 +186,16 @@ func dedupeKey(field string, c engine.Card) string {
 		if p, err := url.Parse(u); err == nil && p.Hostname() != "" {
 			v = strings.TrimPrefix(p.Hostname(), "www.")
 		}
+	case "url":
+		// The same page: no www., no trailing slash, no #part.
+		p, err := url.Parse(strings.TrimSpace(value))
+		if err != nil || p.Hostname() == "" {
+			return ""
+		}
+		p.Host = strings.TrimPrefix(strings.ToLower(p.Host), "www.")
+		p.Scheme, p.Fragment, p.RawFragment = "https", "", ""
+		p.Path = strings.TrimRight(p.Path, "/")
+		v = p.String()
 	case "name":
 		v = strings.Join(strings.Fields(v), " ")
 	default:

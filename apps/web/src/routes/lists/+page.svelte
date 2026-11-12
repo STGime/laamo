@@ -31,7 +31,7 @@
 		});
 		adding = false;
 		if (data) {
-			lists = [...(lists ?? []), data];
+			lists = [data, ...(lists ?? [])];
 			name = '';
 		} else error = response.status === 409 ? t('lists.taken') : t('lists.failed');
 	}

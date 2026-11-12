@@ -684,6 +684,15 @@ func (e ListFeedParamsFilter) Valid() bool {
 	}
 }
 
+// AddListRows defines model for AddListRows.
+type AddListRows struct {
+	// CardIds Which of its cards (Card.id); all of them when left out
+	CardIds *[]openapi_types.UUID `json:"card_ids,omitempty"`
+
+	// FeedCardId The Feed card whose cards to add (a result, Check first or Let me pick card)
+	FeedCardId openapi_types.UUID `json:"feed_card_id"`
+}
+
 // BrainMeter defines model for BrainMeter.
 type BrainMeter struct {
 	// AllowanceCredits Included credits per month (1 credit ≈ €0.001 of AI)
@@ -956,6 +965,15 @@ type ListRow struct {
 	CreatedAt time.Time              `json:"created_at"`
 	Data      map[string]interface{} `json:"data"`
 	Id        openapi_types.UUID     `json:"id"`
+}
+
+// ListRowsAdded defines model for ListRowsAdded.
+type ListRowsAdded struct {
+	Added int `json:"added"`
+
+	// Duplicates Cards already in the list
+	Duplicates int         `json:"duplicates"`
+	List       ListSummary `json:"list"`
 }
 
 // ListSummary defines model for ListSummary.
@@ -1387,6 +1405,9 @@ type TestHelperStackJSONRequestBody = TestStack
 // UpdateListJSONRequestBody defines body for UpdateList for application/json ContentType.
 type UpdateListJSONRequestBody = NewList
 
+// AddListRowsJSONRequestBody defines body for AddListRows for application/json ContentType.
+type AddListRowsJSONRequestBody = AddListRows
+
 // CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
 type CreateWorkspaceJSONRequestBody = NewWorkspace
 
@@ -1747,6 +1768,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
 	ExportList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddListRowsWithBody Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+	AddListRowsWithBody(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+	AddListRows(ctx context.Context, listId ListId, body AddListRowsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteListRow Delete one row
 	//
@@ -2300,6 +2335,40 @@ func (c *Client) UpdateList(ctx context.Context, listId ListId, body UpdateListJ
 // Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
 func (c *Client) ExportList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportListRequest(c.Server, listId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddListRowsWithBody Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+func (c *Client) AddListRowsWithBody(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddListRowsRequestWithBody(c.Server, listId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+func (c *Client) AddListRows(ctx context.Context, listId ListId, body AddListRowsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddListRowsRequest(c.Server, listId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3423,6 +3492,53 @@ func NewExportListRequest(server string, listId ListId) (*http.Request, error) {
 	return req, nil
 }
 
+// NewAddListRowsRequest calls the generic AddListRows builder with application/json body
+func NewAddListRowsRequest(server string, listId ListId, body AddListRowsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddListRowsRequestWithBody(server, listId, "application/json", bodyReader)
+}
+
+// NewAddListRowsRequestWithBody constructs an http.Request for the AddListRows method, with any body, and a specified content type
+func NewAddListRowsRequestWithBody(server string, listId ListId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s/rows", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewDeleteListRowRequest constructs an http.Request for the DeleteListRow method
 func NewDeleteListRowRequest(server string, listId ListId, rowId openapi_types.UUID) (*http.Request, error) {
 	var err error
@@ -4370,6 +4486,20 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
 	ExportListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ExportListResponse, error)
+
+	// AddListRowsWithBodyWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+	AddListRowsWithBodyWithResponse(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddListRowsResponse, error)
+
+	// AddListRowsWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+	AddListRowsWithResponse(ctx context.Context, listId ListId, body AddListRowsJSONRequestBody, reqEditors ...RequestEditorFn) (*AddListRowsResponse, error)
 
 	// DeleteListRowWithResponse Delete one row
 	//
@@ -5553,6 +5683,61 @@ func (r ExportListResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ExportListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddListRowsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListRowsAdded
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AddListRowsResponse) GetJSON200() *ListRowsAdded {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r AddListRowsResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r AddListRowsResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r AddListRowsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddListRowsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddListRowsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddListRowsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -6883,6 +7068,32 @@ func (c *ClientWithResponses) ExportListWithResponse(ctx context.Context, listId
 	return ParseExportListResponse(rsp)
 }
 
+// AddListRowsWithBodyWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+func (c *ClientWithResponses) AddListRowsWithBodyWithResponse(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddListRowsResponse, error) {
+	rsp, err := c.AddListRowsWithBody(ctx, listId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddListRowsResponse(rsp)
+}
+
+// AddListRowsWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+func (c *ClientWithResponses) AddListRowsWithResponse(ctx context.Context, listId ListId, body AddListRowsJSONRequestBody, reqEditors ...RequestEditorFn) (*AddListRowsResponse, error) {
+	rsp, err := c.AddListRows(ctx, listId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddListRowsResponse(rsp)
+}
+
 // DeleteListRowWithResponse Delete one row
 //
 // Returns a wrapper object for the known response body format(s).
@@ -7947,6 +8158,46 @@ func ParseExportListResponse(rsp *http.Response) (*ExportListResponse, error) {
 	return response, nil
 }
 
+// ParseAddListRowsResponse parses an HTTP response from a AddListRowsWithResponse call
+func ParseAddListRowsResponse(rsp *http.Response) (*AddListRowsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddListRowsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListRowsAdded
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeleteListRowResponse parses an HTTP response from a DeleteListRowWithResponse call
 func ParseDeleteListRowResponse(rsp *http.Response) (*DeleteListRowResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -8729,6 +8980,9 @@ type ServerInterface interface {
 	// ExportList All rows as a CSV file (UTF-8, comma separated, header row)
 	// (GET /lists/{listId}/csv)
 	ExportList(w http.ResponseWriter, r *http.Request, listId ListId)
+	// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	// (POST /lists/{listId}/rows)
+	AddListRows(w http.ResponseWriter, r *http.Request, listId ListId)
 	// DeleteListRow Delete one row
 	// (DELETE /lists/{listId}/rows/{rowId})
 	DeleteListRow(w http.ResponseWriter, r *http.Request, listId ListId, rowId openapi_types.UUID)
@@ -9259,6 +9513,32 @@ func (siw *ServerInterfaceWrapper) ExportList(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportList(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddListRows operation middleware
+func (siw *ServerInterfaceWrapper) AddListRows(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddListRows(w, r, listId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9893,6 +10173,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}", wrapper.DeleteList)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}", wrapper.GetList)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/lists/{listId}", wrapper.UpdateList)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/lists/{listId}/rows", wrapper.AddListRows)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/rows/{rowId}", wrapper.DeleteListRow)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}/csv", wrapper.ExportList)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/share", wrapper.UnshareList)
@@ -10928,6 +11209,57 @@ func (response ExportList404JSONResponse) VisitExportListResponse(w http.Respons
 	return err
 }
 
+type AddListRowsRequestObject struct {
+	ListId ListId `json:"listId"`
+	Body   *AddListRowsJSONRequestBody
+}
+
+type AddListRowsResponseObject interface {
+	VisitAddListRowsResponse(w http.ResponseWriter) error
+}
+
+type AddListRows200JSONResponse ListRowsAdded
+
+func (response AddListRows200JSONResponse) VisitAddListRowsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddListRows400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AddListRows400JSONResponse) VisitAddListRowsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddListRows404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AddListRows404JSONResponse) VisitAddListRowsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeleteListRowRequestObject struct {
 	ListId ListId             `json:"listId"`
 	RowId  openapi_types.UUID `json:"rowId"`
@@ -11903,6 +12235,9 @@ type StrictServerInterface interface {
 	// ExportList All rows as a CSV file (UTF-8, comma separated, header row)
 	// (GET /lists/{listId}/csv)
 	ExportList(ctx context.Context, request ExportListRequestObject) (ExportListResponseObject, error)
+	// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	// (POST /lists/{listId}/rows)
+	AddListRows(ctx context.Context, request AddListRowsRequestObject) (AddListRowsResponseObject, error)
 	// DeleteListRow Delete one row
 	// (DELETE /lists/{listId}/rows/{rowId})
 	DeleteListRow(ctx context.Context, request DeleteListRowRequestObject) (DeleteListRowResponseObject, error)
@@ -12506,6 +12841,39 @@ func (sh *strictHandler) ExportList(w http.ResponseWriter, r *http.Request, list
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ExportListResponseObject); ok {
 		if err := validResponse.VisitExportListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddListRows operation middleware
+func (sh *strictHandler) AddListRows(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request AddListRowsRequestObject
+
+	request.ListId = listId
+
+	var body AddListRowsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddListRows(ctx, request.(AddListRowsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddListRows")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddListRowsResponseObject); ok {
+		if err := validResponse.VisitAddListRowsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

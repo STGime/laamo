@@ -116,6 +116,25 @@ export interface paths {
 		patch: operations['updateList'];
 		trace?: never;
 	};
+	'/lists/{listId}/rows': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped */
+		post: operations['addListRows'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/lists/{listId}/rows/{rowId}': {
 		parameters: {
 			query?: never;
@@ -568,6 +587,21 @@ export interface components {
 		PlaceType: 'discord' | 'slack' | 'teams' | 'telegram' | 'email' | 'posta';
 		NewList: {
 			name: string;
+		};
+		AddListRows: {
+			/**
+			 * Format: uuid
+			 * @description The Feed card whose cards to add (a result, Check first or Let me pick card)
+			 */
+			feed_card_id: string;
+			/** @description Which of its cards (Card.id); all of them when left out */
+			card_ids?: string[];
+		};
+		ListRowsAdded: {
+			added: number;
+			/** @description Cards already in the list */
+			duplicates: number;
+			list: components['schemas']['ListSummary'];
 		};
 		ListSummary: {
 			/** Format: uuid */
@@ -1318,6 +1352,34 @@ export interface operations {
 			400: components['responses']['BadRequest'];
 			404: components['responses']['NotFound'];
 			409: components['responses']['Conflict'];
+		};
+	};
+	addListRows: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['AddListRows'];
+			};
+		};
+		responses: {
+			/** @description Added */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ListRowsAdded'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			404: components['responses']['NotFound'];
 		};
 	};
 	deleteListRow: {

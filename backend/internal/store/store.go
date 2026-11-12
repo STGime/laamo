@@ -122,7 +122,7 @@ type ListStore interface {
 	GetListByName(ctx context.Context, workspaceID, name string) (List, error)
 	// GetListByShareToken finds a shared list, or ErrNotFound.
 	GetListByShareToken(ctx context.Context, token string) (List, error)
-	// ListLists returns a workspace's lists, oldest first.
+	// ListLists returns a workspace's lists, newest first.
 	ListLists(ctx context.Context, workspaceID string) ([]List, error)
 	// UpdateList returns ErrConflict for a name another list has.
 	UpdateList(ctx context.Context, id string, p ListPatch) (List, error)
@@ -156,7 +156,7 @@ type TriggerStore interface {
 type PlaceStore interface {
 	CreatePlace(ctx context.Context, p *Place) error
 	GetPlace(ctx context.Context, id string) (Place, error)
-	// ListPlaces returns a workspace's places, oldest first.
+	// ListPlaces returns a workspace's places, newest first.
 	ListPlaces(ctx context.Context, workspaceID string) ([]Place, error)
 	UpdatePlace(ctx context.Context, id string, p PlacePatch) (Place, error)
 	DeletePlace(ctx context.Context, id string) error

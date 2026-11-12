@@ -325,7 +325,7 @@ func (s *Store) GetListByShareToken(ctx context.Context, token string) (store.Li
 }
 
 func (s *Store) ListLists(ctx context.Context, workspaceID string) ([]store.List, error) {
-	q := eb.NewQuery().Eq("workspace_id", workspaceID).Order("created_at", false).Order("id", false)
+	q := eb.NewQuery().Eq("workspace_id", workspaceID).Order("created_at", true).Order("id", true)
 	return listRows[store.List](ctx, s, "lists", q, 0)
 }
 

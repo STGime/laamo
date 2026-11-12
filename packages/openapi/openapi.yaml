@@ -223,6 +223,30 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /lists/{listId}/rows:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+    post:
+      operationId: addListRows
+      summary: Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+      tags: [lists]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddListRows'
+      responses:
+        '200':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListRowsAdded'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /lists/{listId}/rows/{rowId}:
     parameters:
       - $ref: '#/components/parameters/ListId'
@@ -991,6 +1015,32 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+    AddListRows:
+      type: object
+      required: [feed_card_id]
+      properties:
+        feed_card_id:
+          type: string
+          format: uuid
+          description: The Feed card whose cards to add (a result, Check first or Let me pick card)
+        card_ids:
+          type: array
+          maxItems: 200
+          description: Which of its cards (Card.id); all of them when left out
+          items:
+            type: string
+            format: uuid
+    ListRowsAdded:
+      type: object
+      required: [added, duplicates, list]
+      properties:
+        added:
+          type: integer
+        duplicates:
+          type: integer
+          description: Cards already in the list
+        list:
+          $ref: '#/components/schemas/ListSummary'
     ListSummary:
       type: object
       required: [id, name, rows, created_at, updated_at]

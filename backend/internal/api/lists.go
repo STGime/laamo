@@ -9,10 +9,12 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/STGime/laamo/backend/internal/bricks/do"
 	"github.com/STGime/laamo/backend/internal/store"
 )
 
@@ -180,6 +182,101 @@ func (s *Server) DeleteList(ctx context.Context, req DeleteListRequestObject) (D
 	}
 	s.log.Info("list deleted", "list", l.ID, "workspace", l.WorkspaceID)
 	return DeleteList204Response{}, nil
+}
+
+// AddListRows: "Add to list" from the Feed (#47). The cards come from the
+// run as stored, never from the request, and duplicates are skipped like
+// Save to a list does: same website, else email, else link, else name.
+func (s *Server) AddListRows(ctx context.Context, req AddListRowsRequestObject) (AddListRowsResponseObject, error) {
+	l, _, ok, err := s.list(ctx, req.ListId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return AddListRows404JSONResponse{NotFoundJSONResponse(listNotFound)}, nil
+	}
+	fc, _, ok, err := s.feedCard(ctx, req.Body.FeedCardId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok || fc.WorkspaceID != l.WorkspaceID {
+		return AddListRows404JSONResponse{NotFoundJSONResponse(feedNotFound)}, nil
+	}
+	shown, err := s.shownCards(ctx, fc)
+	if err != nil {
+		return nil, err
+	}
+	want := map[string]bool{}
+	if req.Body.CardIds != nil {
+		for _, id := range *req.Body.CardIds {
+			want[id.String()] = true
+		}
+	}
+	var picked []store.Card
+	for _, c := range shown {
+		if len(want) == 0 || want[c.CardID] {
+			picked = append(picked, c)
+		}
+	}
+	if len(picked) == 0 || (len(want) > 0 && len(picked) != len(want)) {
+		return AddListRows400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "those cards aren't on this Feed card"))}, nil
+	}
+	count, err := s.store.CountListRows(ctx, l.ID)
+	if err != nil {
+		return nil, err
+	}
+	if count+len(picked) > do.MaxListRows {
+		return AddListRows400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest,
+			fmt.Sprintf("the list is full (%d rows); delete some rows first", do.MaxListRows)))}, nil
+	}
+	added, dups := 0, 0
+	var saved []map[string]any
+	for _, c := range picked {
+		data := do.RowData(c.Data, deref(c.SourceURL))
+		if _, ok := c.Data["url"]; !ok && c.SourceURL != nil {
+			c.Data = maps.Clone(c.Data)
+			if c.Data == nil {
+				c.Data = map[string]any{}
+			}
+			c.Data["url"] = *c.SourceURL // so a link can be a duplicate
+		}
+		row := store.ListRow{WorkspaceID: l.WorkspaceID, UserID: l.UserID, ListID: l.ID, Data: data, SourceRunID: fc.RunID}
+		for _, f := range []string{"website", "email", "url", "name"} {
+			if v, _ := c.Data[f].(string); v != "" {
+				if key := do.DedupeKey(f, v); key != "" {
+					row.DedupeKey = &key
+					break
+				}
+			}
+		}
+		if row.DedupeKey != nil {
+			if _, err := s.store.GetListRowByKey(ctx, l.ID, *row.DedupeKey); err == nil {
+				dups++
+				continue
+			} else if !errors.Is(err, store.ErrNotFound) {
+				return nil, err
+			}
+		}
+		if err := s.store.AddListRow(ctx, &row); errors.Is(err, store.ErrConflict) {
+			dups++
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		added++
+		saved = append(saved, data)
+	}
+	if err := do.AddColumns(ctx, s.store, l, saved...); err != nil {
+		return nil, err
+	}
+	if l, err = s.store.GetList(ctx, l.ID); err != nil {
+		return nil, err
+	}
+	lo, err := s.listOut(ctx, l)
+	if err != nil {
+		return nil, err
+	}
+	return AddListRows200JSONResponse{Added: added, Duplicates: dups, List: lo}, nil
 }
 
 func (s *Server) DeleteListRow(ctx context.Context, req DeleteListRowRequestObject) (DeleteListRowResponseObject, error) {

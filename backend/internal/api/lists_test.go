@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	"github.com/STGime/laamo/backend/internal/api"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/store/memory"
@@ -116,5 +118,62 @@ func TestLists(t *testing.T) {
 	}
 	if n, _ := st.CountListRows(ctx, l.Id.String()); n != 0 {
 		t.Fatalf("rows left: %d", n)
+	}
+}
+
+// "Add to list" from the Feed: picked cards from a result become rows;
+// duplicates are skipped; cards come from the run, not the request.
+func TestAddToListFromFeed(t *testing.T) {
+	st := memory.New()
+	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna, "ben": ben}}).Handler())
+	t.Cleanup(srv.Close)
+	e := env{url: srv.URL, store: st}
+	ctx := context.Background()
+	ws := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Bäckerei", Locale: "en", Timezone: "Europe/Berlin"})
+	st.PutMember(store.Member{WorkspaceID: ws.ID, UserID: anna.ID, Role: store.RoleOwner})
+	c := e.client(t, "anna")
+
+	runID, stepID := store.NewID(), store.NewID()
+	var cards []store.Card
+	var ids []string
+	for i, title := range []string{"Flour prices rise", "New hygiene rules", "Christmas market fees"} {
+		id := store.NewID()
+		ids = append(ids, id)
+		cards = append(cards, store.Card{WorkspaceID: ws.ID, UserID: anna.ID, RunID: runID, StepID: stepID, CardID: id,
+			Position: i, Kind: "web_result", Data: map[string]any{"title": title, "url": "https://news.example/" + id, "page_text": "long"}})
+	}
+	if err := st.InsertCards(ctx, cards); err != nil {
+		t.Fatal(err)
+	}
+	fc := store.FeedCard{WorkspaceID: ws.ID, UserID: anna.ID, RunID: &runID, StepID: &stepID, Type: "result", Title: "3 new cards"}
+	if err := st.CreateFeedCard(ctx, &fc); err != nil {
+		t.Fatal(err)
+	}
+	l := must(c.CreateListWithResponse(ctx, wsID(ws.ID), api.NewList{Name: "Read later"})).JSON201
+
+	pick := []openapi_types.UUID{wsID(ids[0]), wsID(ids[2])}
+	r := must(c.AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(fc.ID), CardIds: &pick}))
+	if r.StatusCode() != 200 || r.JSON200.Added != 2 || r.JSON200.Duplicates != 0 || r.JSON200.List.Rows != 2 {
+		t.Fatalf("add: %d %s", r.StatusCode(), r.Body)
+	}
+	rows, _ := st.ListRows(ctx, l.Id.String(), 0)
+	for _, row := range rows {
+		if row.Data["page_text"] != nil || row.Data["url"] == nil {
+			t.Fatalf("row %v", row.Data)
+		}
+	}
+	// All of them: two are there already.
+	r = must(c.AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(fc.ID)}))
+	if r.JSON200.Added != 1 || r.JSON200.Duplicates != 2 {
+		t.Fatalf("all: %s", r.Body)
+	}
+	// A card that isn't on this Feed card.
+	bad := []openapi_types.UUID{wsID(store.NewID())}
+	if r := must(c.AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(fc.ID), CardIds: &bad})); r.StatusCode() != 400 {
+		t.Fatalf("unknown card: %d", r.StatusCode())
+	}
+	// Someone else can't add to it.
+	if r := must(e.client(t, "ben").AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(fc.ID)})); r.StatusCode() != 404 {
+		t.Fatalf("ben: %d", r.StatusCode())
 	}
 }
