@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -25,6 +26,7 @@ import (
 type Geoapify struct {
 	APIKey  string
 	BaseURL string // default https://api.geoapify.com
+	MapsURL string // default https://maps.geoapify.com
 	HTTP    *http.Client
 
 	once  sync.Once
@@ -62,14 +64,53 @@ func (g *Geoapify) get(ctx context.Context, path string, q url.Values, out any) 
 		return json.Unmarshal(e.val.([]byte), out)
 	}
 	g.mu.Unlock()
-
-	if err := g.limit.Wait(ctx); err != nil {
-		return err
-	}
-	q.Set("apiKey", g.APIKey)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cmp.Or(g.BaseURL, "https://api.geoapify.com")+path+"?"+q.Encode(), nil)
+	body, err := g.raw(ctx, cmp.Or(g.BaseURL, "https://api.geoapify.com"), path, q)
 	if err != nil {
 		return err
+	}
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("geoapify: %w", err)
+	}
+	ttl := findTTL
+	if strings.HasPrefix(path, "/v1/geocode") {
+		ttl = placeTTL
+	}
+	g.remember(key, body, ttl)
+	return nil
+}
+
+func (g *Geoapify) remember(key string, body []byte, ttl time.Duration) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.cache) >= maxCache {
+		g.cache = map[string]cached{}
+	}
+	if strings.HasPrefix(key, "map|") { // images are big: at most maxMaps of them
+		n := 0
+		for k := range g.cache {
+			if strings.HasPrefix(k, "map|") {
+				n++
+			}
+		}
+		if n >= maxMaps {
+			maps.DeleteFunc(g.cache, func(k string, _ cached) bool { return strings.HasPrefix(k, "map|") })
+		}
+	}
+	g.cache[key] = cached{body, g.now().Add(ttl)}
+}
+
+const maxMaps = 200
+
+// raw makes one request (rate limited) and returns the body.
+func (g *Geoapify) raw(ctx context.Context, base, path string, q url.Values) ([]byte, error) {
+	if err := g.limit.Wait(ctx); err != nil {
+		return nil, err
+	}
+	q = maps.Clone(q)
+	q.Set("apiKey", g.APIKey)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path+"?"+q.Encode(), nil)
+	if err != nil {
+		return nil, err
 	}
 	req.Header.Set("User-Agent", UserAgent)
 	hc := g.HTTP
@@ -82,35 +123,51 @@ func (g *Geoapify) get(ctx context.Context, path string, q url.Values, out any) 
 		if errors.As(err, &ue) {
 			err = ue.Err // the URL holds the key: keep it out of logs
 		}
-		return fmt.Errorf("%w: geoapify: %w", ErrBusy, err)
+		return nil, fmt.Errorf("%w: geoapify: %w", ErrBusy, err)
 	}
 	defer func() { _ = res.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	switch {
 	case res.StatusCode == http.StatusTooManyRequests || res.StatusCode >= 500:
-		return fmt.Errorf("%w: geoapify: %s", ErrBusy, res.Status)
+		return nil, fmt.Errorf("%w: geoapify: %s", ErrBusy, res.Status)
 	case res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden:
-		return fmt.Errorf("geoapify: the API key was refused (%s)", res.Status)
+		return nil, fmt.Errorf("geoapify: the API key was refused (%s)", res.Status)
 	case res.StatusCode != http.StatusOK:
-		return fmt.Errorf("geoapify: %s: %s", res.Status, strings.TrimSpace(string(body[:min(len(body), 200)])))
+		return nil, fmt.Errorf("geoapify: %s: %s", res.Status, strings.TrimSpace(string(body[:min(len(body), 200)])))
 	}
-	if err := json.Unmarshal(body, out); err != nil {
-		return fmt.Errorf("geoapify: %w", err)
+	return body, nil
+}
+
+// StaticMap is a small map (JPEG, 560×200, sharp on phones) with a pin,
+// credits printed on it. Maps are kept a week.
+func (g *Geoapify) StaticMap(ctx context.Context, lat, lon float64) ([]byte, error) {
+	if g.APIKey == "" {
+		return nil, ErrNotConfigured
 	}
-	ttl := findTTL
-	if strings.HasPrefix(path, "/v1/geocode") {
-		ttl = placeTTL
+	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+		return nil, fmt.Errorf("osm: bad location %f,%f", lat, lon)
 	}
+	g.init()
+	at := fmt.Sprintf("%.5f,%.5f", lon, lat)
+	key := "map|" + at
 	g.mu.Lock()
-	if len(g.cache) >= maxCache {
-		g.cache = map[string]cached{}
+	if e, ok := g.cache[key]; ok && g.now().Before(e.expires) {
+		g.mu.Unlock()
+		return e.val.([]byte), nil
 	}
-	g.cache[key] = cached{body, g.now().Add(ttl)}
 	g.mu.Unlock()
-	return nil
+	body, err := g.raw(ctx, cmp.Or(g.MapsURL, "https://maps.geoapify.com"), "/v1/staticmap", url.Values{
+		"style": {"osm-bright-grey"}, "width": {"560"}, "height": {"200"}, "scaleFactor": {"2"}, "zoom": {"16"},
+		"center": {"lonlat:" + at}, "marker": {"lonlat:" + at + ";color:#ff3b5c;size:medium"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	g.remember(key, body, 7*24*time.Hour)
+	return body, nil
 }
 
 func (g *Geoapify) Geocode(ctx context.Context, q, lang string) (Place, error) {
@@ -163,6 +220,8 @@ func (g *Geoapify) Find(ctx context.Context, q Query) ([]Business, error) {
 				Website      string  `json:"website"`
 				OpeningHours string  `json:"opening_hours"`
 				Distance     float64 `json:"distance"`
+				Lat          float64 `json:"lat"`
+				Lon          float64 `json:"lon"`
 				Contact      struct {
 					Phone string `json:"phone"`
 					Email string `json:"email"`
@@ -202,6 +261,8 @@ func (g *Geoapify) Find(ctx context.Context, q Query) ([]Business, error) {
 			Phone:        cmp.Or(p.Contact.Phone, str("phone"), str("contact:phone")),
 			Email:        email(cmp.Or(p.Contact.Email, str("email"), str("contact:email"))),
 			OpeningHours: cmp.Or(p.OpeningHours, str("opening_hours")),
+			Lat:          p.Lat,
+			Lon:          p.Lon,
 			DistanceM:    p.Distance,
 		}
 		if p.Datasource.Sourcename == "openstreetmap" {

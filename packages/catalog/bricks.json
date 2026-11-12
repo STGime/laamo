@@ -220,6 +220,20 @@
       }
     },
     {
+      "key": "location",
+      "label": {
+        "en": "Location",
+        "de": "Standort"
+      }
+    },
+    {
+      "key": "distance_km",
+      "label": {
+        "en": "Distance (km)",
+        "de": "Entfernung (km)"
+      }
+    },
+    {
       "key": "price",
       "label": {
         "en": "Price",
@@ -1135,7 +1149,9 @@
         "address",
         "website",
         "phone",
-        "opening_hours"
+        "opening_hours",
+        "location",
+        "distance_km"
       ]
     },
     {

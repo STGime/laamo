@@ -61,6 +61,7 @@ type Business struct {
 	Phone        string
 	Email        string
 	OpeningHours string
+	Lat, Lon     float64
 	DistanceM    float64
 }
 
@@ -267,6 +268,8 @@ func (c *Client) Find(ctx context.Context, q Query) ([]Business, error) {
 			Phone:        cmp.Or(t["phone"], t["contact:phone"]),
 			Email:        email(cmp.Or(t["email"], t["contact:email"])),
 			OpeningHours: t["opening_hours"],
+			Lat:          lat,
+			Lon:          lon,
 			DistanceM:    distance(q.Lat, q.Lon, lat, lon),
 		}
 		// The same shop as a node and a building: keep one.

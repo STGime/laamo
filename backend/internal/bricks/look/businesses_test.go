@@ -33,7 +33,8 @@ func (f *fakeMap) Find(_ context.Context, q osm.Query) ([]osm.Business, error) {
 	f.got = append(f.got, q)
 	return []osm.Business{
 		{OSMURL: "https://www.openstreetmap.org/way/1", Name: "Bäckerei Klein", Address: "Hauptstraße 5, 04109 Leipzig",
-			Website: "https://baeckerei-klein.de", Phone: "+49 341 123", Email: "info@klein.de", OpeningHours: "Mo-Fr 06:00-18:00"},
+			Website: "https://baeckerei-klein.de", Phone: "+49 341 123", Email: "info@klein.de", OpeningHours: "Mo-Fr 06:00-18:00",
+			Lat: 51.3400, Lon: 12.3735, DistanceM: 345},
 		{OSMURL: "https://www.openstreetmap.org/node/2", Name: "Backstube Ost"},
 	}, nil
 }
@@ -59,7 +60,8 @@ func TestFindBusinesses(t *testing.T) {
 	}
 	c := out[0]
 	if len(out) != 2 || c.Kind != "business" || c.Source != "https://www.openstreetmap.org/way/1" || c.Text("website") != "https://baeckerei-klein.de" ||
-		c.Trust["name"] != engine.TrustExtracted || c.Text("email") != "" || out[1].Text("phone") != "" {
+		c.Trust["name"] != engine.TrustExtracted || c.Text("email") != "" || out[1].Text("phone") != "" ||
+		c.Text("location") != "51.340000,12.373500" || c.Fields["distance_km"] != 0.3 || out[1].Text("location") != "" {
 		t.Fatalf("cards %+v", out)
 	}
 

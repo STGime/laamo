@@ -13,6 +13,10 @@ describe('lists', () => {
 		expect(cellHref('phone', '0341 / 123 45')).toBe('tel:034112345');
 		expect(cellHref('email', 'a@b.de')).toBe('mailto:a@b.de');
 		expect(cellHref('note', 'hello')).toBeNull();
+		expect(cellHref('location', '51.34,12.37')).toBe(
+			'https://www.openstreetmap.org/?mlat=51.34&mlon=12.37#map=18/51.34/12.37'
+		);
+		expect(cellHref('location', '51.34;evil')).toBeNull();
 	});
 	it('names the CSV file', () => {
 		expect(csvName('Leads (Leipzig)')).toBe('leads-leipzig.csv');

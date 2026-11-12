@@ -194,6 +194,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/map': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image */
+		get: operations['getMap'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/shared/lists/{token}': {
 		parameters: {
 			query?: never;
@@ -1473,6 +1490,32 @@ export interface operations {
 			};
 			403: components['responses']['Forbidden'];
 			404: components['responses']['NotFound'];
+		};
+	};
+	getMap: {
+		parameters: {
+			query: {
+				lat: number;
+				lon: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The map */
+			200: {
+				headers: {
+					'Cache-Control'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'image/jpeg': string;
+				};
+			};
+			400: components['responses']['BadRequest'];
+			503: components['responses']['Unavailable'];
 		};
 	};
 	getSharedList: {

@@ -313,16 +313,16 @@
 	<BottomSheet bind:open={sheet} title={card.title}>
 		<ul class="pile">
 			{#each pile as c (c.id)}
-				<li>
-					<CardView card={c} />
+				<li class="pick-row">
+					<div class="grow"><CardView card={c} /></div>
 					<button
-						class="choose"
+						class="pick-link"
 						aria-pressed={chosen.includes(c.id)}
+						aria-label={t('lists.choose')}
 						onclick={() =>
 							(chosen = chosen.includes(c.id)
 								? chosen.filter((x) => x !== c.id)
-								: [...chosen, c.id])}
-						>{chosen.includes(c.id) ? `✓ ${t('lists.chosen')}` : t('lists.choose')}</button
+								: [...chosen, c.id])}>{chosen.includes(c.id) ? '✓' : '+'}</button
 					>
 				</li>
 			{/each}
@@ -351,20 +351,14 @@
 		background: var(--ink);
 		color: var(--white);
 	}
-	.choose {
-		margin-top: var(--space-2);
-		min-height: var(--tap-min);
-		padding: 0 var(--space-4);
-		border: 2px solid var(--ink);
-		border-radius: var(--radius-control);
-		background: var(--white);
-		font: inherit;
-		font-weight: 600;
-		cursor: pointer;
+	.pick-row {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-3);
 	}
-	.choose[aria-pressed='true'] {
-		background: var(--ink);
-		color: var(--white);
+	.grow {
+		flex: 1;
+		min-width: 0;
 	}
 	.item {
 		position: relative;

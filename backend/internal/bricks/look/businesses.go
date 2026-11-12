@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/STGime/laamo/backend/internal/engine"
@@ -79,6 +80,10 @@ func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engi
 			if v != "" {
 				c.Set(k, v, engine.TrustExtracted)
 			}
+		}
+		if b.Lat != 0 || b.Lon != 0 {
+			c.Set("location", fmt.Sprintf("%.6f,%.6f", b.Lat, b.Lon), engine.TrustExtracted)
+			c.Set("distance_km", math.Round(b.DistanceM/100)/10, engine.TrustExtracted)
 		}
 		out = append(out, c)
 	}

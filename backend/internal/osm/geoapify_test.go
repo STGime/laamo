@@ -35,6 +35,12 @@ func TestGeoapify(t *testing.T) {
 		switch r.URL.Path {
 		case "/v1/geocode/search":
 			_, _ = w.Write([]byte(`{"results":[{"formatted":"Leipzig, SN, Deutschland","lat":51.34,"lon":12.37}]}`))
+		case "/v1/staticmap":
+			if !strings.Contains(q.Get("marker"), "lonlat:12.37000,51.34000") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte("JPEG"))
 		case "/v2/places":
 			_, _ = w.Write([]byte(`{"features":[
 				{"properties":{"name":"Far","distance":900,"datasource":{"sourcename":"openstreetmap","raw":{"osm_type":"n","osm_id":7}}}},
@@ -69,6 +75,18 @@ func TestGeoapify(t *testing.T) {
 	if c := calls[2]; !strings.Contains(c, "commercial,catering,service") || !strings.Contains(c, "Klempner Müller") {
 		t.Fatalf("name query %q", c)
 	}
+	// A small map: fetched once, then kept.
+	g.MapsURL = srv.URL
+	for range 2 {
+		if img, err := g.StaticMap(ctx, 51.34, 12.37); err != nil || string(img) != "JPEG" {
+			t.Fatalf("map %q %v", img, err)
+		}
+	}
+	if _, err := g.StaticMap(ctx, 123, 0); err == nil {
+		t.Fatal("bad location accepted")
+	}
+	calls = calls[:len(calls)-1] // the one map call
+
 	// Cached: no new call.
 	_, _ = g.Geocode(ctx, "Leipzig", "de")
 	if len(calls) != 3 {
