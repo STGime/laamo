@@ -382,6 +382,9 @@ func services(o options, w io.Writer, st store.Store, keys *crypto.Keyring) (bri
 	deps.Search, deps.SearchCostEUR = p, cfg.SearchCostEUR
 	deps.Pages = &web.Fetcher{}
 	deps.Businesses = &osm.Client{NominatimURL: cfg.OSMNominatimURL, OverpassURL: cfg.OSMOverpassURL}
+	if cfg.GeoapifyAPIKey != "" {
+		deps.Businesses = &osm.Geoapify{APIKey: cfg.GeoapifyAPIKey}
+	}
 	if o.webhook != "" {
 		deps.Chat = &chat.Sender{}
 	}

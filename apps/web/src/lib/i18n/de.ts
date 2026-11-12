@@ -30,6 +30,7 @@ export const de: Record<Key, string> = {
 	'lists.empty': 'Hier können Helfer Firmen, Kontakte und Links speichern.',
 	'osm.credit': 'Kartendaten © OpenStreetMap-Mitwirkende',
 	'osm.creditRows': 'Betriebe aus OpenStreetMap: © OpenStreetMap-Mitwirkende (ODbL).',
+	'osm.poweredBy': 'Powered by Geoapify',
 	'lists.choose': 'Auswählen',
 	'lists.chosen': 'Ausgewählt',
 	'lists.addAll': 'Alle in eine Liste',

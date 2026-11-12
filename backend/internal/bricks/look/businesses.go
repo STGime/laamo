@@ -13,7 +13,8 @@ import (
 	"github.com/STGime/laamo/backend/internal/queue"
 )
 
-// BusinessFinder looks businesses up on OpenStreetMap (osm.Client).
+// BusinessFinder looks businesses up in OpenStreetMap data (osm.Geoapify,
+// or osm.Client for Overpass).
 type BusinessFinder interface {
 	Geocode(ctx context.Context, q, lang string) (osm.Place, error)
 	Find(ctx context.Context, q osm.Query) ([]osm.Business, error)
@@ -43,14 +44,13 @@ func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engi
 
 	// The kind: from the built-in list, else the AI picks map tags, else
 	// businesses with those words in their name.
-	q := osm.Query{Tags: osm.Kinds(what), RadiusM: radius * 1000, Limit: max(1, rc.Limits.MaxCards)}
+	q := osm.Query{Tags: osm.Kinds(what), Categories: osm.Categories(what), Name: what,
+		RadiusM: radius * 1000, Limit: max(1, rc.Limits.MaxCards)}
 	if len(q.Tags) == 0 && rc.Brain != nil {
 		if q.Tags, err = aiTags(ctx, rc, what); err != nil {
 			rc.Log.Warn("couldn't map the kind to OpenStreetMap tags", "what", what, "err", err)
 		}
-	}
-	if len(q.Tags) == 0 {
-		q.Name = what
+		q.Categories = osm.CategoriesFor(q.Tags)
 	}
 
 	place, err := f.Finder.Geocode(ctx, where, rc.Workspace.Locale)

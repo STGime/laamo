@@ -50,7 +50,12 @@
 			{/each}
 		</ul>
 		{#if list.rows.some((r) => osmSource(r.data.url))}
-			<p class="hint">{t('osm.creditRows')}</p>
+			<p class="hint">
+				{t('osm.creditRows')}
+				<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer"
+					>{t('osm.poweredBy')}</a
+				>
+			</p>
 		{/if}
 	{/if}
 </main>

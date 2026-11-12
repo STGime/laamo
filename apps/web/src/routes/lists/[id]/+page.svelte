@@ -201,7 +201,12 @@
 	{/if}
 
 	{#if detail?.rows.some((r) => osmSource(r.data.url))}
-		<p class="note">{t('osm.creditRows')}</p>
+		<p class="note">
+			{t('osm.creditRows')}
+			<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer"
+				>{t('osm.poweredBy')}</a
+			>
+		</p>
 	{/if}
 
 	<section class="acts">

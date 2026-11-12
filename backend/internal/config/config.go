@@ -29,6 +29,7 @@ type Config struct {
 	// for production volumes (#16).
 	OSMNominatimURL string
 	OSMOverpassURL  string
+	GeoapifyAPIKey  string // when set, Find businesses uses Geoapify instead of Overpass
 	// Master keys for secrets at rest ("v1:base64,v2:base64"), see
 	// internal/crypto and docs/security/secrets.md. Server side only.
 	MasterKeys      string

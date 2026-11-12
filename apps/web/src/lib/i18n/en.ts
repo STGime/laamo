@@ -29,6 +29,7 @@ export const en = {
 	'lists.empty': 'Helpers can save businesses, leads and links here.',
 	'osm.credit': 'Map data © OpenStreetMap contributors',
 	'osm.creditRows': 'Businesses from OpenStreetMap: © OpenStreetMap contributors (ODbL).',
+	'osm.poweredBy': 'Powered by Geoapify',
 	'lists.choose': 'Choose',
 	'lists.chosen': 'Chosen',
 	'lists.addAll': 'Add all to a list',

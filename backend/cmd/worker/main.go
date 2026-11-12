@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/STGime/laamo/backend/internal/bricks"
+	"github.com/STGime/laamo/backend/internal/bricks/look"
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/chat"
 	"github.com/STGime/laamo/backend/internal/config"
@@ -90,7 +91,7 @@ func run(log *slog.Logger) error {
 
 func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps {
 	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}, Pages: &web.Fetcher{},
-		Businesses: &osm.Client{NominatimURL: cfg.OSMNominatimURL, OverpassURL: cfg.OSMOverpassURL}}
+		Businesses: businessFinder(cfg)}
 	if keys, err := crypto.ParseKeyring(cfg.MasterKeys, cfg.MasterKeyActive); err == nil {
 		d.Keys = keys
 	} else {
@@ -106,6 +107,14 @@ func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps 
 	}
 	d.Search = p
 	return d
+}
+
+// businessFinder: Geoapify when there's a key, else the Overpass servers.
+func businessFinder(cfg config.Config) look.BusinessFinder {
+	if cfg.GeoapifyAPIKey != "" {
+		return &osm.Geoapify{APIKey: cfg.GeoapifyAPIKey}
+	}
+	return &osm.Client{NominatimURL: cfg.OSMNominatimURL, OverpassURL: cfg.OSMOverpassURL}
 }
 
 // handlers maps job kinds to handlers.

@@ -80,6 +80,10 @@
 		{#if fromMap}
 			<p class="host">
 				<a href={fromMap} target="_blank" rel="noopener noreferrer nofollow">{t('osm.credit')}</a>
+				·
+				<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer"
+					>{t('osm.poweredBy')}</a
+				>
 			</p>
 		{/if}
 	{/if}

@@ -196,12 +196,13 @@ func (c *Client) Geocode(ctx context.Context, q, lang string) (Place, error) {
 
 // Query is what to find around a place.
 type Query struct {
-	Tags    []Tag  // any of them
-	Name    string // or: a name containing these words (when there are no tags)
-	Lat     float64
-	Lon     float64
-	RadiusM int
-	Limit   int
+	Tags       []Tag    // any of them (Overpass)
+	Categories []string // any of them (Geoapify)
+	Name       string   // what was typed: searched by name when there's nothing else
+	Lat        float64
+	Lon        float64
+	RadiusM    int
+	Limit      int
 }
 
 // Find returns named businesses around a point, nearest first.
