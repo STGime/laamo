@@ -308,6 +308,21 @@
 		if (run) return i < live.current ? 'done' : i === live.current ? 'running' : 'idle';
 		return step?.status === 'failed' ? 'failed' : step ? 'done' : 'idle';
 	}
+	// While a test runs: seconds since it started, and whether a step failed
+	// and is waiting for its retry (so it doesn't look stuck).
+	let testStarted = $state(0);
+	let now = $state(Date.now());
+	$effect(() => {
+		if (!testing) return;
+		const timer = setInterval(() => (now = Date.now()), 1000);
+		return () => clearInterval(timer);
+	});
+	const elapsed = $derived(testStarted ? Math.max(0, Math.round((now - testStarted) / 1000)) : 0);
+	const retrying = $derived(
+		!!run &&
+			run.status === 'running' &&
+			detail?.steps?.find((s) => s.brick_id === bricks[run.step]?.id)?.status === 'failed'
+	);
 	async function loadTest() {
 		const { data } = await api.GET('/helpers/{helperId}', { params: { path: { helperId: id } } });
 		if (data) detail = data;
@@ -337,6 +352,7 @@
 		});
 		if (data) {
 			testRun = data.run_id;
+			testStarted = now = Date.now();
 			detail = null;
 			return;
 		}
@@ -460,10 +476,11 @@
 					<a href="/feed">{t('tab.feed')} →</a>
 				{:else if finished}
 					{t('builder.testFailed')} <a href="/feed">{t('tab.feed')} →</a>
-				{:else if run}
-					{progressText(run)}
 				{:else}
-					{t('helpers.queued')}
+					<span class="spinner" aria-hidden="true"></span>
+					{retrying ? t('builder.retrying') : run ? progressText(run) : t('helpers.queued')}
+					<span class="secs">· {t('builder.seconds', { n: elapsed })}</span>
+					{#if elapsed >= 30 && !retrying}<span class="slow">{t('builder.slow')}</span>{/if}
 				{/if}
 			</p>
 		{/if}
@@ -734,5 +751,36 @@
 		border: 2px solid var(--gray-200);
 		border-radius: var(--radius-control);
 		color: var(--muted);
+	}
+	.spinner {
+		display: inline-block;
+		width: 0.9em;
+		height: 0.9em;
+		margin-right: var(--space-1);
+		vertical-align: -0.1em;
+		border: 2px solid var(--muted);
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: spin 0.9s linear infinite;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.spinner {
+			animation: none;
+		}
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	.secs {
+		color: var(--muted);
+		font-variant-numeric: tabular-nums;
+	}
+	.slow {
+		display: block;
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: 400;
 	}
 </style>

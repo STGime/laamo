@@ -69,6 +69,7 @@ func Load() (Config, error) {
 		SearchCostEUR:     getfloat("SEARCH_COST_EUR", 0.005),
 		OSMNominatimURL:   getenv("OSM_NOMINATIM_URL", ""), // "" = osm.DefaultNominatim
 		OSMOverpassURL:    getenv("OSM_OVERPASS_URL", ""),  // "" = osm.DefaultOverpass
+		GeoapifyAPIKey:    os.Getenv("GEOAPIFY_API_KEY"),
 		MasterKeys:        os.Getenv("LAAMO_MASTER_KEYS"),
 		MasterKeyActive:   os.Getenv("LAAMO_MASTER_KEY_ACTIVE"),
 		LLMBaseURL:        getenv("LLM_BASE_URL", DefaultLLMBaseURL),
