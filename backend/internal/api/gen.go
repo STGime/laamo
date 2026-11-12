@@ -1145,6 +1145,15 @@ type StepProgress struct {
 // StepProgressStatus defines model for StepProgress.Status.
 type StepProgressStatus string
 
+// TestStack defines model for TestStack.
+type TestStack struct {
+	// Answer The answer to Tap Go's question ({answer})
+	Answer *string `json:"answer,omitempty"`
+
+	// Stack A stack as in packages/catalog (schema 1); checked against bricks.json
+	Stack Stack `json:"stack"`
+}
+
 // TimeFormat How times are shown; 24h unless the user picks 12h (AM/PM)
 type TimeFormat string
 
@@ -1286,6 +1295,9 @@ type StartRunJSONRequestBody StartRunJSONBody
 
 // SaveHelperStackJSONRequestBody defines body for SaveHelperStack for application/json ContentType.
 type SaveHelperStackJSONRequestBody = SaveStack
+
+// TestHelperStackJSONRequestBody defines body for TestHelperStack for application/json ContentType.
+type TestHelperStackJSONRequestBody = TestStack
 
 // CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
 type CreateWorkspaceJSONRequestBody = NewWorkspace
@@ -1596,6 +1608,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
 	SaveHelperStack(ctx context.Context, helperId HelperId, body SaveHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TestHelperStackWithBody Test an edited stack once (max 3 cards) without making it the helper's version
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
+	TestHelperStackWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
+	TestHelperStack(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetMe The signed-in user and their workspaces
 	//
@@ -1982,6 +2008,40 @@ func (c *Client) SaveHelperStackWithBody(ctx context.Context, helperId HelperId,
 // Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
 func (c *Client) SaveHelperStack(ctx context.Context, helperId HelperId, body SaveHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSaveHelperStackRequest(c.Server, helperId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TestHelperStackWithBody Test an edited stack once (max 3 cards) without making it the helper's version
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
+func (c *Client) TestHelperStackWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestHelperStackRequestWithBody(c.Server, helperId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
+func (c *Client) TestHelperStack(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestHelperStackRequest(c.Server, helperId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2715,6 +2775,53 @@ func NewSaveHelperStackRequestWithBody(server string, helperId HelperId, content
 	return req, nil
 }
 
+// NewTestHelperStackRequest calls the generic TestHelperStack builder with application/json body
+func NewTestHelperStackRequest(server string, helperId HelperId, body TestHelperStackJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTestHelperStackRequestWithBody(server, helperId, "application/json", bodyReader)
+}
+
+// NewTestHelperStackRequestWithBody constructs an http.Request for the TestHelperStack method, with any body, and a specified content type
+func NewTestHelperStackRequestWithBody(server string, helperId HelperId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s/stack/test", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetMeRequest constructs an http.Request for the GetMe method
 func NewGetMeRequest(server string) (*http.Request, error) {
 	var err error
@@ -3382,6 +3489,20 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /helpers/{helperId}/stack (the `SaveHelperStack` operationId).
 	SaveHelperStackWithResponse(ctx context.Context, helperId HelperId, body SaveHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveHelperStackResponse, error)
+
+	// TestHelperStackWithBodyWithResponse Test an edited stack once (max 3 cards) without making it the helper's version
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
+	TestHelperStackWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TestHelperStackResponse, error)
+
+	// TestHelperStackWithResponse Test an edited stack once (max 3 cards) without making it the helper's version
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
+	TestHelperStackWithResponse(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*TestHelperStackResponse, error)
 
 	// GetMeWithResponse The signed-in user and their workspaces
 	//
@@ -4193,6 +4314,82 @@ func (r SaveHelperStackResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SaveHelperStackResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TestHelperStackResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *RunStarted
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *StackProblems
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r TestHelperStackResponse) GetJSON202() *RunStarted {
+	return r.JSON202
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r TestHelperStackResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r TestHelperStackResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r TestHelperStackResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r TestHelperStackResponse) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r TestHelperStackResponse) GetJSON422() *StackProblems {
+	return r.JSON422
+}
+
+// GetBody returns the raw response body bytes
+func (r TestHelperStackResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TestHelperStackResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TestHelperStackResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TestHelperStackResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -5117,6 +5314,32 @@ func (c *ClientWithResponses) SaveHelperStackWithResponse(ctx context.Context, h
 	return ParseSaveHelperStackResponse(rsp)
 }
 
+// TestHelperStackWithBodyWithResponse Test an edited stack once (max 3 cards) without making it the helper's version
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
+func (c *ClientWithResponses) TestHelperStackWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TestHelperStackResponse, error) {
+	rsp, err := c.TestHelperStackWithBody(ctx, helperId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestHelperStackResponse(rsp)
+}
+
+// TestHelperStackWithResponse Test an edited stack once (max 3 cards) without making it the helper's version
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
+func (c *ClientWithResponses) TestHelperStackWithResponse(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*TestHelperStackResponse, error) {
+	rsp, err := c.TestHelperStack(ctx, helperId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestHelperStackResponse(rsp)
+}
+
 // GetMeWithResponse The signed-in user and their workspaces
 //
 // Returns a wrapper object for the known response body format(s).
@@ -5851,6 +6074,67 @@ func ParseSaveHelperStackResponse(rsp *http.Response) (*SaveHelperStackResponse,
 	return response, nil
 }
 
+// ParseTestHelperStackResponse parses an HTTP response from a TestHelperStackWithResponse call
+func ParseTestHelperStackResponse(rsp *http.Response) (*TestHelperStackResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TestHelperStackResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest RunStarted
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest StackProblems
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetMeResponse parses an HTTP response from a GetMeWithResponse call
 func ParseGetMeResponse(rsp *http.Response) (*GetMeResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6397,6 +6681,9 @@ type ServerInterface interface {
 	// SaveHelperStack Save an edited stack as the helper's next version
 	// (PUT /helpers/{helperId}/stack)
 	SaveHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
+	// (POST /helpers/{helperId}/stack/test)
+	TestHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
@@ -6711,6 +6998,32 @@ func (siw *ServerInterfaceWrapper) SaveHelperStack(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SaveHelperStack(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestHelperStack operation middleware
+func (siw *ServerInterfaceWrapper) TestHelperStack(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestHelperStack(w, r, helperId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7191,6 +7504,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/runs", wrapper.StartRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.GetHelperStack)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.SaveHelperStack)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/stack/test", wrapper.TestHelperStack)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/feed-cards/{feedCardId}/dismiss", wrapper.DismissFeedCard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/feed-cards/{feedCardId}", wrapper.GetFeedCard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/feed-cards/{feedCardId}/decision", wrapper.DecideFeedCard)
@@ -7867,6 +8181,99 @@ func (response SaveHelperStack409JSONResponse) VisitSaveHelperStackResponse(w ht
 type SaveHelperStack422JSONResponse StackProblems
 
 func (response SaveHelperStack422JSONResponse) VisitSaveHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestHelperStackRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+	Body     *TestHelperStackJSONRequestBody
+}
+
+type TestHelperStackResponseObject interface {
+	VisitTestHelperStackResponse(w http.ResponseWriter) error
+}
+
+type TestHelperStack202JSONResponse RunStarted
+
+func (response TestHelperStack202JSONResponse) VisitTestHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestHelperStack400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response TestHelperStack400JSONResponse) VisitTestHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestHelperStack401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response TestHelperStack401JSONResponse) VisitTestHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestHelperStack404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response TestHelperStack404JSONResponse) VisitTestHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestHelperStack409JSONResponse struct{ ConflictJSONResponse }
+
+func (response TestHelperStack409JSONResponse) VisitTestHelperStackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestHelperStack422JSONResponse StackProblems
+
+func (response TestHelperStack422JSONResponse) VisitTestHelperStackResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -8573,6 +8980,9 @@ type StrictServerInterface interface {
 	// SaveHelperStack Save an edited stack as the helper's next version
 	// (PUT /helpers/{helperId}/stack)
 	SaveHelperStack(ctx context.Context, request SaveHelperStackRequestObject) (SaveHelperStackResponseObject, error)
+	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
+	// (POST /helpers/{helperId}/stack/test)
+	TestHelperStack(ctx context.Context, request TestHelperStackRequestObject) (TestHelperStackResponseObject, error)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
@@ -8987,6 +9397,39 @@ func (sh *strictHandler) SaveHelperStack(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(SaveHelperStackResponseObject); ok {
 		if err := validResponse.VisitSaveHelperStackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestHelperStack operation middleware
+func (sh *strictHandler) TestHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request TestHelperStackRequestObject
+
+	request.HelperId = helperId
+
+	var body TestHelperStackJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestHelperStack(ctx, request.(TestHelperStackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestHelperStack")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestHelperStackResponseObject); ok {
+		if err := validResponse.VisitTestHelperStackResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

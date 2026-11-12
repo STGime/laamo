@@ -10,7 +10,9 @@
 	import { sentence } from '@laamo/catalog/describe';
 	import { available, validate, type Issue } from '@laamo/catalog/validate';
 	import type { Schemas } from '#lib/api/client.ts';
-	import Brick from '#lib/components/Brick.svelte';
+	import Brick, { type BrickState } from '#lib/components/Brick.svelte';
+	import { listen } from '#lib/feed.svelte.ts';
+	import { brickProgress, progressText } from '#lib/progress.ts';
 	import BrickSheet, { type Pill } from '#lib/components/BrickSheet.svelte';
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
@@ -268,6 +270,78 @@
 		return !!data;
 	}
 
+	// Test (#42): runs this edit once, max 3 cards, without saving it.
+	let testRun = $state<string | null>(null);
+	let detail = $state<Schemas['HelperDetail'] | null>(null);
+	let asking = $state(false);
+	let answer = $state('');
+	const question = $derived(
+		bricks[0]?.type === 'when.tap' && typeof bricks[0].config.question === 'string'
+			? bricks[0].config.question.trim()
+			: ''
+	);
+	const run = $derived(
+		testRun && detail?.helper.run?.id === testRun ? detail.helper.run : undefined
+	);
+	const finished = $derived(
+		testRun ? detail?.runs.find((r) => r.id === testRun && !run) : undefined
+	);
+	const testing = $derived(!!testRun && !finished && run?.status !== 'waiting');
+	// While it runs, the bricks light up like on the helper page.
+	const live = $derived(
+		testRun && detail
+			? brickProgress(
+					bricks.map((b) => ({ id: b.id, group: brick(b.type)?.group ?? 'do', title: '' })),
+					run,
+					detail.steps
+				)
+			: null
+	);
+	function stateOf(i: number): BrickState {
+		if (!live) return 'idle';
+		const step = detail?.steps?.find((s) => s.brick_id === bricks[i].id);
+		if (run) return i < live.current ? 'done' : i === live.current ? 'running' : 'idle';
+		return step?.status === 'failed' ? 'failed' : step ? 'done' : 'idle';
+	}
+	async function loadTest() {
+		const { data } = await api.GET('/helpers/{helperId}', { params: { path: { helperId: id } } });
+		if (data) detail = data;
+	}
+	$effect(() => {
+		if (!testRun) return;
+		loadTest();
+		return listen(loadTest, () => session.fresh(), ['run', 'step', 'reload']);
+	});
+	function test() {
+		if (question && !asking) {
+			asking = true;
+			return;
+		}
+		startTest();
+	}
+	async function startTest() {
+		asking = false;
+		error = '';
+		const {
+			data,
+			error: err,
+			response
+		} = await api.POST('/helpers/{helperId}/stack/test', {
+			params: { path: { helperId: id } },
+			body: { stack: stack as Schemas['Stack'], ...(question ? { answer } : {}) }
+		});
+		if (data) {
+			testRun = data.run_id;
+			detail = null;
+			return;
+		}
+		if (response.status === 422) {
+			serverIssues = (err as Schemas['StackProblems']).issues;
+			error = t('builder.problems');
+		} else if (response.status === 409) error = t('builder.busy');
+		else error = t('builder.failed');
+	}
+
 	async function save() {
 		saving = true;
 		error = '';
@@ -322,21 +396,29 @@
 		<ol
 			class="stack"
 			aria-label={t('helper.bricks')}
-			use:dndzone={{ items: bricks, flipDurationMs: flip, dropTargetStyle: {} }}
+			use:dndzone={{
+				items: bricks,
+				flipDurationMs: flip,
+				dropTargetStyle: {},
+				dragDisabled: testing
+			}}
 			onconsider={consider}
 			onfinalize={finalize}
 		>
-			{#each bricks as b (b.id)}
+			{#each bricks as b, i (b.id)}
 				{@const issue = issueFor(b)}
 				{@const out = lastOut[b.id]}
-				<li>
+				<li class:dim={testing && live && i > live.current}>
 					<Brick
 						group={brick(b.type)?.group ?? 'do'}
 						title={title(b)}
-						sub={out !== undefined && brick(b.type)?.shape !== 'start'
-							? t('helper.cards', { n: out })
-							: ''}
-						onclick={() => open(b)}
+						state={stateOf(i)}
+						sub={live
+							? live.items[i].sub
+							: out !== undefined && brick(b.type)?.shape !== 'start'
+								? t('helper.cards', { n: out })
+								: ''}
+						onclick={testing ? undefined : () => open(b)}
 					/>
 					{#if issue}
 						{@const f = fixOf(issue)}
@@ -364,6 +446,28 @@
 	{/if}
 
 	<div class="dock">
+		{#if testRun}
+			<p class="result" role="status">
+				{#if run?.status === 'waiting'}
+					{t('builder.testWaits')} <a href="/feed">{t('tab.feed')} →</a>
+				{:else if finished?.status === 'done'}
+					{t('builder.testDone', { n: finished.cards_out ?? 0 })}
+					<a href="/feed">{t('tab.feed')} →</a>
+				{:else if finished}
+					{t('builder.testFailed')} <a href="/feed">{t('tab.feed')} →</a>
+				{:else if run}
+					{progressText(run)}
+				{:else}
+					{t('helpers.queued')}
+				{/if}
+			</p>
+		{/if}
+		<button
+			type="button"
+			class="btn wide"
+			disabled={!base || errors.length > 0 || testing}
+			onclick={test}>{testing ? t('builder.testing') : t('builder.test')}</button
+		>
 		<div class="tray" role="group" aria-label={t('builder.tray')}>
 			{#each groups as g (g)}
 				<button
@@ -391,6 +495,22 @@
 			onremove={remove}
 		/>
 	{/if}
+
+	<BottomSheet bind:open={asking} title={t('builder.test')}>
+		<form
+			class="answer"
+			onsubmit={(e) => {
+				e.preventDefault();
+				startTest();
+			}}
+		>
+			<label for="test-answer">{question}</label>
+			<input id="test-answer" bind:value={answer} maxlength="500" autocomplete="off" />
+			<button type="submit" class="btn primary wide" disabled={!answer.trim()}
+				>{t('builder.test')}</button
+			>
+		</form>
+	</BottomSheet>
 
 	<BottomSheet bind:open={trayOpen} title={trayGroup ? t(`group.${trayGroup}` as Key) : ''}>
 		<ul class="pick">
@@ -443,6 +563,32 @@
 		text-decoration: underline;
 		cursor: pointer;
 	}
+	.dim {
+		opacity: 0.45;
+	}
+	.result {
+		margin: 0;
+		font-weight: 700;
+	}
+	.result a {
+		color: inherit;
+	}
+	.answer {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+	.answer label {
+		font-weight: 700;
+	}
+	.answer input {
+		min-height: 56px;
+		padding: 0 var(--space-4);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font: inherit;
+		font-size: var(--text-lg);
+	}
 	.head-actions {
 		display: flex;
 		align-items: center;
@@ -460,7 +606,7 @@
 	.stack {
 		list-style: none;
 		margin: 0;
-		padding: 0 var(--gutter) 160px;
+		padding: 0 var(--gutter) 240px;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);

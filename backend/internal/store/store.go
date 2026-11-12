@@ -74,8 +74,9 @@ type HelperStore interface {
 	// helper at it. IDs are filled in.
 	CreateHelper(ctx context.Context, h *Helper, v *HelperVersion) error
 	// AddHelperVersion stores the next version of a helper's stack (number =
-	// latest + 1) and makes it current. ErrConflict when another save won.
-	AddHelperVersion(ctx context.Context, v *HelperVersion) error
+	// latest + 1) and, if current, makes it the one runs use. A version that
+	// isn't current is a builder test. ErrConflict when another save won.
+	AddHelperVersion(ctx context.Context, v *HelperVersion, current bool) error
 	// ListHelpers returns a workspace's helpers, newest first.
 	ListHelpers(ctx context.Context, workspaceID string) ([]Helper, error)
 	UpdateHelper(ctx context.Context, id string, p HelperPatch) (Helper, error)

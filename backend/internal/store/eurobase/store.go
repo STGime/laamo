@@ -125,7 +125,7 @@ func (s *Store) CreateHelper(ctx context.Context, h *store.Helper, v *store.Help
 	return err
 }
 
-func (s *Store) AddHelperVersion(ctx context.Context, v *store.HelperVersion) error {
+func (s *Store) AddHelperVersion(ctx context.Context, v *store.HelperVersion, current bool) error {
 	h, err := s.GetHelper(ctx, v.HelperID)
 	if err != nil {
 		return err
@@ -142,6 +142,9 @@ func (s *Store) AddHelperVersion(ctx context.Context, v *store.HelperVersion) er
 	v.ID = ""
 	if err := insertRow(ctx, s, "helper_versions", &v.ID, v); err != nil {
 		return err // ErrConflict: (helper_id, version) is taken
+	}
+	if !current {
+		return nil
 	}
 	_, err = updateRow[store.Helper](ctx, s, "helpers", h.ID, map[string]string{"current_version_id": v.ID})
 	return err

@@ -488,6 +488,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StackProblems'
+  /helpers/{helperId}/stack/test:
+    parameters:
+      - $ref: '#/components/parameters/HelperId'
+    post:
+      operationId: testHelperStack
+      summary: Test an edited stack once (max 3 cards) without making it the helper's version
+      tags: [helpers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestStack'
+      responses:
+        '202':
+          description: Started; follow it on the helper
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStarted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: The stack has problems; nothing was started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StackProblems'
   /feed-cards/{feedCardId}/dismiss:
     parameters:
       - $ref: '#/components/parameters/FeedCardId'
@@ -1151,6 +1185,16 @@ components:
         version:
           type: integer
           description: The version the edit started from
+    TestStack:
+      type: object
+      required: [stack]
+      properties:
+        stack:
+          $ref: '#/components/schemas/Stack'
+        answer:
+          type: string
+          maxLength: 500
+          description: The answer to Tap Go's question ({answer})
     StackProblems:
       type: object
       required: [error, issues]

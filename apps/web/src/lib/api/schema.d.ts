@@ -298,6 +298,25 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/helpers/{helperId}/stack/test': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Test an edited stack once (max 3 cards) without making it the helper's version */
+		post: operations['testHelperStack'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/feed-cards/{feedCardId}/dismiss': {
 		parameters: {
 			query?: never;
@@ -674,6 +693,11 @@ export interface components {
 			stack: components['schemas']['Stack'];
 			/** @description The version the edit started from */
 			version: number;
+		};
+		TestStack: {
+			stack: components['schemas']['Stack'];
+			/** @description The answer to Tap Go's question ({answer}) */
+			answer?: string;
 		};
 		StackProblems: {
 			error: string;
@@ -1414,6 +1438,45 @@ export interface operations {
 				};
 			};
 			/** @description The stack has problems; nothing was saved */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['StackProblems'];
+				};
+			};
+		};
+	};
+	testHelperStack: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['TestStack'];
+			};
+		};
+		responses: {
+			/** @description Started; follow it on the helper */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['RunStarted'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+			409: components['responses']['Conflict'];
+			/** @description The stack has problems; nothing was started */
 			422: {
 				headers: {
 					[name: string]: unknown;
