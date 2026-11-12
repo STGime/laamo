@@ -362,3 +362,20 @@ type OutboundPatch struct {
 	Error             *string    `json:"error,omitempty"`
 	SentAt            *time.Time `json:"sent_at,omitempty"`
 }
+
+// PickExample is one card the user kept or skipped on a Let me pick card:
+// a short copy of what it said (web content, so untrusted) and the user's
+// choice.
+type PickExample struct {
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspace_id"`
+	UserID      string    `json:"user_id"`
+	HelperID    string    `json:"helper_id"`
+	StepID      string    `json:"step_id"`
+	CardID      string    `json:"card_id"`
+	Kept        bool      `json:"kept"`
+	Title       string    `json:"title"`
+	Site        string    `json:"site"`
+	Text        string    `json:"text"`
+	CreatedAt   time.Time `json:"created_at,omitzero"`
+}

@@ -259,6 +259,25 @@ export interface paths {
 		patch: operations['updateHelper'];
 		trace?: never;
 	};
+	'/helpers/{helperId}/learned': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Forget what the helper learned from Let me pick swipes */
+		delete: operations['forgetLearned'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/helpers/{helperId}/runs': {
 		parameters: {
 			query?: never;
@@ -779,6 +798,8 @@ export interface components {
 		};
 		HelperDetail: {
 			helper: components['schemas']['Helper'];
+			/** @description How many Let me pick swipes the helper learns from (0 when it doesn't learn) */
+			learned: number;
 			bricks: components['schemas']['BrickPreview'][];
 			/** @description The last 10 runs, newest first */
 			runs: components['schemas']['RunSummary'][];
@@ -1340,6 +1361,28 @@ export interface operations {
 				};
 			};
 			400: components['responses']['BadRequest'];
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	forgetLearned: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Forgotten */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
 			401: components['responses']['Unauthorized'];
 			404: components['responses']['NotFound'];
 		};

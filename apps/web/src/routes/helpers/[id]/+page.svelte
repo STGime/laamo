@@ -18,6 +18,8 @@
 	let confirmDelete = $state(false);
 	let busy = $state(false);
 	let started = $state(false);
+	let forgetting = $state(false);
+	let forgot = $state(false);
 
 	const id = $derived(page.params.id ?? '');
 
@@ -69,6 +71,24 @@
 		if (data) {
 			started = true;
 			load();
+		}
+	}
+
+	// Learning from swipes (#76): what Let me pick taught Keep the good ones.
+	async function forget() {
+		if (!forgetting) {
+			forgetting = true;
+			return;
+		}
+		busy = true;
+		const { response } = await api.DELETE('/helpers/{helperId}/learned', {
+			params: { path: { helperId: id } }
+		});
+		busy = false;
+		forgetting = false;
+		if (response.ok && detail) {
+			detail = { ...detail, learned: 0 };
+			forgot = true;
 		}
 	}
 
@@ -138,6 +158,16 @@
 		<h2>{t('helper.bricks')}</h2>
 		<BrickStack {bricks} {current} />
 		<a class="btn wide edit" href="/helpers/{id}/edit">{t('builder.edit')}</a>
+		{#if detail?.learned}
+			<p class="learned">
+				{t('helper.learned', { n: detail.learned })}
+				<button class="link" class:sure={forgetting} disabled={busy} onclick={forget}
+					>{forgetting ? t('helper.forgetSure') : t('helper.forget')}</button
+				>
+			</p>
+		{:else if forgot}
+			<p class="learned">{t('helper.forgotten')}</p>
+		{/if}
 	</section>
 
 	<section>
@@ -324,6 +354,23 @@
 	.danger-solid {
 		background: var(--danger);
 		color: var(--white);
+	}
+	.learned {
+		margin-top: var(--space-2);
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.link {
+		background: none;
+		border: 0;
+		padding: 0;
+		color: var(--ink);
+		font: inherit;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.link.sure {
+		color: var(--danger);
 	}
 	.note {
 		padding: var(--space-6) var(--gutter);

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"time"
 
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
@@ -369,6 +370,36 @@ func (s *Store) UpdateTrigger(ctx context.Context, id string, p store.TriggerPat
 
 func (s *Store) DeleteTrigger(ctx context.Context, id string) error {
 	return mapErr(s.c.Delete(ctx, "triggers", id))
+}
+
+// ---- learning from swipes ----
+
+func (s *Store) AddPickExamples(ctx context.Context, ex []store.PickExample) error {
+	if len(ex) == 0 {
+		return nil
+	}
+	for i := range ex {
+		if ex[i].ID == "" {
+			ex[i].ID = store.NewID()
+		}
+	}
+	// One transaction, and safe to retry: recorded swipes are skipped.
+	return mapErr(s.c.RPC(ctx, "add_pick_examples", map[string]any{"rows": ex}, nil))
+}
+
+func (s *Store) PickExamples(ctx context.Context, helperID string, kept bool, limit int) ([]store.PickExample, error) {
+	q := eb.NewQuery().Eq("helper_id", helperID).Eq("kept", strconv.FormatBool(kept)).
+		Order("created_at", true).Order("id", true)
+	return listRows[store.PickExample](ctx, s, "pick_examples", q, limit)
+}
+
+func (s *Store) CountPickExamples(ctx context.Context, helperID string) (int, error) {
+	n, err := s.c.List(ctx, "pick_examples", eb.NewQuery().Eq("helper_id", helperID).Select("id").Limit(1), nil)
+	return n, mapErr(err)
+}
+
+func (s *Store) ForgetPickExamples(ctx context.Context, helperID string) error {
+	return mapErr(s.c.RPC(ctx, "forget_pick_examples", map[string]any{"helper": helperID}, nil))
 }
 
 // ---- brains ----

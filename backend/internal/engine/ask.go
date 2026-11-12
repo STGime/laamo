@@ -369,6 +369,14 @@ func (e *Engine) resume(ctx context.Context, r *store.Run, stack catalog.Stack) 
 		if err != nil {
 			return false, err
 		}
+		// Learn from the swipes (#76), only when a Keep the good ones before
+		// uses them. Best effort: a failure doesn't hold up the run.
+		if sb.Type == "ask.pick" && fc.State == StateAnswered && !r.TestMode && remembers(e.Catalog, sb) &&
+			learnsFrom(e.Catalog, catalog.Stack{Bricks: stack.Bricks[:i+1]}) {
+			if err := e.remember(ctx, *r, step.ID, shown, a); err != nil {
+				e.log().Warn("couldn't remember the swipes", "run", r.ID, "err", err)
+			}
+		}
 		entry := map[string]any{"level": "info", "code": "decision", "applied": a,
 			"msg": fmt.Sprintf("%s: %d of %d cards go on", fc.State, len(a.Keep), len(shown))}
 		done := e.now()
