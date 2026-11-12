@@ -301,6 +301,8 @@ export const en = {
 	'builder.lastTime.one': 'Last time: 1 card',
 	'builder.use': 'Use it',
 	'builder.answer': 'the answer',
+	'builder.otherDetail': 'Another detail, e.g. opening days',
+	'builder.add': 'Add',
 	'builder.more': 'More',
 	'builder.less': 'Less',
 	'builder.remove': 'Remove brick',

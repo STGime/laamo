@@ -309,6 +309,8 @@ export const de: Record<Key, string> = {
 	'builder.lastTime.one': 'Letztes Mal: 1 Karte',
 	'builder.use': 'Übernehmen',
 	'builder.answer': 'die Antwort',
+	'builder.otherDetail': 'Weiteres Detail, z. B. Öffnungstage',
+	'builder.add': 'Hinzufügen',
 	'builder.more': 'Mehr',
 	'builder.less': 'Weniger',
 	'builder.remove': 'Stein entfernen',

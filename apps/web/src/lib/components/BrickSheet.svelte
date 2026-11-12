@@ -23,7 +23,7 @@
 	import BottomSheet from './BottomSheet.svelte';
 	import TimePicker from './TimePicker.svelte';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
-	import { fieldPills } from '#lib/builder.ts';
+	import { detailKey, fieldPills } from '#lib/builder.ts';
 
 	let {
 		open = $bindable(false),
@@ -96,7 +96,15 @@
 		const v = str(cfg[key]);
 		set(key, `${v}${v && !v.endsWith(' ') ? ' ' : ''}{${p}}`);
 	}
-	const fieldLabel = (k: string) => catalog.fields.find((f) => f.key === k)?.label[lang] ?? k;
+	const fieldLabel = (k: string) =>
+		catalog.fields.find((f) => f.key === k)?.label[lang] ?? k.replaceAll('_', ' ');
+	// Pull out details: the usual ones, plus the user's own ("opening days").
+	let other = $state('');
+	function addDetail(key: string) {
+		const k = detailKey(other);
+		if (k && !list(cfg[key]).includes(k)) set(key, [...list(cfg[key]), k]);
+		other = '';
+	}
 	const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 	const placesFor = (s: Setting) =>
 		places.filter((p) => p.verified_at && (s.place_types ?? []).includes(p.type as never));
@@ -130,7 +138,7 @@
 			</div>
 		{:else if s.type === 'fields'}
 			<div class="choices" {id}>
-				{#each fieldPills as f (f)}
+				{#each [...fieldPills, ...list(cfg[s.key]).filter((k) => !fieldPills.includes(k))] as f (f)}
 					<button
 						type="button"
 						aria-pressed={list(cfg[s.key]).includes(f)}
@@ -138,6 +146,21 @@
 					>
 				{/each}
 			</div>
+			<form
+				class="other"
+				onsubmit={(e) => {
+					e.preventDefault();
+					addDetail(s.key);
+				}}
+			>
+				<input
+					bind:value={other}
+					maxlength="40"
+					placeholder={t('builder.otherDetail')}
+					aria-label={t('builder.otherDetail')}
+				/>
+				<button class="btn" disabled={!detailKey(other)}>{t('builder.add')}</button>
+			</form>
 		{:else if s.type === 'place'}
 			<div class="choices" {id} role="radiogroup">
 				{#each placesFor(s) as p (p.id)}
@@ -338,6 +361,15 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2);
+	}
+	.other {
+		display: flex;
+		gap: var(--space-2);
+		margin-top: var(--space-2);
+	}
+	.other input {
+		flex: 1;
+		min-width: 0;
 	}
 	.choices button {
 		min-height: var(--tap-min);

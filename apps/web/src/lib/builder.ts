@@ -17,6 +17,8 @@ export const ready = new Set([
 	'look.read_page',
 	'think.summarize',
 	'think.keep',
+	'think.extract',
+	'think.write',
 	'do.chat',
 	'ask.check',
 	'ask.pick',
@@ -61,6 +63,23 @@ export function add(bricks: StackBrick[], type: string): { bricks: StackBrick[];
 
 /** Card fields worth a pill (the rest are internal, like page_text). */
 export const fieldPills = catalog.fields.filter((f) => f.pick).map((f) => f.key);
+
+/** "Opening days" → "opening_days": a detail of the user's own for Pull out details. */
+export function detailKey(text: string): string {
+	const key = text
+		.toLowerCase()
+		.replace(/ä/g, 'ae')
+		.replace(/ö/g, 'oe')
+		.replace(/ü/g, 'ue')
+		.replace(/ß/g, 'ss')
+		.normalize('NFKD')
+		.replace(/[^a-z0-9]+/g, '_')
+		.replace(/^_+|_+$/g, '')
+		.slice(0, 40)
+		.replace(/_+$/, '');
+	if (!key) return '';
+	return /^[a-z]/.test(key) ? key : `x_${key}`;
+}
 
 /** {my city} → Leipzig where the fact is known (as on the Shelf). */
 export function fillProfile(text: string, profile: Record<string, unknown>): string {

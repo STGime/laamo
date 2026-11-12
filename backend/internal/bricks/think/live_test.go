@@ -2,7 +2,9 @@ package think_test
 
 import (
 	"os"
+	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/STGime/laamo/backend/internal/bricks/brickstest"
 	"github.com/STGime/laamo/backend/internal/bricks/think"
@@ -113,4 +115,77 @@ func TestLiveKeepLearns(t *testing.T) {
 	if after >= before {
 		t.Errorf("learned picks didn't lower the chain stores (%.0f → %.0f)", before, after)
 	}
+}
+
+// TestLiveExtractAndWrite: German quality of Pull out details and Write it
+// (#46). task test:live.
+func TestLiveExtractAndWrite(t *testing.T) {
+	cfg, _ := config.Load()
+	if os.Getenv("LAAMO_EUROBASE_LIVE") != "1" || cfg.LLMAPIKey == "" {
+		t.Skip("set LAAMO_EUROBASE_LIVE=1 and an LLM key")
+	}
+	st := memory.New()
+	newRC := func(brickType string) *engine.RunContext {
+		rc := brickstest.RunContext(brickType)
+		rc.Workspace.Locale = "de"
+		rc.Workspace.Profile = map[string]any{"business": "Bäckerei Klein", "city": "Leipzig",
+			"offer": "frische Kuchen und Torten für Cafés, Lieferung jeden Morgen", "signature": "Anna Klein\nBäckerei Klein, Leipzig"}
+		st.PutBrain(store.Brain{WorkspaceID: rc.Run.WorkspaceID, AllowanceCredits: 500})
+		rc.Brain = &llm.Brain{Chat: &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel},
+			Model: cfg.LLMModel, Store: st}
+		return rc
+	}
+	pages := []string{
+		"Café Kuchenzeit – Ihr Café in der Südvorstadt. Inhaberin: Maria Becker. Karl-Liebknecht-Str. 45, 04275 Leipzig. Telefon 0341 / 123 45 67, E-Mail: hallo@kuchenzeit.de. Geöffnet Mo–Sa 8–18 Uhr.",
+		"Eiscafé Venezia, Plagwitz. Hausgemachtes Eis seit 1998. Besuchen Sie uns in der Karl-Heine-Straße! Instagram: @venezia_leipzig",
+	}
+	var in []engine.Card
+	for _, p := range pages {
+		c := engine.Card{ID: store.NewID(), Kind: "page"}
+		c.Set("page_text", p, engine.TrustUntrusted)
+		in = append(in, c)
+	}
+	got, err := brickstest.Contract(t, "think.extract", think.Extract, newRC("think.extract"), in,
+		map[string]any{"fields": []any{"name", "email", "phone", "address", "owner"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range got {
+		t.Logf("details: %v", c.Fields)
+	}
+	if got[0].Text("email") != "hallo@kuchenzeit.de" || got[0].Text("phone") == "" || !strings.Contains(got[0].Text("owner"), "Becker") {
+		t.Errorf("card 0 details missing: %v", got[0].Fields)
+	}
+	if got[1].Text("email") != "" || got[1].Text("phone") != "" {
+		t.Errorf("card 1 got made-up contact details: %v", got[1].Fields)
+	}
+
+	drafts, err := brickstest.Contract(t, "think.write", think.Write, newRC("think.write"), got[:1],
+		map[string]any{"what": "eine kurze, freundliche E-Mail an {name}, die {my offer} anbietet", "tone": 0.7, "mode": "each", "signature": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := drafts[0]
+	t.Logf("subject: %s\n%s", d.Text("subject"), d.Text("body"))
+	body := d.Text("body")
+	if d.Text("subject") == "" || !formal(body) ||
+		!strings.HasSuffix(body, "Anna Klein\nBäckerei Klein, Leipzig") || strings.Count(body, "Anna Klein") != 1 ||
+		strings.Contains(body, "kuchenzeit.de") || strings.Contains(body, "123 45 67") {
+		t.Errorf("draft doesn't fit: %q", body)
+	}
+}
+
+// formal: German "Sie" form (Sie, Ihnen, Ihr…), and no "du".
+func formal(s string) bool {
+	words := strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) })
+	sie, du := false, false
+	for _, w := range words {
+		switch w {
+		case "Sie", "Ihnen", "Ihr", "Ihre", "Ihrem", "Ihren", "Ihrer":
+			sie = true
+		case "du", "dich", "dir", "dein", "deine", "Du", "Dich", "Dir":
+			du = true
+		}
+	}
+	return sie && !du
 }
