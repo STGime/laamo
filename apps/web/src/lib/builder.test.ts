@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StackBrick } from '@laamo/catalog';
-import { add, fillProfile, nextId, ready, startOnTop, tray } from './builder.ts';
+import { add, applyFix, fillProfile, nextId, ready, startOnTop, tray } from './builder.ts';
 
 const b = (id: string, type: string): StackBrick => ({ id, type, config: {} });
 
@@ -35,5 +35,19 @@ describe('builder', () => {
 		const look = tray('look');
 		expect(ready.has(look[0].id)).toBe(true);
 		expect(look.some((x) => !ready.has(x.id))).toBe(true);
+	});
+
+	it('puts a fix right before the brick that needs it', () => {
+		const st = [b('b1', 'when.every'), b('b2', 'look.search'), b('b3', 'do.chat')];
+		const r = applyFix(st, { insert: 'ask.check', before: 'b3' });
+		expect(r.bricks.map((x) => x.type)).toEqual([
+			'when.every',
+			'look.search',
+			'ask.check',
+			'do.chat'
+		]);
+		expect(r.bricks[2].config.timeout_h).toBe(48);
+		const start = applyFix([b('b1', 'look.search')], { insert: 'when.tap', before: 'b1' });
+		expect(start.bricks.map((x) => x.type)).toEqual(['when.tap', 'look.search']);
 	});
 });
