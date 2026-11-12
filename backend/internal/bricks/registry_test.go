@@ -17,7 +17,7 @@ import (
 func TestRegistryMatchesCatalog(t *testing.T) {
 	keys, _ := crypto.ParseKeyring("v1:"+base64.StdEncoding.EncodeToString(make([]byte, 32)), "")
 	all := bricks.All(bricks.Deps{Search: dummy{}, Store: memory.New(), Keys: keys, Chat: &chat.Sender{}, Pages: &web.Fetcher{}})
-	for _, want := range []string{"when.every", "when.tap", "look.search", "think.summarize", "think.keep", "do.chat", "look.read_page"} {
+	for _, want := range []string{"when.every", "when.tap", "look.search", "think.summarize", "think.keep", "do.chat", "look.read_page", "do.list", "think.extract", "think.write"} {
 		if _, ok := all[want]; !ok {
 			t.Errorf("%s not registered", want)
 		}

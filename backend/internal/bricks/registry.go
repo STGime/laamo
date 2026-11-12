@@ -8,6 +8,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/search"
+	"github.com/STGime/laamo/backend/internal/store"
 )
 
 // Deps are the outside services bricks use. A brick whose service is
@@ -36,6 +37,9 @@ func All(d Deps) map[string]engine.Brick {
 	}
 	if d.Store != nil && d.Keys != nil && d.Chat != nil {
 		m["do.chat"] = do.Chat{Store: d.Store, Keys: d.Keys, Sender: d.Chat}
+	}
+	if ls, ok := d.Store.(store.ListStore); ok {
+		m["do.list"] = do.List{Store: ls}
 	}
 	if d.Pages != nil {
 		m["look.read_page"] = look.ReadPage{Reader: d.Pages}

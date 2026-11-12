@@ -68,6 +68,16 @@ func TestBuilderSave(t *testing.T) {
 	if r.StatusCode() != 422 || r.JSON422.Issues[len(r.JSON422.Issues)-1].Code != "bad_value" {
 		t.Fatalf("foreign chat: %d %s", r.StatusCode(), r.Body)
 	}
+	// Someone else's list: refused too.
+	theirs := store.List{WorkspaceID: other.ID, UserID: anna.ID, Name: "Theirs"}
+	_ = st.CreateList(ctx, &theirs)
+	toList := stack
+	toList.Bricks = append(append([]api.StackBrick{}, stack.Bricks...),
+		api.StackBrick{Id: "b9", Type: "do.list", Config: map[string]any{"list": theirs.ID, "dedupe": "none"}})
+	if r := must(c.SaveHelperStackWithResponse(ctx, h.Id, api.SaveStack{Stack: toList, Version: 2})); r.StatusCode() != 422 ||
+		!strings.Contains(string(r.Body), "pick one of your lists") {
+		t.Fatalf("foreign list: %d %s", r.StatusCode(), r.Body)
+	}
 	if v := must(c.GetHelperStackWithResponse(ctx, h.Id)); v.JSON200.Version != 2 {
 		t.Fatalf("saved anyway: v%d", v.JSON200.Version)
 	}

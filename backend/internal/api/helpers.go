@@ -327,16 +327,23 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 		}
 		var stack catalog.Stack
 		if json.Unmarshal(v.Stack, &stack) == nil {
-			// Post to chat names its chat, not the chat's id.
+			// Post to chat names its chat, and Save to a list its list, not their ids.
 			names := map[string]string{}
 			if ps, err := s.store.ListPlaces(ctx, w.ID); err == nil {
 				for _, p := range ps {
 					names[p.ID] = p.Label
 				}
 			}
+			if ls, err := s.store.ListLists(ctx, w.ID); err == nil {
+				for _, l := range ls {
+					names[l.ID] = l.Name
+				}
+			}
 			for i, b := range shelf.Describe(catalog.Default(), stack, w) {
-				if id, _ := stack.Bricks[i].Config["place"].(string); names[id] != "" {
-					b.Sentence = strings.ReplaceAll(b.Sentence, id, names[id])
+				for _, key := range []string{"place", "list"} {
+					if id, _ := stack.Bricks[i].Config[key].(string); names[id] != "" {
+						b.Sentence = strings.ReplaceAll(b.Sentence, id, names[id])
+					}
 				}
 				out.Bricks = append(out.Bricks, BrickPreview{Id: b.ID, Type: b.Type, Group: BrickPreviewGroup(b.Group), Sentence: b.Sentence})
 			}

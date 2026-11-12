@@ -75,6 +75,125 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/workspaces/{workspaceId}/lists': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		/** Your Lists (businesses, leads, links that helpers saved) */
+		get: operations['listLists'];
+		put?: never;
+		/** Start an empty list */
+		post: operations['createList'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/lists/{listId}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		/** A list with its rows (at most 500 that match) */
+		get: operations['getList'];
+		put?: never;
+		post?: never;
+		/** Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list */
+		delete: operations['deleteList'];
+		options?: never;
+		head?: never;
+		/** Rename a list */
+		patch: operations['updateList'];
+		trace?: never;
+	};
+	'/lists/{listId}/rows/{rowId}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+				rowId: string;
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Delete one row */
+		delete: operations['deleteListRow'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/lists/{listId}/csv': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		/** All rows as a CSV file (UTF-8, comma separated, header row) */
+		get: operations['exportList'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/lists/{listId}/share': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		/** Turn on the read-only share link (owner only). Anyone with the link can see the rows */
+		put: operations['shareList'];
+		post?: never;
+		/** Turn the share link off; the old link stops working (owner only) */
+		delete: operations['unshareList'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/shared/lists/{token}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				token: string;
+			};
+			cookie?: never;
+		};
+		/** A list someone shared, read-only. No sign-in needed */
+		get: operations['getSharedList'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/places/{placeId}': {
 		parameters: {
 			query?: never;
@@ -447,6 +566,46 @@ export interface components {
 		};
 		/** @enum {string} */
 		PlaceType: 'discord' | 'slack' | 'teams' | 'telegram' | 'email' | 'posta';
+		NewList: {
+			name: string;
+		};
+		ListSummary: {
+			/** Format: uuid */
+			id: string;
+			name: string;
+			rows: number;
+			/** @description Set while the read-only share link is on */
+			share_token?: string;
+			/** Format: date-time */
+			created_at: string;
+			/** Format: date-time */
+			updated_at: string;
+		};
+		ListColumn: {
+			key: string;
+		};
+		ListRow: {
+			/** Format: uuid */
+			id: string;
+			data: {
+				[key: string]: unknown;
+			};
+			/** Format: date-time */
+			created_at: string;
+		};
+		ListDetail: {
+			list: components['schemas']['ListSummary'];
+			columns: components['schemas']['ListColumn'][];
+			rows: components['schemas']['ListRow'][];
+			/** @description Rows that match the search (rows holds at most 500 of them) */
+			matching: number;
+		};
+		SharedList: {
+			name: string;
+			columns: components['schemas']['ListColumn'][];
+			/** @description At most 2000 rows, newest first */
+			rows: components['schemas']['ListRow'][];
+		};
 		Place: {
 			/** Format: uuid */
 			id: string;
@@ -900,6 +1059,7 @@ export interface components {
 		HelperId: string;
 		PlaceId: string;
 		FeedCardId: string;
+		ListId: string;
 		WorkspaceId: string;
 	};
 	requestBodies: never;
@@ -1026,6 +1186,252 @@ export interface operations {
 			403: components['responses']['Forbidden'];
 			404: components['responses']['NotFound'];
 			503: components['responses']['Unavailable'];
+		};
+	};
+	listLists: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ListSummary'][];
+				};
+			};
+			404: components['responses']['NotFound'];
+		};
+	};
+	createList: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['NewList'];
+			};
+		};
+		responses: {
+			/** @description Created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ListSummary'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			404: components['responses']['NotFound'];
+			409: components['responses']['Conflict'];
+		};
+	};
+	getList: {
+		parameters: {
+			query?: {
+				/** @description Only rows with this text in any column */
+				q?: string;
+				/** @description A column key, or "created_at" (default) */
+				sort?: string;
+				order?: 'asc' | 'desc';
+			};
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ListDetail'];
+				};
+			};
+			404: components['responses']['NotFound'];
+		};
+	};
+	deleteList: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	updateList: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['NewList'];
+			};
+		};
+		responses: {
+			/** @description Renamed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ListSummary'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			404: components['responses']['NotFound'];
+			409: components['responses']['Conflict'];
+		};
+	};
+	deleteListRow: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+				rowId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			404: components['responses']['NotFound'];
+		};
+	};
+	exportList: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The CSV file */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'text/csv': string;
+				};
+			};
+			404: components['responses']['NotFound'];
+		};
+	};
+	shareList: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Shared */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ListSummary'];
+				};
+			};
+			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	unshareList: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Not shared anymore */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	getSharedList: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				token: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SharedList'];
+				};
+			};
+			404: components['responses']['NotFound'];
 		};
 	};
 	deletePlace: {

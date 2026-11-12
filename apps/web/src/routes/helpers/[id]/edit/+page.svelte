@@ -38,6 +38,7 @@
 	let bricks = $state<StackBrick[]>([]);
 	let lastOut = $state<Record<string, number>>({});
 	let places = $state<Schemas['Place'][]>([]);
+	let lists = $state<Schemas['ListSummary'][]>([]);
 	let about = $state<Record<string, unknown>>({});
 	let missing = $state(false);
 	let saving = $state(false);
@@ -85,6 +86,9 @@
 		api
 			.GET('/workspaces/{workspaceId}/places', { params: { path: { workspaceId: ws.id } } })
 			.then(({ data }) => (places = data?.places ?? []));
+		api
+			.GET('/workspaces/{workspaceId}/lists', { params: { path: { workspaceId: ws.id } } })
+			.then(({ data }) => (lists = data ?? []));
 		api
 			.GET('/workspaces/{workspaceId}', { params: { path: { workspaceId: ws.id } } })
 			.then(({ data }) => (about = data?.profile ?? {}));
@@ -208,6 +212,7 @@
 	function title(b: StackBrick): string {
 		let s = fillProfile(sentence(b, lang), profile);
 		for (const p of places) s = s.replaceAll(p.id, p.label);
+		for (const l of lists) s = s.replaceAll(l.id, l.name);
 		return s;
 	}
 
@@ -487,6 +492,7 @@
 			bind:open={sheetOpen}
 			bind:sb={bricks[editIndex]}
 			{places}
+			bind:lists
 			lastOut={lastOut[editing]}
 			{pills}
 			onfact={rememberFact}
