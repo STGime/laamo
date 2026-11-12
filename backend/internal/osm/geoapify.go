@@ -160,7 +160,7 @@ func (g *Geoapify) StaticMap(ctx context.Context, lat, lon float64) ([]byte, err
 	}
 	g.mu.Unlock()
 	body, err := g.raw(ctx, cmp.Or(g.MapsURL, "https://maps.geoapify.com"), "/v1/staticmap", url.Values{
-		"style": {"osm-bright-grey"}, "width": {"560"}, "height": {"200"}, "scaleFactor": {"2"}, "zoom": {"16"},
+		"style": {"osm-bright-grey"}, "width": {"560"}, "height": {"200"}, "scaleFactor": {"2"}, "zoom": {"18"},
 		"center": {"lonlat:" + at}, "marker": {"lonlat:" + at + ";color:#ff3b5c;size:medium"},
 	})
 	if err != nil {
