@@ -645,6 +645,24 @@ func (e UpdateHelperJSONBodyStatus) Valid() bool {
 	}
 }
 
+// Defines values for GetListParamsOrder.
+const (
+	Asc  GetListParamsOrder = "asc"
+	Desc GetListParamsOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetListParamsOrder enum.
+func (e GetListParamsOrder) Valid() bool {
+	switch e {
+	case Asc:
+		return true
+	case Desc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListFeedParamsFilter.
 const (
 	All     ListFeedParamsFilter = "all"
@@ -664,6 +682,18 @@ func (e ListFeedParamsFilter) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// AddListRows defines model for AddListRows.
+type AddListRows struct {
+	// CardIds Which of its cards (Card.id); all of them when left out
+	CardIds *[]openapi_types.UUID `json:"card_ids,omitempty"`
+
+	// FeedCardId The Feed card whose cards to add (a result, Check first or Let me pick card)
+	FeedCardId openapi_types.UUID `json:"feed_card_id"`
+
+	// Links Instead of cards, some of a result's source links (their url). With neither, all of the cards, or all links when the result has no cards
+	Links *[]string `json:"links,omitempty"`
 }
 
 // BrainMeter defines model for BrainMeter.
@@ -918,6 +948,49 @@ type HelperStack struct {
 	Version int   `json:"version"`
 }
 
+// ListColumn defines model for ListColumn.
+type ListColumn struct {
+	Key string `json:"key"`
+}
+
+// ListDetail defines model for ListDetail.
+type ListDetail struct {
+	Columns []ListColumn `json:"columns"`
+	List    ListSummary  `json:"list"`
+
+	// Matching Rows that match the search (rows holds at most 500 of them)
+	Matching int       `json:"matching"`
+	Rows     []ListRow `json:"rows"`
+}
+
+// ListRow defines model for ListRow.
+type ListRow struct {
+	CreatedAt time.Time              `json:"created_at"`
+	Data      map[string]interface{} `json:"data"`
+	Id        openapi_types.UUID     `json:"id"`
+}
+
+// ListRowsAdded defines model for ListRowsAdded.
+type ListRowsAdded struct {
+	Added int `json:"added"`
+
+	// Duplicates Cards already in the list
+	Duplicates int         `json:"duplicates"`
+	List       ListSummary `json:"list"`
+}
+
+// ListSummary defines model for ListSummary.
+type ListSummary struct {
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+	Rows      int                `json:"rows"`
+
+	// ShareToken Set while the read-only share link is on
+	ShareToken *string   `json:"share_token,omitempty"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 // Locale defines model for Locale.
 type Locale string
 
@@ -947,6 +1020,11 @@ type NewHelper struct {
 
 	// Template Template slug
 	Template string `json:"template"`
+}
+
+// NewList defines model for NewList.
+type NewList struct {
+	Name string `json:"name"`
 }
 
 // NewPlace defines model for NewPlace.
@@ -1075,6 +1153,15 @@ type SetupQuestion struct {
 
 // SetupQuestionKind defines model for SetupQuestion.Kind.
 type SetupQuestionKind string
+
+// SharedList defines model for SharedList.
+type SharedList struct {
+	Columns []ListColumn `json:"columns"`
+	Name    string       `json:"name"`
+
+	// Rows At most 2000 rows, newest first
+	Rows []ListRow `json:"rows"`
+}
 
 // ShelfTemplate defines model for ShelfTemplate.
 type ShelfTemplate struct {
@@ -1229,6 +1316,9 @@ type FeedCardId = openapi_types.UUID
 // HelperId defines model for HelperId.
 type HelperId = openapi_types.UUID
 
+// ListId defines model for ListId.
+type ListId = openapi_types.UUID
+
 // PlaceId defines model for PlaceId.
 type PlaceId = openapi_types.UUID
 
@@ -1272,6 +1362,19 @@ type StartRunJSONBody struct {
 	Test   *bool   `json:"test,omitempty"`
 }
 
+// GetListParams defines parameters for GetList.
+type GetListParams struct {
+	// Q Only rows with this text in any column
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Sort A column key, or "created_at" (default)
+	Sort  *string             `form:"sort,omitempty" json:"sort,omitempty"`
+	Order *GetListParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+}
+
+// GetListParamsOrder defines parameters for GetList.
+type GetListParamsOrder string
+
 // ListFeedParams defines parameters for ListFeed.
 type ListFeedParams struct {
 	Filter *ListFeedParamsFilter `form:"filter,omitempty" json:"filter,omitempty"`
@@ -1302,6 +1405,12 @@ type SaveHelperStackJSONRequestBody = SaveStack
 // TestHelperStackJSONRequestBody defines body for TestHelperStack for application/json ContentType.
 type TestHelperStackJSONRequestBody = TestStack
 
+// UpdateListJSONRequestBody defines body for UpdateList for application/json ContentType.
+type UpdateListJSONRequestBody = NewList
+
+// AddListRowsJSONRequestBody defines body for AddListRows for application/json ContentType.
+type AddListRowsJSONRequestBody = AddListRows
+
 // CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
 type CreateWorkspaceJSONRequestBody = NewWorkspace
 
@@ -1310,6 +1419,9 @@ type UpdateWorkspaceJSONRequestBody = WorkspaceUpdate
 
 // CreateHelperJSONRequestBody defines body for CreateHelper for application/json ContentType.
 type CreateHelperJSONRequestBody = NewHelper
+
+// CreateListJSONRequestBody defines body for CreateList for application/json ContentType.
+type CreateListJSONRequestBody = NewList
 
 // CreatePlaceJSONRequestBody defines body for CreatePlace for application/json ContentType.
 type CreatePlaceJSONRequestBody = NewPlace
@@ -1631,6 +1743,64 @@ type ClientInterface interface {
 	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
 	TestHelperStack(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
+	//
+	// Corresponds with DELETE /lists/{listId} (the `DeleteList` operationId).
+	DeleteList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetList A list with its rows (at most 500 that match)
+	//
+	// Corresponds with GET /lists/{listId} (the `GetList` operationId).
+	GetList(ctx context.Context, listId ListId, params *GetListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateListWithBody Rename a list
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /lists/{listId} (the `UpdateList` operationId).
+	UpdateListWithBody(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateList Rename a list
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /lists/{listId} (the `UpdateList` operationId).
+	UpdateList(ctx context.Context, listId ListId, body UpdateListJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportList All rows as a CSV file (UTF-8, comma separated, header row)
+	//
+	// Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
+	ExportList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddListRowsWithBody Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+	AddListRowsWithBody(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+	AddListRows(ctx context.Context, listId ListId, body AddListRowsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteListRow Delete one row
+	//
+	// Corresponds with DELETE /lists/{listId}/rows/{rowId} (the `DeleteListRow` operationId).
+	DeleteListRow(ctx context.Context, listId ListId, rowId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnshareList Turn the share link off; the old link stops working (owner only)
+	//
+	// Corresponds with DELETE /lists/{listId}/share (the `UnshareList` operationId).
+	UnshareList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ShareList Turn on the read-only share link (owner only). Anyone with the link can see the rows
+	//
+	// Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
+	ShareList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetMe The signed-in user and their workspaces
 	//
 	// Corresponds with GET /me (the `GetMe` operationId).
@@ -1645,6 +1815,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /places/{placeId}/test (the `TestPlace` operationId).
 	TestPlace(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSharedList A list someone shared, read-only. No sign-in needed
+	//
+	// Corresponds with GET /shared/lists/{token} (the `GetSharedList` operationId).
+	GetSharedList(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateWorkspaceWithBody Create a workspace (you become its owner)
 	//
@@ -1717,6 +1892,25 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
 	CreateHelper(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListLists Your Lists (businesses, leads, links that helpers saved)
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/lists (the `ListLists` operationId).
+	ListLists(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateListWithBody Start an empty list
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/lists (the `CreateList` operationId).
+	CreateListWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateList Start an empty list
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/lists (the `CreateList` operationId).
+	CreateList(ctx context.Context, workspaceId WorkspaceId, body CreateListJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPlaces Where your helpers can tell you things (chats)
 	//
@@ -2075,6 +2269,164 @@ func (c *Client) TestHelperStack(ctx context.Context, helperId HelperId, body Te
 	return c.Client.Do(req)
 }
 
+// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
+//
+// Corresponds with DELETE /lists/{listId} (the `DeleteList` operationId).
+func (c *Client) DeleteList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteListRequest(c.Server, listId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetList A list with its rows (at most 500 that match)
+//
+// Corresponds with GET /lists/{listId} (the `GetList` operationId).
+func (c *Client) GetList(ctx context.Context, listId ListId, params *GetListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetListRequest(c.Server, listId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateListWithBody Rename a list
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /lists/{listId} (the `UpdateList` operationId).
+func (c *Client) UpdateListWithBody(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateListRequestWithBody(c.Server, listId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateList Rename a list
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /lists/{listId} (the `UpdateList` operationId).
+func (c *Client) UpdateList(ctx context.Context, listId ListId, body UpdateListJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateListRequest(c.Server, listId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportList All rows as a CSV file (UTF-8, comma separated, header row)
+//
+// Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
+func (c *Client) ExportList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportListRequest(c.Server, listId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddListRowsWithBody Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+func (c *Client) AddListRowsWithBody(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddListRowsRequestWithBody(c.Server, listId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+func (c *Client) AddListRows(ctx context.Context, listId ListId, body AddListRowsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddListRowsRequest(c.Server, listId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteListRow Delete one row
+//
+// Corresponds with DELETE /lists/{listId}/rows/{rowId} (the `DeleteListRow` operationId).
+func (c *Client) DeleteListRow(ctx context.Context, listId ListId, rowId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteListRowRequest(c.Server, listId, rowId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnshareList Turn the share link off; the old link stops working (owner only)
+//
+// Corresponds with DELETE /lists/{listId}/share (the `UnshareList` operationId).
+func (c *Client) UnshareList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnshareListRequest(c.Server, listId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ShareList Turn on the read-only share link (owner only). Anyone with the link can see the rows
+//
+// Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
+func (c *Client) ShareList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewShareListRequest(c.Server, listId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetMe The signed-in user and their workspaces
 //
 // Corresponds with GET /me (the `GetMe` operationId).
@@ -2110,6 +2462,21 @@ func (c *Client) DeletePlace(ctx context.Context, placeId PlaceId, reqEditors ..
 // Corresponds with POST /places/{placeId}/test (the `TestPlace` operationId).
 func (c *Client) TestPlace(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewTestPlaceRequest(c.Server, placeId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetSharedList A list someone shared, read-only. No sign-in needed
+//
+// Corresponds with GET /shared/lists/{token} (the `GetSharedList` operationId).
+func (c *Client) GetSharedList(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSharedListRequest(c.Server, token)
 	if err != nil {
 		return nil, err
 	}
@@ -2272,6 +2639,55 @@ func (c *Client) CreateHelperWithBody(ctx context.Context, workspaceId Workspace
 // Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
 func (c *Client) CreateHelper(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateHelperRequest(c.Server, workspaceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListLists Your Lists (businesses, leads, links that helpers saved)
+//
+// Corresponds with GET /workspaces/{workspaceId}/lists (the `ListLists` operationId).
+func (c *Client) ListLists(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListListsRequest(c.Server, workspaceId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateListWithBody Start an empty list
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workspaces/{workspaceId}/lists (the `CreateList` operationId).
+func (c *Client) CreateListWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateListRequestWithBody(c.Server, workspaceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateList Start an empty list
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workspaces/{workspaceId}/lists (the `CreateList` operationId).
+func (c *Client) CreateList(ctx context.Context, workspaceId WorkspaceId, body CreateListJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateListRequest(c.Server, workspaceId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2879,6 +3295,362 @@ func NewTestHelperStackRequestWithBody(server string, helperId HelperId, content
 	return req, nil
 }
 
+// NewDeleteListRequest constructs an http.Request for the DeleteList method
+func NewDeleteListRequest(server string, listId ListId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetListRequest constructs an http.Request for the GetList method
+func NewGetListRequest(server string, listId ListId, params *GetListParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "q", *params.Q, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Sort != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sort", *params.Sort, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Order != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "order", *params.Order, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateListRequest calls the generic UpdateList builder with application/json body
+func NewUpdateListRequest(server string, listId ListId, body UpdateListJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateListRequestWithBody(server, listId, "application/json", bodyReader)
+}
+
+// NewUpdateListRequestWithBody constructs an http.Request for the UpdateList method, with any body, and a specified content type
+func NewUpdateListRequestWithBody(server string, listId ListId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewExportListRequest constructs an http.Request for the ExportList method
+func NewExportListRequest(server string, listId ListId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s/csv", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddListRowsRequest calls the generic AddListRows builder with application/json body
+func NewAddListRowsRequest(server string, listId ListId, body AddListRowsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddListRowsRequestWithBody(server, listId, "application/json", bodyReader)
+}
+
+// NewAddListRowsRequestWithBody constructs an http.Request for the AddListRows method, with any body, and a specified content type
+func NewAddListRowsRequestWithBody(server string, listId ListId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s/rows", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteListRowRequest constructs an http.Request for the DeleteListRow method
+func NewDeleteListRowRequest(server string, listId ListId, rowId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "rowId", rowId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s/rows/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUnshareListRequest constructs an http.Request for the UnshareList method
+func NewUnshareListRequest(server string, listId ListId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s/share", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewShareListRequest constructs an http.Request for the ShareList method
+func NewShareListRequest(server string, listId ListId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s/share", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetMeRequest constructs an http.Request for the GetMe method
 func NewGetMeRequest(server string) (*http.Request, error) {
 	var err error
@@ -2967,6 +3739,40 @@ func NewTestPlaceRequest(server string, placeId PlaceId) (*http.Request, error) 
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetSharedListRequest constructs an http.Request for the GetSharedList method
+func NewGetSharedListRequest(server string, token string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/shared/lists/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3242,6 +4048,87 @@ func NewCreateHelperRequestWithBody(server string, workspaceId WorkspaceId, cont
 	}
 
 	operationPath := fmt.Sprintf("/workspaces/%s/helpers", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListListsRequest constructs an http.Request for the ListLists method
+func NewListListsRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/lists", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateListRequest calls the generic CreateList builder with application/json body
+func NewCreateListRequest(server string, workspaceId WorkspaceId, body CreateListJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateListRequestWithBody(server, workspaceId, "application/json", bodyReader)
+}
+
+// NewCreateListRequestWithBody constructs an http.Request for the CreateList method, with any body, and a specified content type
+func NewCreateListRequestWithBody(server string, workspaceId WorkspaceId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/lists", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -3568,6 +4455,76 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
 	TestHelperStackWithResponse(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*TestHelperStackResponse, error)
 
+	// DeleteListWithResponse Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /lists/{listId} (the `DeleteList` operationId).
+	DeleteListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*DeleteListResponse, error)
+
+	// GetListWithResponse A list with its rows (at most 500 that match)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /lists/{listId} (the `GetList` operationId).
+	GetListWithResponse(ctx context.Context, listId ListId, params *GetListParams, reqEditors ...RequestEditorFn) (*GetListResponse, error)
+
+	// UpdateListWithBodyWithResponse Rename a list
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /lists/{listId} (the `UpdateList` operationId).
+	UpdateListWithBodyWithResponse(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateListResponse, error)
+
+	// UpdateListWithResponse Rename a list
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /lists/{listId} (the `UpdateList` operationId).
+	UpdateListWithResponse(ctx context.Context, listId ListId, body UpdateListJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateListResponse, error)
+
+	// ExportListWithResponse All rows as a CSV file (UTF-8, comma separated, header row)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
+	ExportListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ExportListResponse, error)
+
+	// AddListRowsWithBodyWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+	AddListRowsWithBodyWithResponse(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddListRowsResponse, error)
+
+	// AddListRowsWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+	AddListRowsWithResponse(ctx context.Context, listId ListId, body AddListRowsJSONRequestBody, reqEditors ...RequestEditorFn) (*AddListRowsResponse, error)
+
+	// DeleteListRowWithResponse Delete one row
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /lists/{listId}/rows/{rowId} (the `DeleteListRow` operationId).
+	DeleteListRowWithResponse(ctx context.Context, listId ListId, rowId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteListRowResponse, error)
+
+	// UnshareListWithResponse Turn the share link off; the old link stops working (owner only)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /lists/{listId}/share (the `UnshareList` operationId).
+	UnshareListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*UnshareListResponse, error)
+
+	// ShareListWithResponse Turn on the read-only share link (owner only). Anyone with the link can see the rows
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
+	ShareListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ShareListResponse, error)
+
 	// GetMeWithResponse The signed-in user and their workspaces
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -3588,6 +4545,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /places/{placeId}/test (the `TestPlace` operationId).
 	TestPlaceWithResponse(ctx context.Context, placeId PlaceId, reqEditors ...RequestEditorFn) (*TestPlaceResponse, error)
+
+	// GetSharedListWithResponse A list someone shared, read-only. No sign-in needed
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /shared/lists/{token} (the `GetSharedList` operationId).
+	GetSharedListWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetSharedListResponse, error)
 
 	// CreateWorkspaceWithBodyWithResponse Create a workspace (you become its owner)
 	//
@@ -3666,6 +4630,27 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /workspaces/{workspaceId}/helpers (the `CreateHelper` operationId).
 	CreateHelperWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateHelperResponse, error)
+
+	// ListListsWithResponse Your Lists (businesses, leads, links that helpers saved)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/lists (the `ListLists` operationId).
+	ListListsWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListListsResponse, error)
+
+	// CreateListWithBodyWithResponse Start an empty list
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/lists (the `CreateList` operationId).
+	CreateListWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateListResponse, error)
+
+	// CreateListWithResponse Start an empty list
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/lists (the `CreateList` operationId).
+	CreateListWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreateListJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateListResponse, error)
 
 	// ListPlacesWithResponse Where your helpers can tell you things (chats)
 	//
@@ -4508,6 +5493,404 @@ func (r TestHelperStackResponse) ContentType() string {
 	return ""
 }
 
+type DeleteListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteListResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListDetail
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetListResponse) GetJSON200() *ListDetail {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListSummary
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateListResponse) GetJSON200() *ListSummary {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r UpdateListResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r UpdateListResponse) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ExportListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ExportListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ExportListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExportListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddListRowsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListRowsAdded
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AddListRowsResponse) GetJSON200() *ListRowsAdded {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r AddListRowsResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r AddListRowsResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r AddListRowsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddListRowsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddListRowsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddListRowsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteListRowResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteListRowResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteListRowResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteListRowResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteListRowResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteListRowResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnshareListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r UnshareListResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UnshareListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r UnshareListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnshareListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnshareListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnshareListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ShareListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListSummary
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ShareListResponse) GetJSON200() *ListSummary {
+	return r.JSON200
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ShareListResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ShareListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ShareListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ShareListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ShareListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ShareListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetMeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4660,6 +6043,54 @@ func (r TestPlaceResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r TestPlaceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetSharedListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SharedList
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetSharedListResponse) GetJSON200() *SharedList {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetSharedListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSharedListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSharedListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSharedListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSharedListResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -5015,6 +6446,116 @@ func (r CreateHelperResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreateHelperResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListListsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]ListSummary
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListListsResponse) GetJSON200() *[]ListSummary {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListListsResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ListListsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListListsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListListsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListListsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *ListSummary
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Conflict
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateListResponse) GetJSON201() *ListSummary {
+	return r.JSON201
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r CreateListResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CreateListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r CreateListResponse) GetJSON409() *Conflict {
+	return r.JSON409
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateListResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -5465,6 +7006,136 @@ func (c *ClientWithResponses) TestHelperStackWithResponse(ctx context.Context, h
 	return ParseTestHelperStackResponse(rsp)
 }
 
+// DeleteListWithResponse Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /lists/{listId} (the `DeleteList` operationId).
+func (c *ClientWithResponses) DeleteListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*DeleteListResponse, error) {
+	rsp, err := c.DeleteList(ctx, listId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteListResponse(rsp)
+}
+
+// GetListWithResponse A list with its rows (at most 500 that match)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /lists/{listId} (the `GetList` operationId).
+func (c *ClientWithResponses) GetListWithResponse(ctx context.Context, listId ListId, params *GetListParams, reqEditors ...RequestEditorFn) (*GetListResponse, error) {
+	rsp, err := c.GetList(ctx, listId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetListResponse(rsp)
+}
+
+// UpdateListWithBodyWithResponse Rename a list
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /lists/{listId} (the `UpdateList` operationId).
+func (c *ClientWithResponses) UpdateListWithBodyWithResponse(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateListResponse, error) {
+	rsp, err := c.UpdateListWithBody(ctx, listId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateListResponse(rsp)
+}
+
+// UpdateListWithResponse Rename a list
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /lists/{listId} (the `UpdateList` operationId).
+func (c *ClientWithResponses) UpdateListWithResponse(ctx context.Context, listId ListId, body UpdateListJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateListResponse, error) {
+	rsp, err := c.UpdateList(ctx, listId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateListResponse(rsp)
+}
+
+// ExportListWithResponse All rows as a CSV file (UTF-8, comma separated, header row)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
+func (c *ClientWithResponses) ExportListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ExportListResponse, error) {
+	rsp, err := c.ExportList(ctx, listId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportListResponse(rsp)
+}
+
+// AddListRowsWithBodyWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+func (c *ClientWithResponses) AddListRowsWithBodyWithResponse(ctx context.Context, listId ListId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddListRowsResponse, error) {
+	rsp, err := c.AddListRowsWithBody(ctx, listId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddListRowsResponse(rsp)
+}
+
+// AddListRowsWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /lists/{listId}/rows (the `AddListRows` operationId).
+func (c *ClientWithResponses) AddListRowsWithResponse(ctx context.Context, listId ListId, body AddListRowsJSONRequestBody, reqEditors ...RequestEditorFn) (*AddListRowsResponse, error) {
+	rsp, err := c.AddListRows(ctx, listId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddListRowsResponse(rsp)
+}
+
+// DeleteListRowWithResponse Delete one row
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /lists/{listId}/rows/{rowId} (the `DeleteListRow` operationId).
+func (c *ClientWithResponses) DeleteListRowWithResponse(ctx context.Context, listId ListId, rowId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeleteListRowResponse, error) {
+	rsp, err := c.DeleteListRow(ctx, listId, rowId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteListRowResponse(rsp)
+}
+
+// UnshareListWithResponse Turn the share link off; the old link stops working (owner only)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /lists/{listId}/share (the `UnshareList` operationId).
+func (c *ClientWithResponses) UnshareListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*UnshareListResponse, error) {
+	rsp, err := c.UnshareList(ctx, listId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnshareListResponse(rsp)
+}
+
+// ShareListWithResponse Turn on the read-only share link (owner only). Anyone with the link can see the rows
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
+func (c *ClientWithResponses) ShareListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ShareListResponse, error) {
+	rsp, err := c.ShareList(ctx, listId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseShareListResponse(rsp)
+}
+
 // GetMeWithResponse The signed-in user and their workspaces
 //
 // Returns a wrapper object for the known response body format(s).
@@ -5502,6 +7173,19 @@ func (c *ClientWithResponses) TestPlaceWithResponse(ctx context.Context, placeId
 		return nil, err
 	}
 	return ParseTestPlaceResponse(rsp)
+}
+
+// GetSharedListWithResponse A list someone shared, read-only. No sign-in needed
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /shared/lists/{token} (the `GetSharedList` operationId).
+func (c *ClientWithResponses) GetSharedListWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetSharedListResponse, error) {
+	rsp, err := c.GetSharedList(ctx, token, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSharedListResponse(rsp)
 }
 
 // CreateWorkspaceWithBodyWithResponse Create a workspace (you become its owner)
@@ -5634,6 +7318,45 @@ func (c *ClientWithResponses) CreateHelperWithResponse(ctx context.Context, work
 		return nil, err
 	}
 	return ParseCreateHelperResponse(rsp)
+}
+
+// ListListsWithResponse Your Lists (businesses, leads, links that helpers saved)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /workspaces/{workspaceId}/lists (the `ListLists` operationId).
+func (c *ClientWithResponses) ListListsWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListListsResponse, error) {
+	rsp, err := c.ListLists(ctx, workspaceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListListsResponse(rsp)
+}
+
+// CreateListWithBodyWithResponse Start an empty list
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workspaces/{workspaceId}/lists (the `CreateList` operationId).
+func (c *ClientWithResponses) CreateListWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateListResponse, error) {
+	rsp, err := c.CreateListWithBody(ctx, workspaceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateListResponse(rsp)
+}
+
+// CreateListWithResponse Start an empty list
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workspaces/{workspaceId}/lists (the `CreateList` operationId).
+func (c *ClientWithResponses) CreateListWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreateListJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateListResponse, error) {
+	rsp, err := c.CreateList(ctx, workspaceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateListResponse(rsp)
 }
 
 // ListPlacesWithResponse Where your helpers can tell you things (chats)
@@ -6296,6 +8019,293 @@ func ParseTestHelperStackResponse(rsp *http.Response) (*TestHelperStackResponse,
 	return response, nil
 }
 
+// ParseDeleteListResponse parses an HTTP response from a DeleteListWithResponse call
+func ParseDeleteListResponse(rsp *http.Response) (*DeleteListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetListResponse parses an HTTP response from a GetListWithResponse call
+func ParseGetListResponse(rsp *http.Response) (*GetListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListDetail
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateListResponse parses an HTTP response from a UpdateListWithResponse call
+func ParseUpdateListResponse(rsp *http.Response) (*UpdateListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListSummary
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportListResponse parses an HTTP response from a ExportListWithResponse call
+func ParseExportListResponse(rsp *http.Response) (*ExportListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddListRowsResponse parses an HTTP response from a AddListRowsWithResponse call
+func ParseAddListRowsResponse(rsp *http.Response) (*AddListRowsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddListRowsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListRowsAdded
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteListRowResponse parses an HTTP response from a DeleteListRowWithResponse call
+func ParseDeleteListRowResponse(rsp *http.Response) (*DeleteListRowResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteListRowResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnshareListResponse parses an HTTP response from a UnshareListWithResponse call
+func ParseUnshareListResponse(rsp *http.Response) (*UnshareListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnshareListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseShareListResponse parses an HTTP response from a ShareListWithResponse call
+func ParseShareListResponse(rsp *http.Response) (*ShareListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ShareListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListSummary
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetMeResponse parses an HTTP response from a GetMeWithResponse call
 func ParseGetMeResponse(rsp *http.Response) (*GetMeResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6406,6 +8416,39 @@ func ParseTestPlaceResponse(rsp *http.Response) (*TestPlaceResponse, error) {
 			return nil, err
 		}
 		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSharedListResponse parses an HTTP response from a GetSharedListWithResponse call
+func ParseGetSharedListResponse(rsp *http.Response) (*GetSharedListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSharedListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SharedList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
@@ -6675,6 +8718,86 @@ func ParseCreateHelperResponse(rsp *http.Response) (*CreateHelperResponse, error
 	return response, nil
 }
 
+// ParseListListsResponse parses an HTTP response from a ListListsWithResponse call
+func ParseListListsResponse(rsp *http.Response) (*ListListsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListListsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ListSummary
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateListResponse parses an HTTP response from a CreateListWithResponse call
+func ParseCreateListResponse(rsp *http.Response) (*CreateListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ListSummary
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Conflict
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListPlacesResponse parses an HTTP response from a ListPlacesWithResponse call
 func ParseListPlacesResponse(rsp *http.Response) (*ListPlacesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6848,6 +8971,30 @@ type ServerInterface interface {
 	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
 	// (POST /helpers/{helperId}/stack/test)
 	TestHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
+	// (DELETE /lists/{listId})
+	DeleteList(w http.ResponseWriter, r *http.Request, listId ListId)
+	// GetList A list with its rows (at most 500 that match)
+	// (GET /lists/{listId})
+	GetList(w http.ResponseWriter, r *http.Request, listId ListId, params GetListParams)
+	// UpdateList Rename a list
+	// (PATCH /lists/{listId})
+	UpdateList(w http.ResponseWriter, r *http.Request, listId ListId)
+	// ExportList All rows as a CSV file (UTF-8, comma separated, header row)
+	// (GET /lists/{listId}/csv)
+	ExportList(w http.ResponseWriter, r *http.Request, listId ListId)
+	// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	// (POST /lists/{listId}/rows)
+	AddListRows(w http.ResponseWriter, r *http.Request, listId ListId)
+	// DeleteListRow Delete one row
+	// (DELETE /lists/{listId}/rows/{rowId})
+	DeleteListRow(w http.ResponseWriter, r *http.Request, listId ListId, rowId openapi_types.UUID)
+	// UnshareList Turn the share link off; the old link stops working (owner only)
+	// (DELETE /lists/{listId}/share)
+	UnshareList(w http.ResponseWriter, r *http.Request, listId ListId)
+	// ShareList Turn on the read-only share link (owner only). Anyone with the link can see the rows
+	// (PUT /lists/{listId}/share)
+	ShareList(w http.ResponseWriter, r *http.Request, listId ListId)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
@@ -6857,6 +9004,9 @@ type ServerInterface interface {
 	// TestPlace Send a test message to a chat
 	// (POST /places/{placeId}/test)
 	TestPlace(w http.ResponseWriter, r *http.Request, placeId PlaceId)
+	// GetSharedList A list someone shared, read-only. No sign-in needed
+	// (GET /shared/lists/{token})
+	GetSharedList(w http.ResponseWriter, r *http.Request, token string)
 	// CreateWorkspace Create a workspace (you become its owner)
 	// (POST /workspaces)
 	CreateWorkspace(w http.ResponseWriter, r *http.Request)
@@ -6875,6 +9025,12 @@ type ServerInterface interface {
 	// CreateHelper Make a helper from a Shelf template, optionally running a test right away
 	// (POST /workspaces/{workspaceId}/helpers)
 	CreateHelper(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// ListLists Your Lists (businesses, leads, links that helpers saved)
+	// (GET /workspaces/{workspaceId}/lists)
+	ListLists(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// CreateList Start an empty list
+	// (POST /workspaces/{workspaceId}/lists)
+	CreateList(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
 	// ListPlaces Where your helpers can tell you things (chats)
 	// (GET /workspaces/{workspaceId}/places)
 	ListPlaces(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -7223,6 +9379,265 @@ func (siw *ServerInterfaceWrapper) TestHelperStack(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteList operation middleware
+func (siw *ServerInterfaceWrapper) DeleteList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteList(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetList operation middleware
+func (siw *ServerInterfaceWrapper) GetList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetListParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", r.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sort"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "order" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "order", r.URL.Query(), &params.Order, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "order"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "order", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetList(w, r, listId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateList operation middleware
+func (siw *ServerInterfaceWrapper) UpdateList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateList(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportList operation middleware
+func (siw *ServerInterfaceWrapper) ExportList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportList(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddListRows operation middleware
+func (siw *ServerInterfaceWrapper) AddListRows(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddListRows(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteListRow operation middleware
+func (siw *ServerInterfaceWrapper) DeleteListRow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "rowId" -------------
+	var rowId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "rowId", r.PathValue("rowId"), &rowId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "rowId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteListRow(w, r, listId, rowId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnshareList operation middleware
+func (siw *ServerInterfaceWrapper) UnshareList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnshareList(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShareList operation middleware
+func (siw *ServerInterfaceWrapper) ShareList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShareList(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetMe operation middleware
 func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request) {
 
@@ -7280,6 +9695,32 @@ func (siw *ServerInterfaceWrapper) TestPlace(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TestPlace(w, r, placeId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSharedList operation middleware
+func (siw *ServerInterfaceWrapper) GetSharedList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSharedList(w, r, token)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7466,6 +9907,58 @@ func (siw *ServerInterfaceWrapper) CreateHelper(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateHelper(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListLists operation middleware
+func (siw *ServerInterfaceWrapper) ListLists(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLists(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateList operation middleware
+func (siw *ServerInterfaceWrapper) CreateList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateList(w, r, workspaceId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7678,6 +10171,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/demo/runs", wrapper.RunDemo)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.ListPlaces)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.CreatePlace)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/lists", wrapper.ListLists)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/lists", wrapper.CreateList)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}", wrapper.DeleteList)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}", wrapper.GetList)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/lists/{listId}", wrapper.UpdateList)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/lists/{listId}/rows", wrapper.AddListRows)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/rows/{rowId}", wrapper.DeleteListRow)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}/csv", wrapper.ExportList)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/share", wrapper.UnshareList)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/lists/{listId}/share", wrapper.ShareList)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/shared/lists/{token}", wrapper.GetSharedList)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/places/{placeId}", wrapper.DeletePlace)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/places/{placeId}/test", wrapper.TestPlace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/me", wrapper.GetMe)
@@ -8520,6 +11024,370 @@ func (response TestHelperStack422JSONResponse) VisitTestHelperStackResponse(w ht
 	return err
 }
 
+type DeleteListRequestObject struct {
+	ListId ListId `json:"listId"`
+}
+
+type DeleteListResponseObject interface {
+	VisitDeleteListResponse(w http.ResponseWriter) error
+}
+
+type DeleteList204Response struct {
+}
+
+func (response DeleteList204Response) VisitDeleteListResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteList403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteList403JSONResponse) VisitDeleteListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteList404JSONResponse) VisitDeleteListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetListRequestObject struct {
+	ListId ListId `json:"listId"`
+	Params GetListParams
+}
+
+type GetListResponseObject interface {
+	VisitGetListResponse(w http.ResponseWriter) error
+}
+
+type GetList200JSONResponse ListDetail
+
+func (response GetList200JSONResponse) VisitGetListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetList404JSONResponse) VisitGetListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateListRequestObject struct {
+	ListId ListId `json:"listId"`
+	Body   *UpdateListJSONRequestBody
+}
+
+type UpdateListResponseObject interface {
+	VisitUpdateListResponse(w http.ResponseWriter) error
+}
+
+type UpdateList200JSONResponse ListSummary
+
+func (response UpdateList200JSONResponse) VisitUpdateListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateList400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateList400JSONResponse) VisitUpdateListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateList404JSONResponse) VisitUpdateListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateList409JSONResponse struct{ ConflictJSONResponse }
+
+func (response UpdateList409JSONResponse) VisitUpdateListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportListRequestObject struct {
+	ListId ListId `json:"listId"`
+}
+
+type ExportListResponseObject interface {
+	VisitExportListResponse(w http.ResponseWriter) error
+}
+
+type ExportList200TextcsvResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response ExportList200TextcsvResponse) VisitExportListResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/csv")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type ExportList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ExportList404JSONResponse) VisitExportListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddListRowsRequestObject struct {
+	ListId ListId `json:"listId"`
+	Body   *AddListRowsJSONRequestBody
+}
+
+type AddListRowsResponseObject interface {
+	VisitAddListRowsResponse(w http.ResponseWriter) error
+}
+
+type AddListRows200JSONResponse ListRowsAdded
+
+func (response AddListRows200JSONResponse) VisitAddListRowsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddListRows400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AddListRows400JSONResponse) VisitAddListRowsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddListRows404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AddListRows404JSONResponse) VisitAddListRowsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteListRowRequestObject struct {
+	ListId ListId             `json:"listId"`
+	RowId  openapi_types.UUID `json:"rowId"`
+}
+
+type DeleteListRowResponseObject interface {
+	VisitDeleteListRowResponse(w http.ResponseWriter) error
+}
+
+type DeleteListRow204Response struct {
+}
+
+func (response DeleteListRow204Response) VisitDeleteListRowResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteListRow404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteListRow404JSONResponse) VisitDeleteListRowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnshareListRequestObject struct {
+	ListId ListId `json:"listId"`
+}
+
+type UnshareListResponseObject interface {
+	VisitUnshareListResponse(w http.ResponseWriter) error
+}
+
+type UnshareList204Response struct {
+}
+
+func (response UnshareList204Response) VisitUnshareListResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type UnshareList403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UnshareList403JSONResponse) VisitUnshareListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnshareList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UnshareList404JSONResponse) VisitUnshareListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ShareListRequestObject struct {
+	ListId ListId `json:"listId"`
+}
+
+type ShareListResponseObject interface {
+	VisitShareListResponse(w http.ResponseWriter) error
+}
+
+type ShareList200JSONResponse ListSummary
+
+func (response ShareList200JSONResponse) VisitShareListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ShareList403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ShareList403JSONResponse) VisitShareListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ShareList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ShareList404JSONResponse) VisitShareListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetMeRequestObject struct {
 }
 
@@ -8659,6 +11527,42 @@ func (response TestPlace503JSONResponse) VisitTestPlaceResponse(w http.ResponseW
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSharedListRequestObject struct {
+	Token string `json:"token"`
+}
+
+type GetSharedListResponseObject interface {
+	VisitGetSharedListResponse(w http.ResponseWriter) error
+}
+
+type GetSharedList200JSONResponse SharedList
+
+func (response GetSharedList200JSONResponse) VisitGetSharedListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSharedList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetSharedList404JSONResponse) VisitGetSharedListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -9010,6 +11914,107 @@ func (response CreateHelper404JSONResponse) VisitCreateHelperResponse(w http.Res
 	return err
 }
 
+type ListListsRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListListsResponseObject interface {
+	VisitListListsResponse(w http.ResponseWriter) error
+}
+
+type ListLists200JSONResponse []ListSummary
+
+func (response ListLists200JSONResponse) VisitListListsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLists404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListLists404JSONResponse) VisitListListsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateListRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Body        *CreateListJSONRequestBody
+}
+
+type CreateListResponseObject interface {
+	VisitCreateListResponse(w http.ResponseWriter) error
+}
+
+type CreateList201JSONResponse ListSummary
+
+func (response CreateList201JSONResponse) VisitCreateListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateList400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateList400JSONResponse) VisitCreateListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateList404JSONResponse) VisitCreateListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateList409JSONResponse struct{ ConflictJSONResponse }
+
+func (response CreateList409JSONResponse) VisitCreateListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListPlacesRequestObject struct {
 	WorkspaceId WorkspaceId `json:"workspaceId"`
 }
@@ -9221,6 +12226,30 @@ type StrictServerInterface interface {
 	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
 	// (POST /helpers/{helperId}/stack/test)
 	TestHelperStack(ctx context.Context, request TestHelperStackRequestObject) (TestHelperStackResponseObject, error)
+	// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
+	// (DELETE /lists/{listId})
+	DeleteList(ctx context.Context, request DeleteListRequestObject) (DeleteListResponseObject, error)
+	// GetList A list with its rows (at most 500 that match)
+	// (GET /lists/{listId})
+	GetList(ctx context.Context, request GetListRequestObject) (GetListResponseObject, error)
+	// UpdateList Rename a list
+	// (PATCH /lists/{listId})
+	UpdateList(ctx context.Context, request UpdateListRequestObject) (UpdateListResponseObject, error)
+	// ExportList All rows as a CSV file (UTF-8, comma separated, header row)
+	// (GET /lists/{listId}/csv)
+	ExportList(ctx context.Context, request ExportListRequestObject) (ExportListResponseObject, error)
+	// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+	// (POST /lists/{listId}/rows)
+	AddListRows(ctx context.Context, request AddListRowsRequestObject) (AddListRowsResponseObject, error)
+	// DeleteListRow Delete one row
+	// (DELETE /lists/{listId}/rows/{rowId})
+	DeleteListRow(ctx context.Context, request DeleteListRowRequestObject) (DeleteListRowResponseObject, error)
+	// UnshareList Turn the share link off; the old link stops working (owner only)
+	// (DELETE /lists/{listId}/share)
+	UnshareList(ctx context.Context, request UnshareListRequestObject) (UnshareListResponseObject, error)
+	// ShareList Turn on the read-only share link (owner only). Anyone with the link can see the rows
+	// (PUT /lists/{listId}/share)
+	ShareList(ctx context.Context, request ShareListRequestObject) (ShareListResponseObject, error)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
@@ -9230,6 +12259,9 @@ type StrictServerInterface interface {
 	// TestPlace Send a test message to a chat
 	// (POST /places/{placeId}/test)
 	TestPlace(ctx context.Context, request TestPlaceRequestObject) (TestPlaceResponseObject, error)
+	// GetSharedList A list someone shared, read-only. No sign-in needed
+	// (GET /shared/lists/{token})
+	GetSharedList(ctx context.Context, request GetSharedListRequestObject) (GetSharedListResponseObject, error)
 	// CreateWorkspace Create a workspace (you become its owner)
 	// (POST /workspaces)
 	CreateWorkspace(ctx context.Context, request CreateWorkspaceRequestObject) (CreateWorkspaceResponseObject, error)
@@ -9248,6 +12280,12 @@ type StrictServerInterface interface {
 	// CreateHelper Make a helper from a Shelf template, optionally running a test right away
 	// (POST /workspaces/{workspaceId}/helpers)
 	CreateHelper(ctx context.Context, request CreateHelperRequestObject) (CreateHelperResponseObject, error)
+	// ListLists Your Lists (businesses, leads, links that helpers saved)
+	// (GET /workspaces/{workspaceId}/lists)
+	ListLists(ctx context.Context, request ListListsRequestObject) (ListListsResponseObject, error)
+	// CreateList Start an empty list
+	// (POST /workspaces/{workspaceId}/lists)
+	CreateList(ctx context.Context, request CreateListRequestObject) (CreateListResponseObject, error)
 	// ListPlaces Where your helpers can tell you things (chats)
 	// (GET /workspaces/{workspaceId}/places)
 	ListPlaces(ctx context.Context, request ListPlacesRequestObject) (ListPlacesResponseObject, error)
@@ -9701,6 +12739,230 @@ func (sh *strictHandler) TestHelperStack(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+// DeleteList operation middleware
+func (sh *strictHandler) DeleteList(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request DeleteListRequestObject
+
+	request.ListId = listId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteList(ctx, request.(DeleteListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteListResponseObject); ok {
+		if err := validResponse.VisitDeleteListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetList operation middleware
+func (sh *strictHandler) GetList(w http.ResponseWriter, r *http.Request, listId ListId, params GetListParams) {
+	var request GetListRequestObject
+
+	request.ListId = listId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetList(ctx, request.(GetListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetListResponseObject); ok {
+		if err := validResponse.VisitGetListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateList operation middleware
+func (sh *strictHandler) UpdateList(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request UpdateListRequestObject
+
+	request.ListId = listId
+
+	var body UpdateListJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateList(ctx, request.(UpdateListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateListResponseObject); ok {
+		if err := validResponse.VisitUpdateListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExportList operation middleware
+func (sh *strictHandler) ExportList(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request ExportListRequestObject
+
+	request.ListId = listId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExportList(ctx, request.(ExportListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExportList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExportListResponseObject); ok {
+		if err := validResponse.VisitExportListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddListRows operation middleware
+func (sh *strictHandler) AddListRows(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request AddListRowsRequestObject
+
+	request.ListId = listId
+
+	var body AddListRowsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddListRows(ctx, request.(AddListRowsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddListRows")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddListRowsResponseObject); ok {
+		if err := validResponse.VisitAddListRowsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteListRow operation middleware
+func (sh *strictHandler) DeleteListRow(w http.ResponseWriter, r *http.Request, listId ListId, rowId openapi_types.UUID) {
+	var request DeleteListRowRequestObject
+
+	request.ListId = listId
+	request.RowId = rowId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteListRow(ctx, request.(DeleteListRowRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteListRow")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteListRowResponseObject); ok {
+		if err := validResponse.VisitDeleteListRowResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UnshareList operation middleware
+func (sh *strictHandler) UnshareList(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request UnshareListRequestObject
+
+	request.ListId = listId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UnshareList(ctx, request.(UnshareListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnshareList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UnshareListResponseObject); ok {
+		if err := validResponse.VisitUnshareListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ShareList operation middleware
+func (sh *strictHandler) ShareList(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request ShareListRequestObject
+
+	request.ListId = listId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ShareList(ctx, request.(ShareListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ShareList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ShareListResponseObject); ok {
+		if err := validResponse.VisitShareListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetMe operation middleware
 func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	var request GetMeRequestObject
@@ -9770,6 +13032,32 @@ func (sh *strictHandler) TestPlace(w http.ResponseWriter, r *http.Request, place
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(TestPlaceResponseObject); ok {
 		if err := validResponse.VisitTestPlaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSharedList operation middleware
+func (sh *strictHandler) GetSharedList(w http.ResponseWriter, r *http.Request, token string) {
+	var request GetSharedListRequestObject
+
+	request.Token = token
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSharedList(ctx, request.(GetSharedListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSharedList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSharedListResponseObject); ok {
+		if err := validResponse.VisitGetSharedListResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -9946,6 +13234,65 @@ func (sh *strictHandler) CreateHelper(w http.ResponseWriter, r *http.Request, wo
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateHelperResponseObject); ok {
 		if err := validResponse.VisitCreateHelperResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListLists operation middleware
+func (sh *strictHandler) ListLists(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListListsRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListLists(ctx, request.(ListListsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListLists")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListListsResponseObject); ok {
+		if err := validResponse.VisitListListsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateList operation middleware
+func (sh *strictHandler) CreateList(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request CreateListRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	var body CreateListJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateList(ctx, request.(CreateListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateListResponseObject); ok {
+		if err := validResponse.VisitCreateListResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

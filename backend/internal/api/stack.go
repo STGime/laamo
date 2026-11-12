@@ -124,7 +124,7 @@ func (s *Server) checkStack(ctx context.Context, in Stack, workspaceID string) (
 	}
 	cat := catalog.Default()
 	problems := catalog.Errors(cat.Validate(stack, catalog.Options{}))
-	problems = append(problems, s.foreignPlaces(ctx, cat, stack, workspaceID)...)
+	problems = append(problems, s.foreignRefs(ctx, cat, stack, workspaceID)...)
 	if len(problems) == 0 {
 		return stack, nil, true
 	}
@@ -143,9 +143,10 @@ func (s *Server) addVersion(ctx context.Context, h store.Helper, stack catalog.S
 	return v, err
 }
 
-// foreignPlaces: a Post to chat brick may only post to this workspace's
-// chats (an id from elsewhere would leak results there).
-func (s *Server) foreignPlaces(ctx context.Context, cat *catalog.Catalog, st catalog.Stack, workspaceID string) []catalog.Issue {
+// foreignRefs: a Post to chat brick may only post to this workspace's
+// chats (an id from elsewhere would leak results there), and Save to a list
+// only save to its lists.
+func (s *Server) foreignRefs(ctx context.Context, cat *catalog.Catalog, st catalog.Stack, workspaceID string) []catalog.Issue {
 	var out []catalog.Issue
 	for i, sb := range st.Bricks {
 		b, ok := cat.Brick(sb.Type)
@@ -154,15 +155,23 @@ func (s *Server) foreignPlaces(ctx context.Context, cat *catalog.Catalog, st cat
 		}
 		for _, set := range b.Settings {
 			id, _ := sb.Config[set.Key].(string)
-			if set.Type != catalog.TypePlace || id == "" {
+			if id == "" {
 				continue
 			}
-			p, err := s.store.GetPlace(ctx, id)
-			if err == nil && p.WorkspaceID == workspaceID {
-				continue
+			switch set.Type {
+			case catalog.TypePlace:
+				if p, err := s.store.GetPlace(ctx, id); err == nil && p.WorkspaceID == workspaceID {
+					continue
+				}
+				out = append(out, catalog.Issue{Brick: sb.ID, Index: i, Level: catalog.LevelError, Code: catalog.CodeBadValue,
+					Setting: set.Key, Message: fmt.Sprintf("%s: pick one of your chats", b.Title.In("en"))})
+			case catalog.TypeList:
+				if l, err := s.store.GetList(ctx, id); err == nil && l.WorkspaceID == workspaceID {
+					continue
+				}
+				out = append(out, catalog.Issue{Brick: sb.ID, Index: i, Level: catalog.LevelError, Code: catalog.CodeBadValue,
+					Setting: set.Key, Message: fmt.Sprintf("%s: pick one of your lists", b.Title.In("en"))})
 			}
-			out = append(out, catalog.Issue{Brick: sb.ID, Index: i, Level: catalog.LevelError, Code: catalog.CodeBadValue,
-				Setting: set.Key, Message: fmt.Sprintf("%s: pick one of your chats", b.Title.In("en"))})
 		}
 	}
 	return out

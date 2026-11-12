@@ -309,6 +309,58 @@ func (s *Store) CreateList(ctx context.Context, l *store.List) error {
 	return insertRow(ctx, s, "lists", &l.ID, l)
 }
 
+func (s *Store) GetList(ctx context.Context, id string) (store.List, error) {
+	return getRow[store.List](ctx, s, "lists", id)
+}
+
+func (s *Store) GetListByShareToken(ctx context.Context, token string) (store.List, error) {
+	rows, err := listRows[store.List](ctx, s, "lists", eb.NewQuery().Eq("share_token", token), 1)
+	if err != nil {
+		return store.List{}, err
+	}
+	if len(rows) == 0 {
+		return store.List{}, store.ErrNotFound
+	}
+	return rows[0], nil
+}
+
+func (s *Store) ListLists(ctx context.Context, workspaceID string) ([]store.List, error) {
+	q := eb.NewQuery().Eq("workspace_id", workspaceID).Order("created_at", true).Order("id", true)
+	return listRows[store.List](ctx, s, "lists", q, 0)
+}
+
+func (s *Store) UpdateList(ctx context.Context, id string, p store.ListPatch) (store.List, error) {
+	return updateRow[store.List](ctx, s, "lists", id, p)
+}
+
+func (s *Store) DeleteList(ctx context.Context, id string) error {
+	return mapErr(s.c.Delete(ctx, "lists", id)) // rows cascade
+}
+
+func (s *Store) GetListRow(ctx context.Context, id string) (store.ListRow, error) {
+	return getRow[store.ListRow](ctx, s, "list_rows", id)
+}
+
+func (s *Store) GetListRowByKey(ctx context.Context, listID, key string) (store.ListRow, error) {
+	rows, err := listRows[store.ListRow](ctx, s, "list_rows", eb.NewQuery().Eq("list_id", listID).Eq("dedupe_key", key), 1)
+	if err != nil {
+		return store.ListRow{}, err
+	}
+	if len(rows) == 0 {
+		return store.ListRow{}, store.ErrNotFound
+	}
+	return rows[0], nil
+}
+
+func (s *Store) CountListRows(ctx context.Context, listID string) (int, error) {
+	n, err := s.c.List(ctx, "list_rows", eb.NewQuery().Eq("list_id", listID).Select("id").Limit(1), nil)
+	return n, mapErr(err)
+}
+
+func (s *Store) DeleteListRow(ctx context.Context, id string) error {
+	return mapErr(s.c.Delete(ctx, "list_rows", id))
+}
+
 func (s *Store) GetListByName(ctx context.Context, workspaceID, name string) (store.List, error) {
 	q := eb.NewQuery().Eq("workspace_id", workspaceID).Eq("name", name)
 	rows, err := listRows[store.List](ctx, s, "lists", q, 1)

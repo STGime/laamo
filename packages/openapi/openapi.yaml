@@ -18,6 +18,7 @@ tags:
   - name: demo
   - name: me
   - name: places
+  - name: lists
   - name: workspaces
 paths:
   /healthz:
@@ -112,6 +113,226 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /workspaces/{workspaceId}/lists:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: listLists
+      summary: Your Lists (businesses, leads, links that helpers saved)
+      tags: [lists]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ListSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createList
+      summary: Start an empty list
+      tags: [lists]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewList'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /lists/{listId}:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+    get:
+      operationId: getList
+      summary: A list with its rows (at most 500 that match)
+      tags: [lists]
+      parameters:
+        - name: q
+          in: query
+          description: Only rows with this text in any column
+          schema:
+            type: string
+            maxLength: 200
+        - name: sort
+          in: query
+          description: A column key, or "created_at" (default)
+          schema:
+            type: string
+            maxLength: 60
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateList
+      summary: Rename a list
+      tags: [lists]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewList'
+      responses:
+        '200':
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      operationId: deleteList
+      summary: Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
+      tags: [lists]
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /lists/{listId}/rows:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+    post:
+      operationId: addListRows
+      summary: Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
+      tags: [lists]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddListRows'
+      responses:
+        '200':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListRowsAdded'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /lists/{listId}/rows/{rowId}:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+      - name: rowId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: deleteListRow
+      summary: Delete one row
+      tags: [lists]
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /lists/{listId}/csv:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+    get:
+      operationId: exportList
+      summary: All rows as a CSV file (UTF-8, comma separated, header row)
+      tags: [lists]
+      responses:
+        '200':
+          description: The CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /lists/{listId}/share:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+    put:
+      operationId: shareList
+      summary: Turn on the read-only share link (owner only). Anyone with the link can see the rows
+      tags: [lists]
+      responses:
+        '200':
+          description: Shared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSummary'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: unshareList
+      summary: Turn the share link off; the old link stops working (owner only)
+      tags: [lists]
+      responses:
+        '204':
+          description: Not shared anymore
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /shared/lists/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 20
+          maxLength: 64
+    get:
+      operationId: getSharedList
+      summary: A list someone shared, read-only. No sign-in needed
+      tags: [lists]
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharedList'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /places/{placeId}:
     parameters:
       - $ref: '#/components/parameters/PlaceId'
@@ -635,6 +856,13 @@ components:
       schema:
         type: string
         format: uuid
+    ListId:
+      name: listId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     WorkspaceId:
       name: workspaceId
       in: path
@@ -779,6 +1007,118 @@ components:
     PlaceType:
       type: string
       enum: [discord, slack, teams, telegram, email, posta]
+    NewList:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+    AddListRows:
+      type: object
+      required: [feed_card_id]
+      properties:
+        feed_card_id:
+          type: string
+          format: uuid
+          description: The Feed card whose cards to add (a result, Check first or Let me pick card)
+        card_ids:
+          type: array
+          maxItems: 200
+          description: Which of its cards (Card.id); all of them when left out
+          items:
+            type: string
+            format: uuid
+        links:
+          type: array
+          maxItems: 50
+          description: Instead of cards, some of a result's source links (their url). With neither, all of the cards, or all links when the result has no cards
+          items:
+            type: string
+            maxLength: 2000
+    ListRowsAdded:
+      type: object
+      required: [added, duplicates, list]
+      properties:
+        added:
+          type: integer
+        duplicates:
+          type: integer
+          description: Cards already in the list
+        list:
+          $ref: '#/components/schemas/ListSummary'
+    ListSummary:
+      type: object
+      required: [id, name, rows, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rows:
+          type: integer
+        share_token:
+          type: string
+          description: Set while the read-only share link is on
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ListColumn:
+      type: object
+      required: [key]
+      properties:
+        key:
+          type: string
+    ListRow:
+      type: object
+      required: [id, data, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        data:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+    ListDetail:
+      type: object
+      required: [list, columns, rows, matching]
+      properties:
+        list:
+          $ref: '#/components/schemas/ListSummary'
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListColumn'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListRow'
+        matching:
+          type: integer
+          description: Rows that match the search (rows holds at most 500 of them)
+    SharedList:
+      type: object
+      required: [name, columns, rows]
+      properties:
+        name:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListColumn'
+        rows:
+          type: array
+          description: At most 2000 rows, newest first
+          items:
+            $ref: '#/components/schemas/ListRow'
     Place:
       type: object
       required: [id, type, label, created_at]

@@ -23,12 +23,14 @@
 	import BottomSheet from './BottomSheet.svelte';
 	import TimePicker from './TimePicker.svelte';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
+	import { api, session } from '#lib/session.svelte.ts';
 	import { detailKey, fieldPills } from '#lib/builder.ts';
 
 	let {
 		open = $bindable(false),
 		sb = $bindable(),
 		places,
+		lists = $bindable([]),
 		lastOut,
 		pills = [],
 		onfact,
@@ -39,6 +41,8 @@
 		open?: boolean;
 		sb: StackBrick;
 		places: Schemas['Place'][];
+		/** The workspace's lists (Save to a list); a new one is added here. */
+		lists?: Schemas['ListSummary'][];
 		lastOut?: number;
 		/** Pills that make sense here: About me facts (value shown, or unset
 		 * with a question), then card fields and {answer}. */
@@ -63,6 +67,24 @@
 
 	function set(key: string, v: unknown) {
 		sb.config = { ...sb.config, [key]: v };
+	}
+	// Save to a list: pick one, or start one right here.
+	let newList = $state('');
+	let listError = $state('');
+	async function createList(key: string) {
+		const ws = session.workspace;
+		const name = newList.trim();
+		if (!ws || !name) return;
+		listError = '';
+		const { data, response } = await api.POST('/workspaces/{workspaceId}/lists', {
+			params: { path: { workspaceId: ws.id } },
+			body: { name }
+		});
+		if (data) {
+			lists = [...lists, data];
+			set(key, data.id);
+			newList = '';
+		} else listError = response.status === 409 ? t('lists.taken') : t('lists.failed');
 	}
 	const str = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '');
 	const list = (v: unknown) => (Array.isArray(v) ? (v as string[]) : []);
@@ -175,6 +197,33 @@
 			<a class="add" href="/places/new?back={encodeURIComponent(back)}" onclick={() => onleave?.()}
 				>+ {t('tpl.addChat')}</a
 			>
+		{:else if s.type === 'list'}
+			<div class="choices" {id} role="radiogroup">
+				{#each lists as l (l.id)}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={cfg[s.key] === l.id}
+						onclick={() => set(s.key, l.id)}>{l.name}</button
+					>
+				{/each}
+			</div>
+			<form
+				class="other"
+				onsubmit={(e) => {
+					e.preventDefault();
+					createList(s.key);
+				}}
+			>
+				<input
+					bind:value={newList}
+					maxlength="80"
+					placeholder={t('lists.newName')}
+					aria-label={t('lists.newName')}
+				/>
+				<button class="btn" disabled={!newList.trim()}>{t('lists.create')}</button>
+			</form>
+			{#if listError}<p class="error" role="alert">{listError}</p>{/if}
 		{:else if s.type === 'toggle'}
 			<input
 				{id}
@@ -361,6 +410,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2);
+	}
+	.error {
+		margin: var(--space-1) 0 0;
+		color: var(--danger);
+		font-size: var(--text-sm);
 	}
 	.other {
 		display: flex;

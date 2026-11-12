@@ -116,12 +116,28 @@ type FeedStore interface {
 }
 
 type ListStore interface {
+	// CreateList returns ErrConflict when the workspace has a list with that name.
 	CreateList(ctx context.Context, l *List) error
+	GetList(ctx context.Context, id string) (List, error)
 	GetListByName(ctx context.Context, workspaceID, name string) (List, error)
-	// AddListRow returns ErrConflict when a row with the same dedupe key exists.
+	// GetListByShareToken finds a shared list, or ErrNotFound.
+	GetListByShareToken(ctx context.Context, token string) (List, error)
+	// ListLists returns a workspace's lists, newest first.
+	ListLists(ctx context.Context, workspaceID string) ([]List, error)
+	// UpdateList returns ErrConflict for a name another list has.
+	UpdateList(ctx context.Context, id string, p ListPatch) (List, error)
+	// DeleteList removes a list with its rows.
+	DeleteList(ctx context.Context, id string) error
+
+	// AddListRow returns ErrConflict when a row with the same id or dedupe key exists.
 	AddListRow(ctx context.Context, r *ListRow) error
+	GetListRow(ctx context.Context, id string) (ListRow, error)
+	// GetListRowByKey finds the row with that dedupe key, or ErrNotFound.
+	GetListRowByKey(ctx context.Context, listID, key string) (ListRow, error)
 	// ListRows returns newest first, at most limit rows (0 = all).
 	ListRows(ctx context.Context, listID string, limit int) ([]ListRow, error)
+	CountListRows(ctx context.Context, listID string) (int, error)
+	DeleteListRow(ctx context.Context, id string) error
 }
 
 type UsageStore interface {
@@ -140,7 +156,7 @@ type TriggerStore interface {
 type PlaceStore interface {
 	CreatePlace(ctx context.Context, p *Place) error
 	GetPlace(ctx context.Context, id string) (Place, error)
-	// ListPlaces returns a workspace's places, oldest first.
+	// ListPlaces returns a workspace's places, newest first.
 	ListPlaces(ctx context.Context, workspaceID string) ([]Place, error)
 	UpdatePlace(ctx context.Context, id string, p PlacePatch) (Place, error)
 	DeletePlace(ctx context.Context, id string) error

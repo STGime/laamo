@@ -15,7 +15,9 @@
 	// Screens without the tab bar.
 	const BARE = ['/', '/try', '/start', '/auth/callback', '/signin', '/welcome'];
 	const path = $derived(page.url.pathname);
-	const open = $derived(OPEN.includes(path));
+	// A shared list is public too.
+	const shared = $derived(path.startsWith('/shared/'));
+	const open = $derived(OPEN.includes(path) || shared);
 
 	$effect(() => {
 		session.refresh();
@@ -43,7 +45,7 @@
 			body: { template: p.template, answers, run_test: true }
 		});
 	});
-	const showTabs = $derived(session.status === 'signedIn' && !BARE.includes(path));
+	const showTabs = $derived(session.status === 'signedIn' && !BARE.includes(path) && !shared);
 </script>
 
 <div class="app" class:tabs={showTabs}>

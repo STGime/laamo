@@ -101,7 +101,8 @@ func (s *Server) Handler() http.Handler {
 		case "GET /healthz", "GET /openapi.yaml", "GET /demo/challenge", "POST /demo/runs":
 			return true
 		}
-		return false
+		// A shared list: the link's token is the key.
+		return r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, BaseURL+"/shared/lists/")
 	}
 	return http.MaxBytesHandler(withClientIP(auth.Middleware(s.auth, public, WriteError)(mux), s.cfg.TrustProxy), maxBody)
 }

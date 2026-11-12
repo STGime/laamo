@@ -644,6 +644,106 @@ func (s *Store) CreateList(_ context.Context, l *store.List) error {
 	return nil
 }
 
+func (s *Store) GetList(_ context.Context, id string) (store.List, error) {
+	return get(s, s.lists, id)
+}
+
+func (s *Store) GetListByShareToken(_ context.Context, token string) (store.List, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, l := range s.lists {
+		if l.ShareToken != nil && *l.ShareToken == token {
+			return clone(l), nil
+		}
+	}
+	return store.List{}, store.ErrNotFound
+}
+
+func (s *Store) ListLists(_ context.Context, workspaceID string) ([]store.List, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.List
+	for _, l := range s.lists {
+		if l.WorkspaceID == workspaceID {
+			out = append(out, clone(l))
+		}
+	}
+	slices.SortFunc(out, func(a, b store.List) int { // newest first
+		return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(b.ID, a.ID))
+	})
+	return out, nil
+}
+
+func (s *Store) UpdateList(_ context.Context, id string, p store.ListPatch) (store.List, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	l, ok := s.lists[id]
+	if !ok {
+		return store.List{}, store.ErrNotFound
+	}
+	for _, o := range s.lists {
+		if o.ID != id && ((p.Name != nil && o.WorkspaceID == l.WorkspaceID && o.Name == *p.Name) ||
+			(p.ShareToken != nil && p.ShareToken.Valid && o.ShareToken != nil && *o.ShareToken == p.ShareToken.Value)) {
+			return store.List{}, dup("lists", id)
+		}
+	}
+	l, err := store.ApplyPatch(l, p)
+	if err != nil {
+		return l, err
+	}
+	l.UpdatedAt = s.now()
+	s.lists[id] = clone(l)
+	return l, nil
+}
+
+func (s *Store) DeleteList(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.lists[id]; !ok {
+		return store.ErrNotFound
+	}
+	delete(s.lists, id)
+	maps.DeleteFunc(s.listRows, func(_ string, r store.ListRow) bool { return r.ListID == id })
+	return nil
+}
+
+func (s *Store) GetListRow(_ context.Context, id string) (store.ListRow, error) {
+	return get(s, s.listRows, id)
+}
+
+func (s *Store) GetListRowByKey(_ context.Context, listID, key string) (store.ListRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, r := range s.listRows {
+		if r.ListID == listID && r.DedupeKey != nil && *r.DedupeKey == key {
+			return clone(r), nil
+		}
+	}
+	return store.ListRow{}, store.ErrNotFound
+}
+
+func (s *Store) CountListRows(_ context.Context, listID string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for _, r := range s.listRows {
+		if r.ListID == listID {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (s *Store) DeleteListRow(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.listRows[id]; !ok {
+		return store.ErrNotFound
+	}
+	delete(s.listRows, id)
+	return nil
+}
+
 func (s *Store) GetListByName(_ context.Context, workspaceID, name string) (store.List, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -868,8 +968,8 @@ func (s *Store) ListPlaces(_ context.Context, workspaceID string) ([]store.Place
 			out = append(out, clone(p))
 		}
 	}
-	slices.SortFunc(out, func(a, b store.Place) int {
-		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	slices.SortFunc(out, func(a, b store.Place) int { // newest first
+		return cmp.Or(b.CreatedAt.Compare(a.CreatedAt), cmp.Compare(b.ID, a.ID))
 	})
 	return out, nil
 }

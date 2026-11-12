@@ -1996,6 +1996,13 @@
               }
             },
             {
+              "value": "url",
+              "label": {
+                "en": "Same link",
+                "de": "Gleicher Link"
+              }
+            },
+            {
               "value": "name",
               "label": {
                 "en": "Same name",
@@ -2041,6 +2048,16 @@
           },
           "fields": [
             "name"
+          ]
+        },
+        {
+          "if": {
+            "dedupe": [
+              "url"
+            ]
+          },
+          "fields": [
+            "url"
           ]
         }
       ],
