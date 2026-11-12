@@ -252,6 +252,7 @@ export const en = {
 	'shelf.brain': 'Brain',
 	'shelf.chat': 'Chat (optional)',
 	'shelf.build': 'Build your own',
+	'shelf.buildHint': 'Start with an empty helper and add bricks yourself.',
 	'tpl.how': 'How it works',
 	'tpl.setup': 'Before it starts',
 	'tpl.justHere': 'Just for this helper',

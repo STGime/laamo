@@ -946,7 +946,7 @@ export interface components {
 			fills?: string[];
 		};
 		NewHelper: {
-			/** @description Template slug */
+			/** @description Template slug, or "blank" to start from scratch (just When I tap; answers are ignored) */
 			template: string;
 			answers: {
 				[key: string]: string;

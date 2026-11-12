@@ -131,6 +131,9 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 	bad := func(msg string) (CreateHelperResponseObject, error) {
 		return CreateHelper400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, msg))}, nil
 	}
+	if req.Body.Template == BlankTemplate {
+		return s.createBlank(ctx, w)
+	}
 	t, found := shelf.Find(req.Body.Template)
 	if !found {
 		return bad("unknown template " + req.Body.Template)
@@ -194,6 +197,33 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 		}
 	}
 	return out, nil
+}
+
+// BlankTemplate starts a helper from scratch ("Build your own"): just a
+// When I tap brick, then the builder.
+const BlankTemplate = "blank"
+
+func (s *Server) createBlank(ctx context.Context, w store.Workspace) (CreateHelperResponseObject, error) {
+	cat := catalog.Default()
+	tap, _ := cat.Brick("when.tap")
+	stack := catalog.Stack{Schema: 1, Bricks: []catalog.StackBrick{{ID: "b1", Type: "when.tap", Config: tap.Config(nil)}}}
+	raw, _ := json.Marshal(stack)
+	existing, err := s.store.ListHelpers(ctx, w.ID)
+	if err != nil {
+		return nil, err
+	}
+	name := "My helper"
+	if w.Locale == "de" {
+		name = "Mein Helfer"
+	}
+	u, _ := user(ctx)
+	h := store.Helper{WorkspaceID: w.ID, UserID: w.UserID, Name: uniqueName(name, existing), Status: "active", CreatedVia: "scratch"}
+	v := store.HelperVersion{Stack: raw, CreatedBy: &u.ID}
+	if err := s.store.CreateHelper(ctx, &h, &v); err != nil {
+		return nil, err
+	}
+	s.log.Info("helper created", "helper", h.ID, "template", BlankTemplate, "workspace", w.ID)
+	return CreateHelper201JSONResponse{Helper: helperOut(h)}, nil
 }
 
 func (s *Server) StartRun(ctx context.Context, req StartRunRequestObject) (StartRunResponseObject, error) {

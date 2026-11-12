@@ -259,6 +259,7 @@ export const de: Record<Key, string> = {
 	'shelf.brain': 'Brain',
 	'shelf.chat': 'Chat (optional)',
 	'shelf.build': 'Selbst bauen',
+	'shelf.buildHint': 'Starte mit einem leeren Helfer und füge selbst Bausteine hinzu.',
 	'tpl.how': 'So arbeitet er',
 	'tpl.setup': 'Bevor es losgeht',
 	'tpl.justHere': 'Nur für diesen Helfer',

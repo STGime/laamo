@@ -1018,7 +1018,7 @@ type NewHelper struct {
 	// RunTest Start a test run right away
 	RunTest *bool `json:"run_test,omitempty"`
 
-	// Template Template slug
+	// Template Template slug, or "blank" to start from scratch (just When I tap; answers are ignored)
 	Template string `json:"template"`
 }
 

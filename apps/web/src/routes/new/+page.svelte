@@ -1,5 +1,6 @@
 <!-- S7 Shelf: templates sorted by the needs picked in onboarding. -->
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import type { Schemas } from '#lib/api/client.ts';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { t } from '#lib/i18n/index.svelte.ts';
@@ -19,6 +20,21 @@
 			})
 			.catch(() => (failed = true));
 	});
+
+	// Build your own: an empty helper (When I tap), straight into the builder.
+	let building = $state(false);
+	async function buildOwn() {
+		const ws = session.workspace;
+		if (!ws) return;
+		building = true;
+		const { data } = await api.POST('/workspaces/{workspaceId}/helpers', {
+			params: { path: { workspaceId: ws.id } },
+			body: { template: 'blank', answers: {} }
+		});
+		building = false;
+		if (data) goto(`/helpers/${data.helper.id}/edit`);
+		else failed = true;
+	}
 
 	const forYou = $derived(templates.filter((x) => x.match > 0));
 	const more = $derived(templates.filter((x) => x.match === 0));
@@ -62,10 +78,21 @@
 			{#each more as tpl (tpl.slug)}{@render card(tpl)}{/each}
 		</ul>
 	{/if}
-	<p class="note">{t('shelf.build')} · {t('new.soon')}</p>
+	<div class="own">
+		<button class="btn wide" disabled={building} onclick={buildOwn}>{t('shelf.build')}</button>
+		<p>{t('shelf.buildHint')}</p>
+	</div>
 {/if}
 
 <style>
+	.own {
+		padding: var(--space-6) var(--gutter);
+	}
+	.own p {
+		margin: var(--space-2) 0 0;
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
 	.section {
 		padding: var(--space-5) var(--gutter) var(--space-2);
 		font-size: var(--text-lg);
