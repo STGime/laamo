@@ -28,6 +28,8 @@ export const de: Record<Key, string> = {
 	'new.soon': 'Kommt bald',
 	'lists.title': 'Listen',
 	'lists.empty': 'Hier können Helfer Firmen, Kontakte und Links speichern.',
+	'osm.credit': 'Kartendaten © OpenStreetMap-Mitwirkende',
+	'osm.creditRows': 'Betriebe aus OpenStreetMap: © OpenStreetMap-Mitwirkende (ODbL).',
 	'lists.choose': 'Auswählen',
 	'lists.chosen': 'Ausgewählt',
 	'lists.addAll': 'Alle in eine Liste',

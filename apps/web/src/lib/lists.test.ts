@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellHref, cellText, columnLabel, csvName, rowHeading } from './lists.ts';
+import { cellHref, cellText, columnLabel, csvName, osmSource, rowHeading } from './lists.ts';
 
 describe('lists', () => {
 	it('names columns', () => {
@@ -17,5 +17,15 @@ describe('lists', () => {
 	it('names the CSV file', () => {
 		expect(csvName('Leads (Leipzig)')).toBe('leads-leipzig.csv');
 		expect(csvName('???')).toBe('list.csv');
+	});
+});
+
+describe('osmSource', () => {
+	it('knows OpenStreetMap pages', () => {
+		expect(osmSource('https://www.openstreetmap.org/way/123')).toBe(
+			'https://www.openstreetmap.org/way/123'
+		);
+		expect(osmSource('https://evil.example/way/1')).toBeNull();
+		expect(osmSource(undefined)).toBeNull();
 	});
 });

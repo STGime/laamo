@@ -51,3 +51,11 @@ export function csvName(name: string): string {
 		.replace(/^-+|-+$/g, '');
 	return `${base || 'list'}.csv`;
 }
+
+/** An OpenStreetMap page this came from, or null. */
+export function osmSource(url: unknown): string | null {
+	return typeof url === 'string' &&
+		/^https:\/\/www\.openstreetmap\.org\/(node|way|relation)\/\d+$/.test(url)
+		? url
+		: null;
+}

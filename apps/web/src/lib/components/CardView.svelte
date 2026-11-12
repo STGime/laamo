@@ -3,6 +3,7 @@
 	import type { Schemas } from '#lib/api/client.ts';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { safeURL } from '#lib/links.ts';
+	import { osmSource } from '#lib/lists.ts';
 
 	let {
 		card,
@@ -31,6 +32,8 @@
 	const href = $derived(safeURL(text('url') || text('website')));
 	const editable = $derived(['email', 'subject', 'title', 'body'].filter((k) => text(k) !== ''));
 	const untrusted = (k: string) => card.trust[k] === 'untrusted';
+	// Map data must name its source (OpenStreetMap's licence).
+	const fromMap = $derived(osmSource(card.source_url));
 
 	function value(k: string) {
 		return edits?.[k] ?? text(k);
@@ -72,6 +75,11 @@
 					>{:else}{host}{/if}{#if untrusted('url') || untrusted('title')}&nbsp;· {t(
 						'feed.fromWeb'
 					)}{/if}
+			</p>
+		{/if}
+		{#if fromMap}
+			<p class="host">
+				<a href={fromMap} target="_blank" rel="noopener noreferrer nofollow">{t('osm.credit')}</a>
 			</p>
 		{/if}
 	{/if}

@@ -23,6 +23,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/engine/tmpl"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/llm"
+	"github.com/STGime/laamo/backend/internal/osm"
 	"github.com/STGime/laamo/backend/internal/queue"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	"github.com/STGime/laamo/backend/internal/search"
@@ -88,7 +89,8 @@ func run(log *slog.Logger) error {
 }
 
 func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps {
-	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}, Pages: &web.Fetcher{}}
+	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}, Pages: &web.Fetcher{},
+		Businesses: &osm.Client{NominatimURL: cfg.OSMNominatimURL, OverpassURL: cfg.OSMOverpassURL}}
 	if keys, err := crypto.ParseKeyring(cfg.MasterKeys, cfg.MasterKeyActive); err == nil {
 		d.Keys = keys
 	} else {

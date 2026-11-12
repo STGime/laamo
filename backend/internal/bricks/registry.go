@@ -23,6 +23,8 @@ type Deps struct {
 	Chat  do.ChatSender
 	// Read a webpage (web.Fetcher in production).
 	Pages look.PageReader
+	// Find businesses (osm.Client in production).
+	Businesses look.BusinessFinder
 }
 
 // All returns the executors by catalog brick type.
@@ -40,6 +42,9 @@ func All(d Deps) map[string]engine.Brick {
 	}
 	if ls, ok := d.Store.(store.ListStore); ok {
 		m["do.list"] = do.List{Store: ls}
+	}
+	if d.Businesses != nil {
+		m["look.find_businesses"] = look.FindBusinesses{Finder: d.Businesses}
 	}
 	if d.Pages != nil {
 		m["look.read_page"] = look.ReadPage{Reader: d.Pages}

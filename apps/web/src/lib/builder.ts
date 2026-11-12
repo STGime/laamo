@@ -15,6 +15,7 @@ export const ready = new Set([
 	'when.tap',
 	'look.search',
 	'look.read_page',
+	'look.find_businesses',
 	'think.summarize',
 	'think.keep',
 	'think.extract',
