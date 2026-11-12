@@ -198,6 +198,23 @@ func TestAddToListFromFeed(t *testing.T) {
 		t.Fatalf("all links: %s", r.Body)
 	}
 
+	// The summary card itself (as an older app asked for it): its links, not its text.
+	sumStep := store.NewID()
+	_ = st.InsertCards(ctx, []store.Card{{WorkspaceID: ws.ID, UserID: anna.ID, RunID: runID, StepID: sumStep, CardID: store.NewID(),
+		Kind: "summary", Data: map[string]any{"summary": "Butchers ranked…", "sources": []any{
+			map[string]any{"title": "Metzger-Ranking", "url": "https://www.rbb24.de/metzger"},
+			map[string]any{"title": "Neu", "url": "https://example.org/neu"},
+		}}}})
+	sum2 := store.FeedCard{WorkspaceID: ws.ID, UserID: anna.ID, RunID: &runID, StepID: &sumStep, Type: "result", Title: "Done"}
+	_ = st.CreateFeedCard(ctx, &sum2)
+	r = must(c.AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(sum2.ID)}))
+	if r.JSON200.Added != 1 || r.JSON200.Duplicates != 1 {
+		t.Fatalf("summary card: %s", r.Body)
+	}
+	if row, err := st.GetListRowByKey(ctx, l.Id.String(), "url:https://example.org/neu"); err != nil || row.Data["summary"] != nil {
+		t.Fatalf("summary row %+v %v", row, err)
+	}
+
 	// Someone else can't add to it.
 	if r := must(e.client(t, "ben").AddListRowsWithResponse(ctx, l.Id, api.AddListRows{FeedCardId: wsID(fc.ID)})); r.StatusCode() != 404 {
 		t.Fatalf("ben: %d", r.StatusCode())

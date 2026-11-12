@@ -212,20 +212,33 @@ func (s *Server) pickForList(ctx context.Context, fc store.FeedCard, body *AddLi
 		want[id.String()] = true
 	}
 	var out []map[string]any
+	matched := 0
 	for _, c := range shown {
 		if len(want) > 0 && !want[c.CardID] {
 			continue
 		}
-		data := do.RowData(c.Data, deref(c.SourceURL))
-		out = append(out, data)
+		// A summary (Sum it all up) is worth keeping for its sources:
+		// one row per link, not one row of text.
+		if src := sourceLinks(c.Data["sources"]); c.Kind == "summary" && len(src) > 0 {
+			out = append(out, src...)
+			matched++
+			continue
+		}
+		out = append(out, do.RowData(c.Data, deref(c.SourceURL)))
+		matched++
 	}
-	return out, len(out) > 0 && (len(want) == 0 || len(out) == len(want)), nil
+	return out, len(out) > 0 && (len(want) == 0 || matched == len(want)), nil
 }
 
 // payloadLinks: a result's source links (title and url), as the engine put
 // them on the Feed card.
 func payloadLinks(fc store.FeedCard) []map[string]any {
-	raw, _ := fc.Payload["links"].([]any)
+	return sourceLinks(fc.Payload["links"])
+}
+
+// sourceLinks turns [{title, url}] into rows, http(s) links only.
+func sourceLinks(v any) []map[string]any {
+	raw, _ := v.([]any)
 	var out []map[string]any
 	for _, x := range raw {
 		m, _ := x.(map[string]any)
