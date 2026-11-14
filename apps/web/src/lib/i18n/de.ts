@@ -34,6 +34,8 @@ export const de: Record<Key, string> = {
 	'osm.mapAlt': 'Karte: wo es ist',
 	'osm.metersAway': '{n} m entfernt',
 	'osm.kmAway': '{n} km entfernt',
+	'osm.metersFrom': '{n} m von {place} entfernt',
+	'osm.kmFrom': '{n} km von {place} entfernt',
 	'lists.choose': 'Auswählen',
 	'lists.chosen': 'Ausgewählt',
 	'lists.addAll': 'Alle in eine Liste',

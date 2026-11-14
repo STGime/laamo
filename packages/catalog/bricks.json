@@ -234,6 +234,13 @@
       }
     },
     {
+      "key": "distance_from",
+      "label": {
+        "en": "Distance from",
+        "de": "Entfernung von"
+      }
+    },
+    {
       "key": "price",
       "label": {
         "en": "Price",
@@ -1151,7 +1158,8 @@
         "phone",
         "opening_hours",
         "location",
-        "distance_km"
+        "distance_km",
+        "distance_from"
       ]
     },
     {
