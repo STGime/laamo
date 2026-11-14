@@ -41,9 +41,10 @@ describe('builder', () => {
 	});
 
 	it('shows ready bricks first in the tray', () => {
-		const look = tray('look');
-		expect(ready.has(look[0].id)).toBe(true);
-		expect(look.some((x) => !ready.has(x.id))).toBe(true);
+		const doing = tray('do');
+		expect(ready.has(doing[0].id)).toBe(true);
+		expect(doing.some((x) => !ready.has(x.id))).toBe(true);
+		expect(tray('look').every((x) => ready.has(x.id))).toBe(true);
 	});
 
 	it('puts a fix right before the brick that needs it', () => {

@@ -1654,7 +1654,7 @@ components:
       properties:
         template:
           type: string
-          description: Template slug, or "blank" to start from scratch (just When I tap; answers are ignored)
+          description: Template slug, or "blank" to start from scratch (just When I tap; with answers.list, Read my list comes next)
         answers:
           type: object
           additionalProperties:

@@ -65,6 +65,7 @@ export const en = {
 	'lists.noMatch': 'No rows match.',
 	'lists.emptyList': 'Nothing here yet. A helper with “Save to a list” fills it.',
 	'lists.export': 'Download as CSV',
+	'lists.useInHelper': 'Use in a helper',
 	'lists.share': 'Share a read-only link',
 	'lists.sharedHint': 'Anyone with this link can see the list, but not change it.',
 	'lists.link': 'Share link',

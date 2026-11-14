@@ -66,6 +66,7 @@ export const de: Record<Key, string> = {
 	'lists.noMatch': 'Keine Zeile passt.',
 	'lists.emptyList': 'Noch leer. Ein Helfer mit „In einer Liste speichern“ füllt sie.',
 	'lists.export': 'Als CSV herunterladen',
+	'lists.useInHelper': 'In einem Helfer nutzen',
 	'lists.share': 'Link zum Ansehen teilen',
 	'lists.sharedHint': 'Jede Person mit diesem Link kann die Liste sehen, aber nicht ändern.',
 	'lists.link': 'Link zum Teilen',
