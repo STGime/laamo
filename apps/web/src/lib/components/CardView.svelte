@@ -2,7 +2,7 @@
 <script lang="ts">
 	import type { Schemas } from '#lib/api/client.ts';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
-	import { safeURL } from '#lib/links.ts';
+	import { mailto, safeURL } from '#lib/links.ts';
 	import { osmSource } from '#lib/lists.ts';
 	import MapThumb from './MapThumb.svelte';
 
@@ -48,6 +48,25 @@
 				: t(from ? 'osm.kmFrom' : 'osm.kmAway', { n: km, place: from })
 	);
 	const phone = $derived(text('phone'));
+	// A draft to someone: open it in the user's own mail app, or copy it.
+	const draft = $derived(
+		text('body') && email
+			? mailto(
+					edits?.email ?? email,
+					edits?.subject ?? text('subject'),
+					edits?.body ?? text('body')
+				)
+			: null
+	);
+	let copied = $state(false);
+	async function copyDraft() {
+		const subject = edits?.subject ?? text('subject');
+		await navigator.clipboard?.writeText(
+			(subject ? subject + '\n\n' : '') + (edits?.body ?? text('body'))
+		);
+		copied = true;
+		setTimeout(() => (copied = false), 2000);
+	}
 
 	function value(k: string) {
 		return edits?.[k] ?? text(k);
@@ -102,6 +121,14 @@
 						'feed.fromWeb'
 					)}{/if}
 			</p>
+		{/if}
+		{#if draft}
+			<div class="send">
+				<a class="btn" href={draft}>{t('draft.open')}</a>
+				<button type="button" class="btn" onclick={copyDraft}
+					>{copied ? t('lists.copied') : t('draft.copy')}</button
+				>
+			</div>
 		{/if}
 		{#if business && location}<MapThumb {location} href={fromMap} />{/if}
 		{#if fromMap}
@@ -167,5 +194,10 @@
 	}
 	.facts {
 		color: var(--muted);
+	}
+	.send {
+		display: flex;
+		gap: var(--space-2);
+		margin-top: var(--space-2);
 	}
 </style>

@@ -259,3 +259,38 @@ func TestMap(t *testing.T) {
 		t.Fatalf("off: %d", r.StatusCode())
 	}
 }
+
+// Customer Finder (#52): its list "Leads" is made on install, and a second
+// helper uses the same list.
+func TestCustomerFinderInstall(t *testing.T) {
+	st := memory.New()
+	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna}}).Handler())
+	t.Cleanup(srv.Close)
+	e := env{url: srv.URL, store: st}
+	ctx := context.Background()
+	ws := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Bäckerei", Locale: "de", Timezone: "Europe/Berlin",
+		Profile: map[string]any{"city": "Leipzig"}})
+	st.PutMember(store.Member{WorkspaceID: ws.ID, UserID: anna.ID, Role: store.RoleOwner})
+	c := e.client(t, "anna")
+	var lists []string
+	for range 2 {
+		r := must(c.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "customer-finder",
+			Answers: map[string]string{"kind": "Cafés", "offer": "frische Kuchen für Cafés"}}))
+		if r.StatusCode() != 201 {
+			t.Fatalf("install: %d %s", r.StatusCode(), r.Body)
+		}
+		bricks := must(c.GetHelperStackWithResponse(ctx, r.JSON201.Helper.Id)).JSON200.Stack.Bricks
+		if bricks[1].Config["what"] != "Cafés" || bricks[2].Type != "do.list" || bricks[2].Config["only_new"] != true {
+			t.Fatalf("stack %+v", bricks)
+		}
+		id, _ := bricks[2].Config["list"].(string)
+		lists = append(lists, id)
+	}
+	l, err := st.GetList(ctx, lists[0])
+	if err != nil || l.Name != "Leads" || l.WorkspaceID != ws.ID || lists[1] != lists[0] {
+		t.Fatalf("list %+v %v, ids %v", l, err, lists)
+	}
+	if got, _ := st.GetWorkspace(ctx, ws.ID); got.Profile["offer"] != "frische Kuchen für Cafés" {
+		t.Fatalf("offer not remembered: %v", got.Profile)
+	}
+}

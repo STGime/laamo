@@ -176,6 +176,29 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 		}
 	}
 
+	// A template names its list ("Leads"): use or start that list, as the API does.
+	for i, sb := range stack.Bricks {
+		b, ok := cat.Brick(sb.Type)
+		if !ok {
+			continue
+		}
+		for _, set := range b.Settings {
+			name, _ := sb.Config[set.Key].(string)
+			if set.Type != catalog.TypeList || name == "" || len(name) == 36 {
+				continue
+			}
+			l, err := st.GetListByName(ctx, ws.ID, name)
+			if errors.Is(err, store.ErrNotFound) {
+				l = store.List{WorkspaceID: ws.ID, UserID: user, Name: name}
+				err = st.CreateList(ctx, &l)
+			}
+			if err != nil {
+				return err
+			}
+			stack.Bricks[i].Config[set.Key] = l.ID
+		}
+	}
+
 	if errs := catalog.Errors(cat.Validate(stack, catalog.Options{})); len(errs) > 0 {
 		for _, e := range errs {
 			_, _ = fmt.Fprintf(w, "✗ %s %s: %s\n", e.Brick, e.Code, e.Message)

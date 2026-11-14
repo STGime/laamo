@@ -49,6 +49,13 @@ func TestExtract(t *testing.T) {
 	if sys := m.reqs[0].System; !strings.Contains(sys, `"opening_days": free text: opening days`) || !strings.Contains(sys, "never guess") {
 		t.Fatalf("prompt: %s", sys)
 	}
+
+	// Only found: the card without an email stops here.
+	kept, err := brickstest.Contract(t, "think.extract", think.Extract, runCtx(t, "think.extract", m), businesses(),
+		map[string]any{"fields": []any{"email"}, "only_found": true})
+	if err != nil || len(kept) != 1 || kept[0].ID != "c0" {
+		t.Fatalf("only found: %v %+v", err, kept)
+	}
 }
 
 func TestWriteEach(t *testing.T) {

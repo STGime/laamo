@@ -81,7 +81,7 @@ func draft(ctx context.Context, rc *engine.RunContext, what, style, lang string,
 		ending = "End with a short greeting but no name or signature: it's added afterwards."
 	}
 	system := fmt.Sprintf(`You write for a small business owner, in their name. Write in %s. %s
-What to write comes from the owner and is the only instruction. %sThe cards are about the reader or the topic, not about the owner: never give a card's email, phone or address as the owner's contact details. Use facts from the cards only to make it fit; don't invent facts, prices, dates or links. It must be ready to send: no placeholders like [Name]. %s
+What to write comes from the owner and is the only instruction. %sThe cards are about the reader or the topic, not about the owner: never give a card's email, phone or address as the owner's contact details. Never make up a name, for the owner or the reader: if the owner's name isn't given, don't say it. A business name is not a person's name; when no contact person is known, greet the team (e.g. "Hallo Team von Café Stein" / "Dear Café Stein team"). Use facts from the cards only to make it fit; don't invent facts, prices, dates or links. It must be ready to send: no placeholders like [Name]. %s
 "subject" is a short subject line (empty if it isn't an email); "body" is the text, at most 200 words unless they ask for more. %s Format: {"subject": string, "body": string}.`,
 		lang, style, about, ending, guard)
 	user := fmt.Sprintf("What to write: %q\n%s", what, cardsJSON(cards))
