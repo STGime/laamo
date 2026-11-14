@@ -132,7 +132,7 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 		return CreateHelper400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, msg))}, nil
 	}
 	if req.Body.Template == BlankTemplate {
-		return s.createBlank(ctx, w)
+		return s.createBlank(ctx, w, req.Body.Answers["list"])
 	}
 	t, found := shelf.Find(req.Body.Template)
 	if !found {
@@ -200,21 +200,35 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 }
 
 // BlankTemplate starts a helper from scratch ("Build your own"): just a
-// When I tap brick, then the builder.
+// When I tap brick, then the builder. With a list ("Use in a helper" on a
+// list), Read my list comes next.
 const BlankTemplate = "blank"
 
-func (s *Server) createBlank(ctx context.Context, w store.Workspace) (CreateHelperResponseObject, error) {
+func (s *Server) createBlank(ctx context.Context, w store.Workspace, listID string) (CreateHelperResponseObject, error) {
 	cat := catalog.Default()
 	tap, _ := cat.Brick("when.tap")
 	stack := catalog.Stack{Schema: 1, Bricks: []catalog.StackBrick{{ID: "b1", Type: "when.tap", Config: tap.Config(nil)}}}
+	name := "My helper"
+	if w.Locale == "de" {
+		name = "Mein Helfer"
+	}
+	if listID != "" {
+		l, err := s.store.GetList(ctx, listID)
+		if errors.Is(err, store.ErrNotFound) || (err == nil && l.WorkspaceID != w.ID) {
+			return CreateHelper400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "that list isn't yours"))}, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		mine, _ := cat.Brick("look.my_stuff")
+		stack.Bricks = append(stack.Bricks, catalog.StackBrick{ID: "b2", Type: "look.my_stuff",
+			Config: mine.Config(map[string]any{"source": "list", "list": l.ID})})
+		name = l.Name
+	}
 	raw, _ := json.Marshal(stack)
 	existing, err := s.store.ListHelpers(ctx, w.ID)
 	if err != nil {
 		return nil, err
-	}
-	name := "My helper"
-	if w.Locale == "de" {
-		name = "Mein Helfer"
 	}
 	u, _ := user(ctx)
 	h := store.Helper{WorkspaceID: w.ID, UserID: w.UserID, Name: uniqueName(name, existing), Status: "active", CreatedVia: "scratch"}

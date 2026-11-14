@@ -129,3 +129,30 @@ func TestCreateBlank(t *testing.T) {
 		}
 	}
 }
+
+// "Use in a helper" on a list: Read my list comes after When I tap.
+func TestCreateFromList(t *testing.T) {
+	st := memory.New()
+	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna}}).Handler())
+	t.Cleanup(srv.Close)
+	e := env{url: srv.URL, store: st}
+	ctx := context.Background()
+	ws := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Bäckerei", Locale: "en", Timezone: "Europe/Berlin"})
+	st.PutMember(store.Member{WorkspaceID: ws.ID, UserID: anna.ID, Role: store.RoleOwner})
+	l := store.List{WorkspaceID: ws.ID, UserID: anna.ID, Name: "Leads"}
+	_ = st.CreateList(ctx, &l)
+	c := e.client(t, "anna")
+	r := must(c.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "blank", Answers: map[string]string{"list": l.ID}}))
+	if r.StatusCode() != 201 || r.JSON201.Helper.Name != "Leads" {
+		t.Fatalf("from list: %d %s", r.StatusCode(), r.Body)
+	}
+	got := must(c.GetHelperStackWithResponse(ctx, r.JSON201.Helper.Id)).JSON200.Stack.Bricks
+	if len(got) != 2 || got[1].Type != "look.my_stuff" || got[1].Config["list"] != l.ID || got[1].Config["source"] != "list" {
+		t.Fatalf("stack %+v", got)
+	}
+	theirs := store.List{WorkspaceID: store.NewID(), UserID: anna.ID, Name: "Theirs"}
+	_ = st.CreateList(ctx, &theirs)
+	if r := must(c.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "blank", Answers: map[string]string{"list": theirs.ID}})); r.StatusCode() != 400 {
+		t.Fatalf("their list: %d", r.StatusCode())
+	}
+}

@@ -115,6 +115,19 @@
 		setTimeout(() => (copied = false), 2000);
 	}
 
+	// Use in a helper: a new helper that starts by reading this list.
+	async function useInHelper() {
+		const ws = session.workspace;
+		if (!ws) return;
+		busy = true;
+		const { data } = await api.POST('/workspaces/{workspaceId}/helpers', {
+			params: { path: { workspaceId: ws.id } },
+			body: { template: 'blank', answers: { list: id } }
+		});
+		busy = false;
+		if (data) goto(`/helpers/${data.helper.id}/edit`);
+	}
+
 	async function remove() {
 		busy = true;
 		const { response } = await api.DELETE('/lists/{listId}', { params: { path: { listId: id } } });
@@ -210,6 +223,9 @@
 	{/if}
 
 	<section class="acts">
+		<button class="btn primary wide" disabled={busy || !list.rows} onclick={useInHelper}
+			>{t('lists.useInHelper')}</button
+		>
 		<button class="btn wide" disabled={busy || !list.rows} onclick={exportCsv}
 			>{t('lists.export')}</button
 		>

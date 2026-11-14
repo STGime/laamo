@@ -963,7 +963,7 @@ export interface components {
 			fills?: string[];
 		};
 		NewHelper: {
-			/** @description Template slug, or "blank" to start from scratch (just When I tap; answers are ignored) */
+			/** @description Template slug, or "blank" to start from scratch (just When I tap; with answers.list, Read my list comes next) */
 			template: string;
 			answers: {
 				[key: string]: string;
