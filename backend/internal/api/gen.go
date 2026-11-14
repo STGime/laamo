@@ -1018,7 +1018,7 @@ type NewHelper struct {
 	// RunTest Start a test run right away
 	RunTest *bool `json:"run_test,omitempty"`
 
-	// Template Template slug
+	// Template Template slug, or "blank" to start from scratch (just When I tap; answers are ignored)
 	Template string `json:"template"`
 }
 
@@ -1374,6 +1374,12 @@ type GetListParams struct {
 
 // GetListParamsOrder defines parameters for GetList.
 type GetListParamsOrder string
+
+// GetMapParams defines parameters for GetMap.
+type GetMapParams struct {
+	Lat float32 `form:"lat" json:"lat"`
+	Lon float32 `form:"lon" json:"lon"`
+}
 
 // ListFeedParams defines parameters for ListFeed.
 type ListFeedParams struct {
@@ -1800,6 +1806,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
 	ShareList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+	//
+	// Corresponds with GET /map (the `GetMap` operationId).
+	GetMap(ctx context.Context, params *GetMapParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetMe The signed-in user and their workspaces
 	//
@@ -2417,6 +2428,21 @@ func (c *Client) UnshareList(ctx context.Context, listId ListId, reqEditors ...R
 // Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
 func (c *Client) ShareList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewShareListRequest(c.Server, listId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+//
+// Corresponds with GET /map (the `GetMap` operationId).
+func (c *Client) GetMap(ctx context.Context, params *GetMapParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMapRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3651,6 +3677,64 @@ func NewShareListRequest(server string, listId ListId) (*http.Request, error) {
 	return req, nil
 }
 
+// NewGetMapRequest constructs an http.Request for the GetMap method
+func NewGetMapRequest(server string, params *GetMapParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/map")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "lat", params.Lat, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "number", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "lon", params.Lon, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "number", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetMeRequest constructs an http.Request for the GetMe method
 func NewGetMeRequest(server string) (*http.Request, error) {
 	var err error
@@ -4524,6 +4608,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
 	ShareListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ShareListResponse, error)
+
+	// GetMapWithResponse A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /map (the `GetMap` operationId).
+	GetMapWithResponse(ctx context.Context, params *GetMapParams, reqEditors ...RequestEditorFn) (*GetMapResponse, error)
 
 	// GetMeWithResponse The signed-in user and their workspaces
 	//
@@ -5891,6 +5982,61 @@ func (r ShareListResponse) ContentType() string {
 	return ""
 }
 
+// GetMapResponse200Headers the declared response headers of an HTTP 200 response for GetMap
+type GetMapResponse200Headers struct {
+	CacheControl *string
+}
+
+type GetMapResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *GetMapResponse200Headers
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r GetMapResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetMapResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetMapResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMapResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMapResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetMapResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetMeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -7136,6 +7282,19 @@ func (c *ClientWithResponses) ShareListWithResponse(ctx context.Context, listId 
 	return ParseShareListResponse(rsp)
 }
 
+// GetMapWithResponse A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /map (the `GetMap` operationId).
+func (c *ClientWithResponses) GetMapWithResponse(ctx context.Context, params *GetMapParams, reqEditors ...RequestEditorFn) (*GetMapResponse, error) {
+	rsp, err := c.GetMap(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMapResponse(rsp)
+}
+
 // GetMeWithResponse The signed-in user and their workspaces
 //
 // Returns a wrapper object for the known response body format(s).
@@ -8306,6 +8465,52 @@ func ParseShareListResponse(rsp *http.Response) (*ShareListResponse, error) {
 	return response, nil
 }
 
+// ParseGetMapResponse parses an HTTP response from a GetMapWithResponse call
+func ParseGetMapResponse(rsp *http.Response) (*GetMapResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMapResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers GetMapResponse200Headers
+		if values := rsp.Header.Values("Cache-Control"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Cache-Control", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.CacheControl = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
 // ParseGetMeResponse parses an HTTP response from a GetMeWithResponse call
 func ParseGetMeResponse(rsp *http.Response) (*GetMeResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -8995,6 +9200,9 @@ type ServerInterface interface {
 	// ShareList Turn on the read-only share link (owner only). Anyone with the link can see the rows
 	// (PUT /lists/{listId}/share)
 	ShareList(w http.ResponseWriter, r *http.Request, listId ListId)
+	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+	// (GET /map)
+	GetMap(w http.ResponseWriter, r *http.Request, params GetMapParams)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
@@ -9638,6 +9846,52 @@ func (siw *ServerInterfaceWrapper) ShareList(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// GetMap operation middleware
+func (siw *ServerInterfaceWrapper) GetMap(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMapParams
+
+	// ------------- Required query parameter "lat" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "lat", r.URL.Query(), &params.Lat, runtime.BindQueryParameterOptions{Type: "number", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "lat"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lat", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "lon" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "lon", r.URL.Query(), &params.Lon, runtime.BindQueryParameterOptions{Type: "number", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "lon"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lon", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMap(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetMe operation middleware
 func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request) {
 
@@ -10181,6 +10435,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}/csv", wrapper.ExportList)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/share", wrapper.UnshareList)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/lists/{listId}/share", wrapper.ShareList)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/map", wrapper.GetMap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/shared/lists/{token}", wrapper.GetSharedList)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/places/{placeId}", wrapper.DeletePlace)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/places/{placeId}/test", wrapper.TestPlace)
@@ -11388,6 +11643,70 @@ func (response ShareList404JSONResponse) VisitShareListResponse(w http.ResponseW
 	return err
 }
 
+type GetMapRequestObject struct {
+	Params GetMapParams
+}
+
+type GetMapResponseObject interface {
+	VisitGetMapResponse(w http.ResponseWriter) error
+}
+
+type GetMap200ResponseHeaders struct {
+	CacheControl *string
+}
+
+type GetMap200ImagejpegResponse struct {
+	Body          io.Reader
+	Headers       GetMap200ResponseHeaders
+	ContentLength int64
+}
+
+func (response GetMap200ImagejpegResponse) VisitGetMapResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.CacheControl != nil {
+		w.Header().Set("Cache-Control", fmt.Sprint(*response.Headers.CacheControl))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetMap400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMap400JSONResponse) VisitGetMapResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMap503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response GetMap503JSONResponse) VisitGetMapResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetMeRequestObject struct {
 }
 
@@ -12250,6 +12569,9 @@ type StrictServerInterface interface {
 	// ShareList Turn on the read-only share link (owner only). Anyone with the link can see the rows
 	// (PUT /lists/{listId}/share)
 	ShareList(ctx context.Context, request ShareListRequestObject) (ShareListResponseObject, error)
+	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+	// (GET /map)
+	GetMap(ctx context.Context, request GetMapRequestObject) (GetMapResponseObject, error)
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
@@ -12956,6 +13278,32 @@ func (sh *strictHandler) ShareList(w http.ResponseWriter, r *http.Request, listI
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ShareListResponseObject); ok {
 		if err := validResponse.VisitShareListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMap operation middleware
+func (sh *strictHandler) GetMap(w http.ResponseWriter, r *http.Request, params GetMapParams) {
+	var request GetMapRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMap(ctx, request.(GetMapRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMap")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMapResponseObject); ok {
+		if err := validResponse.VisitGetMapResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

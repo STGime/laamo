@@ -107,3 +107,25 @@ func TestBuilderSave(t *testing.T) {
 		t.Fatalf("save after test: %d %s", r.StatusCode(), r.Body)
 	}
 }
+
+// "Build your own": a helper with just When I tap, ready for the builder.
+func TestCreateBlank(t *testing.T) {
+	st := memory.New()
+	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna}}).Handler())
+	t.Cleanup(srv.Close)
+	e := env{url: srv.URL, store: st}
+	ctx := context.Background()
+	ws := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Bäckerei", Locale: "de", Timezone: "Europe/Berlin"})
+	st.PutMember(store.Member{WorkspaceID: ws.ID, UserID: anna.ID, Role: store.RoleOwner})
+	c := e.client(t, "anna")
+	for _, want := range []string{"Mein Helfer", "Mein Helfer (2)"} {
+		r := must(c.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "blank", Answers: map[string]string{}}))
+		if r.StatusCode() != 201 || r.JSON201.Helper.Name != want {
+			t.Fatalf("blank: %d %s", r.StatusCode(), r.Body)
+		}
+		got := must(c.GetHelperStackWithResponse(ctx, r.JSON201.Helper.Id))
+		if len(got.JSON200.Stack.Bricks) != 1 || got.JSON200.Stack.Bricks[0].Type != "when.tap" {
+			t.Fatalf("stack %+v", got.JSON200.Stack)
+		}
+	}
+}

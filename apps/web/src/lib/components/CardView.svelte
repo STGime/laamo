@@ -3,6 +3,8 @@
 	import type { Schemas } from '#lib/api/client.ts';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { safeURL } from '#lib/links.ts';
+	import { osmSource } from '#lib/lists.ts';
+	import MapThumb from './MapThumb.svelte';
 
 	let {
 		card,
@@ -31,6 +33,20 @@
 	const href = $derived(safeURL(text('url') || text('website')));
 	const editable = $derived(['email', 'subject', 'title', 'body'].filter((k) => text(k) !== ''));
 	const untrusted = (k: string) => card.trust[k] === 'untrusted';
+	// Map data must name its source (OpenStreetMap's licence).
+	const fromMap = $derived(osmSource(card.source_url));
+	// A business: where it is, how far, when it's open, how to call.
+	const business = $derived(card.kind === 'business');
+	const location = $derived(text('location'));
+	const km = $derived(typeof card.fields.distance_km === 'number' ? card.fields.distance_km : null);
+	const away = $derived(
+		km == null
+			? ''
+			: km < 1
+				? t('osm.metersAway', { n: Math.round(km * 1000) })
+				: t('osm.kmAway', { n: km })
+	);
+	const phone = $derived(text('phone'));
 
 	function value(k: string) {
 		return edits?.[k] ?? text(k);
@@ -62,6 +78,18 @@
 		{/each}
 	{:else}
 		{#if heading}<h3 class="display">{edits?.title ?? edits?.subject ?? heading}</h3>{/if}
+		{#if business}
+			{#if text('address') || away}
+				<p class="where">{[text('address'), away].filter(Boolean).join(' · ')}</p>
+			{/if}
+			{#if phone || text('opening_hours')}
+				<p class="facts">
+					{#if phone}<a href="tel:{phone.replace(/[^\d+]/g, '')}">{phone}</a>{/if}
+					{#if phone && text('opening_hours')}·{/if}
+					{text('opening_hours')}
+				</p>
+			{/if}
+		{/if}
 		{#if email}<p class="email">→ {edits?.email ?? email}</p>{/if}
 		{#if body}<p class="body">
 				{(edits?.body ?? body).slice(0, 320)}{body.length > 320 ? '…' : ''}
@@ -72,6 +100,16 @@
 					>{:else}{host}{/if}{#if untrusted('url') || untrusted('title')}&nbsp;· {t(
 						'feed.fromWeb'
 					)}{/if}
+			</p>
+		{/if}
+		{#if business && location}<MapThumb {location} href={fromMap} />{/if}
+		{#if fromMap}
+			<p class="host">
+				<a href={fromMap} target="_blank" rel="noopener noreferrer nofollow">{t('osm.credit')}</a>
+				·
+				<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer"
+					>{t('osm.poweredBy')}</a
+				>
 			</p>
 		{/if}
 	{/if}
@@ -120,5 +158,13 @@
 		font: inherit;
 		font-weight: 400;
 		text-transform: none;
+	}
+	.where,
+	.facts {
+		margin: var(--space-1) 0 0;
+		font-size: var(--text-sm);
+	}
+	.facts {
+		color: var(--muted);
 	}
 </style>

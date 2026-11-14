@@ -220,3 +220,42 @@ func TestAddToListFromFeed(t *testing.T) {
 		t.Fatalf("ben: %d", r.StatusCode())
 	}
 }
+
+type fakeMaps struct{ calls int }
+
+func (f *fakeMaps) StaticMap(_ context.Context, lat, lon float64) ([]byte, error) {
+	f.calls++
+	return []byte("JPEG"), nil
+}
+
+func TestMap(t *testing.T) {
+	st := memory.New()
+	m := &fakeMaps{}
+	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna}, Maps: m}).Handler())
+	t.Cleanup(srv.Close)
+	c := env{url: srv.URL, store: st}.client(t, "anna")
+	ctx := context.Background()
+	r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{Lat: 51.34, Lon: 12.37}))
+	if r.StatusCode() != 200 || string(r.Body) != "JPEG" || r.HTTPResponse.Header.Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("map: %d %q", r.StatusCode(), r.Body)
+	}
+	if r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{Lat: 99, Lon: 12})); r.StatusCode() != 400 {
+		t.Fatalf("bad lat: %d", r.StatusCode())
+	}
+	// Signed out: no map (it costs credits).
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+api.BaseURL+"/map?lat=1&lon=2", nil)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != 401 || m.calls != 1 {
+		t.Fatalf("signed out: %d, %d calls", res.StatusCode, m.calls)
+	}
+	// No map service: 503.
+	off := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna}}).Handler())
+	t.Cleanup(off.Close)
+	if r := must(env{url: off.URL, store: st}.client(t, "anna").GetMapWithResponse(ctx, &api.GetMapParams{Lat: 1, Lon: 2})); r.StatusCode() != 503 {
+		t.Fatalf("off: %d", r.StatusCode())
+	}
+}

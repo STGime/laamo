@@ -39,6 +39,9 @@ export function cellHref(key: string, v: unknown): string | null {
 	if (/^https?:\/\//.test(v)) return v;
 	if (key === 'email' && v.includes('@')) return `mailto:${v}`;
 	if (key === 'phone') return `tel:${v.replace(/[^\d+]/g, '')}`;
+	const at = key === 'location' ? /^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(v) : null;
+	if (at)
+		return `https://www.openstreetmap.org/?mlat=${at[1]}&mlon=${at[2]}#map=18/${at[1]}/${at[2]}`;
 	return null;
 }
 
@@ -50,4 +53,12 @@ export function csvName(name: string): string {
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
 	return `${base || 'list'}.csv`;
+}
+
+/** An OpenStreetMap page this came from, or null. */
+export function osmSource(url: unknown): string | null {
+	return typeof url === 'string' &&
+		/^https:\/\/www\.openstreetmap\.org\/(node|way|relation)\/\d+$/.test(url)
+		? url
+		: null;
 }

@@ -44,6 +44,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/engine/tmpl"
 	"github.com/STGime/laamo/backend/internal/llm"
+	"github.com/STGime/laamo/backend/internal/osm"
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/web"
@@ -380,6 +381,10 @@ func services(o options, w io.Writer, st store.Store, keys *crypto.Keyring) (bri
 	}
 	deps.Search, deps.SearchCostEUR = p, cfg.SearchCostEUR
 	deps.Pages = &web.Fetcher{}
+	deps.Businesses = &osm.Client{NominatimURL: cfg.OSMNominatimURL, OverpassURL: cfg.OSMOverpassURL}
+	if cfg.GeoapifyAPIKey != "" {
+		deps.Businesses = &osm.Geoapify{APIKey: cfg.GeoapifyAPIKey}
+	}
 	if o.webhook != "" {
 		deps.Chat = &chat.Sender{}
 	}

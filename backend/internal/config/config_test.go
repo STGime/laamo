@@ -78,3 +78,12 @@ func TestLLMConfig(t *testing.T) {
 		t.Fatalf("explicit key wins: %+v", c)
 	}
 }
+
+func TestFindBusinessesSettings(t *testing.T) {
+	t.Setenv("GEOAPIFY_API_KEY", "geo-key")
+	t.Setenv("OSM_OVERPASS_URL", "https://overpass.example/api/interpreter")
+	c, _ := Load()
+	if c.GeoapifyAPIKey != "geo-key" || c.OSMOverpassURL != "https://overpass.example/api/interpreter" {
+		t.Fatalf("got %q %q", c.GeoapifyAPIKey, c.OSMOverpassURL)
+	}
+}

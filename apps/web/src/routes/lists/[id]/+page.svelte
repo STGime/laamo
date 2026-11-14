@@ -6,7 +6,7 @@
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { i18n, t } from '#lib/i18n/index.svelte.ts';
-	import { cellHref, cellText, columnLabel, csvName, rowHeading } from '#lib/lists.ts';
+	import { cellHref, cellText, columnLabel, csvName, osmSource, rowHeading } from '#lib/lists.ts';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { ago } from '#lib/time.ts';
 
@@ -198,6 +198,15 @@
 		{/if}
 	{:else if detail}
 		<p class="note">{q.trim() ? t('lists.noMatch') : t('lists.emptyList')}</p>
+	{/if}
+
+	{#if detail?.rows.some((r) => osmSource(r.data.url))}
+		<p class="note">
+			{t('osm.creditRows')}
+			<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer"
+				>{t('osm.poweredBy')}</a
+			>
+		</p>
 	{/if}
 
 	<section class="acts">

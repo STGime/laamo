@@ -23,6 +23,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/demo"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/llm"
+	"github.com/STGime/laamo/backend/internal/osm"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	"github.com/STGime/laamo/backend/internal/realtime"
 	"github.com/STGime/laamo/backend/internal/search"
@@ -67,6 +68,7 @@ func main() {
 		Demo:   demoService(cfg, log),
 		Keys:   keys,
 		Chat:   &chat.Sender{},
+		Maps:   mapMaker(cfg),
 	})
 
 	srv := &http.Server{
@@ -93,6 +95,14 @@ func main() {
 
 // demoService runs sample helpers for visitors (#75). It needs the AI and
 // search keys; without them the demo is off.
+// mapMaker draws business card maps with Geoapify, when there's a key.
+func mapMaker(cfg config.Config) api.MapMaker {
+	if cfg.GeoapifyAPIKey == "" {
+		return nil
+	}
+	return &osm.Geoapify{APIKey: cfg.GeoapifyAPIKey}
+}
+
 func demoService(cfg config.Config, log *slog.Logger) *demo.Service {
 	if cfg.LLMAPIKey == "" || cfg.BraveSearchAPIKey == "" {
 		log.Warn("the public demo is off: it needs an LLM key and BRAVE_SEARCH_API_KEY")

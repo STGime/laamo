@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import { i18n, t } from '#lib/i18n/index.svelte.ts';
-	import { cellHref, cellText, columnLabel, rowHeading } from '#lib/lists.ts';
+	import { cellHref, cellText, columnLabel, osmSource, rowHeading } from '#lib/lists.ts';
 
 	let list = $state<Schemas['SharedList'] | null>(null);
 	let missing = $state(false);
@@ -49,6 +49,14 @@
 				</li>
 			{/each}
 		</ul>
+		{#if list.rows.some((r) => osmSource(r.data.url))}
+			<p class="hint">
+				{t('osm.creditRows')}
+				<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer"
+					>{t('osm.poweredBy')}</a
+				>
+			</p>
+		{/if}
 	{/if}
 </main>
 

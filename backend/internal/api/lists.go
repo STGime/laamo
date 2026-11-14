@@ -549,3 +549,22 @@ func deref[T any](p *T) T {
 	}
 	return *p
 }
+
+// GetMap: the small map on a business card. The map service's key stays
+// here; the app only gets the picture.
+func (s *Server) GetMap(ctx context.Context, req GetMapRequestObject) (GetMapResponseObject, error) {
+	if s.maps == nil {
+		return GetMap503JSONResponse{UnavailableJSONResponse(apiErr(ErrorCodeUnavailable, "maps are off: the server has no GEOAPIFY_API_KEY"))}, nil
+	}
+	lat, lon := float64(req.Params.Lat), float64(req.Params.Lon)
+	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+		return GetMap400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "that isn't a place on Earth"))}, nil
+	}
+	img, err := s.maps.StaticMap(ctx, lat, lon)
+	if err != nil {
+		s.log.Warn("map", "err", err)
+		return GetMap503JSONResponse{UnavailableJSONResponse(apiErr(ErrorCodeUnavailable, "the map service didn't answer"))}, nil
+	}
+	return GetMap200ImagejpegResponse{Body: bytes.NewReader(img), ContentLength: int64(len(img)),
+		Headers: GetMap200ResponseHeaders{CacheControl: new("private, max-age=604800")}}, nil
+}

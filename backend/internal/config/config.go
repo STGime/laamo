@@ -25,6 +25,11 @@ type Config struct {
 	BraveRPS          float64 // Brave calls per second (free plan: 1)
 	SearchCostEUR     float64 // per search, for the usage ledger
 	SearchCacheDir    string  // dev only: cache search results here ("" = off)
+	// Find businesses: the public OpenStreetMap servers by default; our own
+	// for production volumes (#16).
+	OSMNominatimURL string
+	OSMOverpassURL  string
+	GeoapifyAPIKey  string // when set, Find businesses uses Geoapify instead of Overpass
 	// Master keys for secrets at rest ("v1:base64,v2:base64"), see
 	// internal/crypto and docs/security/secrets.md. Server side only.
 	MasterKeys      string
@@ -62,6 +67,9 @@ func Load() (Config, error) {
 		BraveSearchAPIKey: firstNonEmpty(os.Getenv("BRAVE_SEARCH_API_KEY"), os.Getenv("BRAVESEARCH_PUBLIC_KEY")),
 		BraveRPS:          getfloat("BRAVE_RPS", 1),
 		SearchCostEUR:     getfloat("SEARCH_COST_EUR", 0.005),
+		OSMNominatimURL:   getenv("OSM_NOMINATIM_URL", ""), // "" = osm.DefaultNominatim
+		OSMOverpassURL:    getenv("OSM_OVERPASS_URL", ""),  // "" = osm.DefaultOverpass
+		GeoapifyAPIKey:    os.Getenv("GEOAPIFY_API_KEY"),
 		MasterKeys:        os.Getenv("LAAMO_MASTER_KEYS"),
 		MasterKeyActive:   os.Getenv("LAAMO_MASTER_KEY_ACTIVE"),
 		LLMBaseURL:        getenv("LLM_BASE_URL", DefaultLLMBaseURL),
