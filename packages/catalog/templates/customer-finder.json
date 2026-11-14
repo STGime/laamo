@@ -1,0 +1,94 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "customer-finder",
+  "name": { "en": "Customer Finder", "de": "Kundenfinder" },
+  "promise": {
+    "en": "Every Monday, new local businesses that could use what you offer, with a short email draft for each. You check every draft and send it from your own mailbox.",
+    "de": "Jeden Montag neue Betriebe in deiner Nähe, die dein Angebot brauchen könnten, mit einem kurzen E-Mail-Entwurf für jeden. Du prüfst jeden Entwurf und schickst ihn aus deinem eigenen Postfach."
+  },
+  "category": "find_customers",
+  "avatar": "🧲",
+  "sort_order": 5,
+  "setup_questions": [
+    {
+      "key": "kind",
+      "type": "text",
+      "question": {
+        "en": "What kind of businesses should I look for?",
+        "de": "Nach welchen Betrieben soll ich suchen?"
+      },
+      "placeholder": { "en": "cafés", "de": "Cafés" },
+      "fills": [{ "brick": "b2", "setting": "what" }]
+    },
+    { "profile": "city" },
+    { "profile": "offer" }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.every",
+        "config": { "freq": "weekly", "days": ["mon"], "time": "08:00" }
+      },
+      {
+        "id": "b2",
+        "type": "look.find_businesses",
+        "config": { "what": "", "where": "{my city}", "radius_km": 10 }
+      },
+      {
+        "id": "b3",
+        "type": "do.list",
+        "config": {
+          "list": { "en": "Leads", "de": "Leads" },
+          "dedupe": "name",
+          "only_new": true
+        }
+      },
+      {
+        "id": "b4",
+        "type": "look.read_page",
+        "config": { "source": "website", "depth": "contact" }
+      },
+      {
+        "id": "b5",
+        "type": "think.extract",
+        "config": { "fields": ["email"], "only_found": true }
+      },
+      {
+        "id": "b6",
+        "type": "think.keep",
+        "config": {
+          "criteria": {
+            "en": "could become customers for {my offer}: they would buy it, not sell the same themselves (competitors score 0)",
+            "de": "Kunden für {my offer} werden könnten: sie würden es kaufen, nicht selbst dasselbe verkaufen (Konkurrenz bekommt 0)"
+          },
+          "max": 8,
+          "sort": "best"
+        }
+      },
+      { "id": "b7", "type": "ask.pick", "config": { "max_show": 8 } },
+      {
+        "id": "b8",
+        "type": "think.write",
+        "config": {
+          "what": {
+            "en": "a short, friendly first email to {name} that introduces me and offers {my offer}, with one concrete reason it fits them",
+            "de": "eine kurze, freundliche erste E-Mail an {name}, die mich vorstellt und {my offer} anbietet, mit einem konkreten Grund, warum es zu ihnen passt"
+          },
+          "tone": 0.6,
+          "mode": "each",
+          "signature": true
+        }
+      },
+      {
+        "id": "b9",
+        "type": "ask.check",
+        "config": { "timeout_h": 168, "on_timeout": "skip" }
+      }
+    ],
+    "limits": { "max_cards": 30, "max_external_emails": 0, "max_cost_eur": 0.3 }
+  },
+  "required": { "brain": true }
+}

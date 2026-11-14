@@ -1566,6 +1566,25 @@
             "name",
             "email"
           ]
+        },
+        {
+          "key": "only_found",
+          "type": "toggle",
+          "label": {
+            "en": "Only cards where all of these were found go on",
+            "de": "Nur Karten, bei denen alles gefunden wurde, gehen weiter"
+          },
+          "default": false
+        }
+      ],
+      "shape_if": [
+        {
+          "if": {
+            "only_found": [
+              true
+            ]
+          },
+          "shape": "filter"
         }
       ],
       "adds_from": "fields"
