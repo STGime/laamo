@@ -61,7 +61,7 @@ func TestFindBusinesses(t *testing.T) {
 	c := out[0]
 	if len(out) != 2 || c.Kind != "business" || c.Source != "https://www.openstreetmap.org/way/1" || c.Text("website") != "https://baeckerei-klein.de" ||
 		c.Trust["name"] != engine.TrustExtracted || c.Text("email") != "" || out[1].Text("phone") != "" ||
-		c.Text("location") != "51.340000,12.373500" || c.Fields["distance_km"] != 0.35 || out[1].Text("location") != "" {
+		c.Text("location") != "51.340000,12.373500" || c.Fields["distance_km"] != 0.35 || c.Text("distance_from") != "Leipzig" || out[1].Text("location") != "" {
 		t.Fatalf("cards %+v", out)
 	}
 

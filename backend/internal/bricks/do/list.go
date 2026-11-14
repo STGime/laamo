@@ -21,8 +21,10 @@ const MaxListRows = 5000
 // maxListValue caps one value in a row.
 const maxListValue = 1000
 
-// Fields that don't go into a row: whole pages and internal ones.
-var skipFields = map[string]bool{"page_text": true, "sources": true, "list_row_id": true}
+// Fields that don't go into a row: whole pages, internal ones, and
+// distances from a search.
+var skipFields = map[string]bool{"page_text": true, "sources": true, "list_row_id": true,
+	"distance_km": true, "distance_from": true} // how far from where a search started: means nothing later
 
 // columnOrder: the usual columns come first, in this order.
 var columnOrder = []string{"name", "title", "email", "phone", "website", "address", "url", "date", "time", "place", "price"}

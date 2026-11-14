@@ -33,6 +33,8 @@ export const en = {
 	'osm.mapAlt': 'Map: where it is',
 	'osm.metersAway': '{n} m away',
 	'osm.kmAway': '{n} km away',
+	'osm.metersFrom': '{n} m from {place}',
+	'osm.kmFrom': '{n} km from {place}',
 	'lists.choose': 'Choose',
 	'lists.chosen': 'Chosen',
 	'lists.addAll': 'Add all to a list',

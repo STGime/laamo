@@ -39,12 +39,13 @@
 	const business = $derived(card.kind === 'business');
 	const location = $derived(text('location'));
 	const km = $derived(typeof card.fields.distance_km === 'number' ? card.fields.distance_km : null);
+	const from = $derived(text('distance_from'));
 	const away = $derived(
 		km == null
 			? ''
 			: km < 1
-				? t('osm.metersAway', { n: Math.round(km * 1000) })
-				: t('osm.kmAway', { n: km })
+				? t(from ? 'osm.metersFrom' : 'osm.metersAway', { n: Math.round(km * 1000), place: from })
+				: t(from ? 'osm.kmFrom' : 'osm.kmAway', { n: km, place: from })
 	);
 	const phone = $derived(text('phone'));
 
