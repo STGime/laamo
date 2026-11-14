@@ -32,7 +32,8 @@ var columnOrder = []string{"name", "title", "email", "phone", "website", "addres
 // List is the Save to a list brick (do.list): every card becomes a row in
 // one of the user's Lists, unless a row with the same email, website or
 // name is there already. Every card goes on with list_row_id: its new row,
-// or the one it duplicates.
+// or the one it duplicates; with "only new ones go on", only cards that
+// got a new row.
 type List struct {
 	Store store.ListStore
 }
@@ -55,6 +56,7 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 	dedupe := cfg.String("dedupe")
 	var saved []map[string]any
 	added := 0
+	fresh := map[string]bool{} // card id → it got a new row
 	for i := range in {
 		c := &in[i]
 		data := RowData(c.Fields, c.Source)
@@ -68,10 +70,11 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 		if key := DedupeKey(dedupe, c.Text(dedupe)); key != "" {
 			row.DedupeKey = &key
 		}
-		if existing, ok, err := l.known(ctx, row); err != nil {
+		if existing, own, ok, err := l.known(ctx, row); err != nil {
 			return nil, err
 		} else if ok {
 			c.Set("list_row_id", existing, engine.TrustUser)
+			fresh[c.ID] = own // this run's own row (a retry) still counts as new
 			continue
 		}
 		if count >= MaxListRows {
@@ -80,18 +83,20 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 		err := l.Store.AddListRow(ctx, &row)
 		if errors.Is(err, store.ErrConflict) {
 			// Saved meanwhile (by an earlier try or another run): look again.
-			if existing, ok, err := l.known(ctx, row); err != nil || !ok {
+			existing, own, ok, err := l.known(ctx, row)
+			if err != nil || !ok {
 				return nil, cmpErr(err, fmt.Errorf("row %s: conflict, but no row found", row.ID))
-			} else {
-				c.Set("list_row_id", existing, engine.TrustUser)
-				continue
 			}
+			c.Set("list_row_id", existing, engine.TrustUser)
+			fresh[c.ID] = own
+			continue
 		}
 		if err != nil {
 			return nil, err
 		}
 		count++
 		added++
+		fresh[c.ID] = true
 		c.Set("list_row_id", row.ID, engine.TrustUser)
 		saved = append(saved, data)
 	}
@@ -99,25 +104,35 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 		return nil, err
 	}
 	rc.Log.Info("saved to list", "list", list.ID, "added", added, "duplicates", len(in)-added)
+	// Only new ones go on: cards that were in the list already stop here.
+	if cfg.Bool("only_new") {
+		out := in[:0:0]
+		for _, c := range in {
+			if fresh[c.ID] {
+				out = append(out, c)
+			}
+		}
+		return out, nil
+	}
 	return in, nil
 }
 
-// known finds the row a card already has: this run's own (a retry), or
-// another one with the same dedupe key.
-func (l List) known(ctx context.Context, row store.ListRow) (string, bool, error) {
+// known finds the row a card already has: this run's own (a retry: own),
+// or another one with the same dedupe key.
+func (l List) known(ctx context.Context, row store.ListRow) (id string, own, ok bool, err error) {
 	if r, err := l.Store.GetListRow(ctx, row.ID); err == nil {
-		return r.ID, true, nil
+		return r.ID, true, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
-		return "", false, err
+		return "", false, false, err
 	}
 	if row.DedupeKey == nil {
-		return "", false, nil
+		return "", false, false, nil
 	}
 	r, err := l.Store.GetListRowByKey(ctx, row.ListID, *row.DedupeKey)
 	if errors.Is(err, store.ErrNotFound) {
-		return "", false, nil
+		return "", false, false, nil
 	}
-	return r.ID, err == nil, err
+	return r.ID, false, err == nil, err
 }
 
 func cmpErr(err, fallback error) error {

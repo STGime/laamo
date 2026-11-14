@@ -38,6 +38,7 @@ run -c "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA tenant_test
 { echo "SET ROLE tenant_func;"; cat "$root/migrations/test/brain_test.sql"; } | run
 { echo "SET ROLE tenant_func;"; cat "$root/migrations/test/resume_test.sql"; } | run
 { echo "SET ROLE tenant_func;"; cat "$root/migrations/test/learn_test.sql"; } | run
+{ echo "SET ROLE tenant_func;"; cat "$root/migrations/test/list_reads_test.sql"; } | run
 
 # Concurrency: several workers claim from 300 jobs in parallel; no job may be claimed twice.
 run <<'SQL'

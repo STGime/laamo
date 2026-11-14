@@ -352,6 +352,13 @@ func (s *Store) GetListRowByKey(ctx context.Context, listID, key string) (store.
 	return rows[0], nil
 }
 
+func (s *Store) TakeListRows(ctx context.Context, listID, helperID, runID string, limit int, mark bool) ([]store.ListRow, error) {
+	var rows []store.ListRow
+	err := s.c.RPC(ctx, "take_list_rows", map[string]any{"p_list": listID, "p_helper": helperID, "p_run": runID,
+		"p_limit": limit, "p_mark": mark}, &rows)
+	return rows, mapErr(err)
+}
+
 func (s *Store) CountListRows(ctx context.Context, listID string) (int, error) {
 	n, err := s.c.List(ctx, "list_rows", eb.NewQuery().Eq("list_id", listID).Select("id").Limit(1), nil)
 	return n, mapErr(err)
