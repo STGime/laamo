@@ -75,9 +75,10 @@
         "type": "think.keep",
         "config": {
           "criteria": {
-            "en": "could become customers for {my offer}. Businesses that serve or use it are possible customers; businesses whose main trade is making or selling it are competitors and score 0",
-            "de": "Kunden für {my offer} werden könnten. Betriebe, die so etwas anbieten oder verwenden, sind mögliche Kunden; Betriebe, deren Hauptgeschäft die Herstellung oder der Verkauf davon ist, sind Konkurrenz und bekommen 0"
+            "en": "would buy {my offer} from me for their own work or to serve their customers",
+            "de": "{my offer} bei mir kaufen würden, für ihre eigene Arbeit oder für ihre Kunden"
           },
+          "who": "buyers",
           "max": 8,
           "sort": "best"
         }

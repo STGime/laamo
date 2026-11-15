@@ -77,7 +77,8 @@ var Summarize = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext
 
 func summarizeEach(ctx context.Context, rc *engine.RunContext, in []engine.Card, length, lang string) ([]engine.Card, error) {
 	byID := map[string]string{}
-	for _, batch := range batches(in, 10) {
+	for _, real := range batches(in, 10) {
+		batch, back := shortIDs(real)
 		var out struct {
 			Summaries []struct {
 				ID      string `json:"id"`
@@ -104,7 +105,7 @@ func summarizeEach(ctx context.Context, rc *engine.RunContext, in []engine.Card,
 			return nil, err
 		}
 		for _, s := range out.Summaries {
-			byID[s.ID] = strings.TrimSpace(s.Summary)
+			byID[back[s.ID]] = strings.TrimSpace(s.Summary)
 		}
 	}
 	for i := range in {

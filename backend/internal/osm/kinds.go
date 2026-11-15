@@ -91,7 +91,11 @@ var kinds = []struct {
 	{[]string{"architect", "architekt", "architekturbuero"}, tags("office", "architect"), cats("office.architect")},
 	{[]string{"estate agent", "real estate", "makler", "immobilienmakler", "immobilien"}, tags("office", "estate_agent"), cats("office.estate_agent,service.estate_agent")}, //nolint:misspell // German
 	{[]string{"insurance", "versicherung", "versicherungsagentur"}, tags("office", "insurance"), cats("office.insurance")},
-	{[]string{"it company", "software company", "it firma", "softwarefirma", "it dienstleister"}, tags("office", "it", "office", "company"), cats("office.it")},
+	{[]string{"it company", "software company", "software agency", "software house", "software developer", "it firma", "softwarefirma",
+		"softwareagentur", "softwareentwickler", "softwareentwicklung", "it dienstleister", "it agentur"}, tags("office", "it", "office", "company"), cats("office.it")},
+	{[]string{"web agency", "digital agency", "webagentur", "digitalagentur", "internetagentur", "web design", "webdesign", "app agency", "app agentur"},
+		tags("office", "it", "office", "advertising_agency"), cats("office.it,office.advertising_agency")},
+	{[]string{"marketing agency", "advertising agency", "werbeagentur", "marketingagentur", "agentur"}, tags("office", "advertising_agency"), cats("office.advertising_agency")},
 	{[]string{"coworking", "co-working", "coworking space"}, tags("amenity", "coworking_space", "office", "coworking"), cats("office.coworking")},
 	{[]string{"travel agency", "reisebuero"}, tags("shop", "travel_agency"), cats("service.travel_agency")},
 	{[]string{"pet shop", "zoohandlung", "tierbedarf"}, tags("shop", "pet"), cats("pet.shop")},

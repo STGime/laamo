@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/STGime/laamo/backend/internal/engine"
@@ -24,6 +25,21 @@ type promptCard struct {
 	ID     string            `json:"id"`
 	Kind   string            `json:"kind,omitempty"`
 	Fields map[string]string `json:"fields"`
+}
+
+// shortIDs gives the cards of a batch short ids for the prompt ("c0", "c1",
+// …): small models copy long ids wrong or twice. back maps a short id to
+// the card's real id.
+func shortIDs(batch []engine.Card) (prompt []engine.Card, back map[string]string) {
+	prompt = make([]engine.Card, len(batch))
+	back = make(map[string]string, len(batch))
+	for i, c := range batch {
+		short := "c" + strconv.Itoa(i)
+		back[short] = c.ID
+		c.ID = short
+		prompt[i] = c
+	}
+	return prompt, back
 }
 
 // cardsJSON renders cards for a prompt: text fields only, shortened.
