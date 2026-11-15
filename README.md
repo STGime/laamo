@@ -2,10 +2,6 @@
 
 Little AI helpers, built from bricks. Sign up, pick or describe a helper, snap 4–6 bricks together, and results land in your Feed. EU-hosted on Eurobase.
 
-- Product plan: https://app.notion.com/p/4127383ff7d1819b9227ff7ea68f435e
-- MVP implementation plan: https://app.notion.com/p/4137383ff7d1810b882deed096ba811b
-- Use cases: https://app.notion.com/p/4137383ff7d1818a9732dafafeead668
-
 ## Layout
 
 ```
