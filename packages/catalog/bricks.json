@@ -140,6 +140,14 @@
       "question": {
         "en": "How do you usually write: casual or formal?",
         "de": "Wie schreibst du meistens: locker oder förmlich?"
+      },
+      "help": {
+        "en": "How you like to sound when helpers write for you, in your own words: e.g. friendly and relaxed, first names, no jargon. Or: formal and short.",
+        "de": "Wie du klingen möchtest, wenn Helfer für dich schreiben, in deinen Worten: z. B. freundlich und locker, mit Du, ohne Fachchinesisch. Oder: förmlich und kurz."
+      },
+      "placeholder": {
+        "en": "friendly and relaxed, no jargon",
+        "de": "freundlich und locker, mit Du, ohne Fachchinesisch"
       }
     },
     {
@@ -155,6 +163,10 @@
       "placeholder": {
         "en": "Anna Klein\nBäckerei Klein, Leipzig",
         "de": "Anna Klein\nBäckerei Klein, Leipzig"
+      },
+      "help": {
+        "en": "Added under every email a helper writes for you. Several lines are fine.",
+        "de": "Steht unter jeder E-Mail, die ein Helfer für dich schreibt. Mehrere Zeilen sind in Ordnung."
       }
     }
   ],

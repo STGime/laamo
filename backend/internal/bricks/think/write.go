@@ -157,7 +157,7 @@ func aboutMe(rc *engine.RunContext) string {
 	var parts []string
 	for _, f := range []struct{ key, label string }{
 		{"name", "Their name"}, {"business", "Their business"}, {"offer", "What they offer"},
-		{"city", "Where"}, {"website", "Their website"},
+		{"city", "Where"}, {"website", "Their website"}, {"tone", "How they like to sound"},
 	} {
 		if v, ok := rc.Profile(f.key); ok {
 			parts = append(parts, fmt.Sprintf("%s: %s.", f.label, cut(v, 500)))

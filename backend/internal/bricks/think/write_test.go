@@ -68,7 +68,8 @@ func TestWriteEach(t *testing.T) {
 	}}
 	rc := runCtx(t, "think.write", m)
 	rc.Workspace.Locale = "de"
-	rc.Workspace.Profile = map[string]any{"business": "Bäckerei Klein", "offer": "Kuchen für Cafés", "signature": "Anna Klein\nBäckerei Klein"}
+	rc.Workspace.Profile = map[string]any{"business": "Bäckerei Klein", "offer": "Kuchen für Cafés", "signature": "Anna Klein\nBäckerei Klein",
+		"tone": "herzlich, ohne Fachchinesisch"}
 	out, err := brickstest.Contract(t, "think.write", think.Write, rc, businesses(),
 		map[string]any{"what": "eine kurze E-Mail an {name} mit {my offer}", "tone": 0.8, "mode": "each", "signature": true})
 	if err != nil {
@@ -81,7 +82,7 @@ func TestWriteEach(t *testing.T) {
 	first := m.reqs[0]
 	if !strings.Contains(first.Messages[0].Content, `"eine kurze E-Mail an Café Kuchenzeit mit Kuchen für Cafés"`) ||
 		!strings.Contains(first.System, `"Sie"`) || !strings.Contains(first.System, "no name or signature") ||
-		!strings.Contains(first.System, "Their business: Bäckerei Klein.") {
+		!strings.Contains(first.System, "Their business: Bäckerei Klein.") || !strings.Contains(first.System, "How they like to sound: herzlich, ohne Fachchinesisch.") {
 		t.Fatalf("prompt:\n%s\n%s", first.System, first.Messages[0].Content)
 	}
 	if len(m.reqs) != 4 { // each card's first try had a placeholder
