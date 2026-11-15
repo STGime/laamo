@@ -80,6 +80,13 @@
           },
           "question": {
             "$ref": "#/$defs/text"
+          },
+          "help": {
+            "$ref": "#/$defs/text",
+            "description": "A hint shown under the answer field"
+          },
+          "placeholder": {
+            "$ref": "#/$defs/text"
           }
         }
       }

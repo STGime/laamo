@@ -65,6 +65,9 @@ func (s *Server) ListTemplates(ctx context.Context, req ListTemplatesRequestObje
 			if q.Placeholder != "" {
 				sq.Placeholder = &q.Placeholder
 			}
+			if q.Help != "" {
+				sq.Help = &q.Help
+			}
 			if len(q.Fills) > 0 {
 				sq.Fills = &q.Fills
 			}

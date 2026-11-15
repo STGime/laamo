@@ -56,7 +56,7 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 		if offer == "" {
 			offer = criteria
 		}
-		roleRule = fmt.Sprintf(`The owner offers: %q. Then give "role", the card's business compared with the owner: "buyer" if it could buy that from the owner for its own work or to serve its own customers; "competitor" if it sells or provides that or something similar itself; else "other". Judge from what the business does whether it could use the offer: a buyer's page usually doesn't mention what it would buy. Example: if the owner sells coffee beans, a café or an office is a buyer, another coffee roastery is a competitor, a bike shop is other. `, cut(offer, 300))
+		roleRule = fmt.Sprintf(`The owner offers: %q. Then give "role", the card's business compared with the owner: "buyer" if it could buy that from the owner for its own work or to serve its own customers; "competitor" if it sells or provides that or something similar itself; else "other". Judge from what the business does whether it could use the offer: a buyer's page usually doesn't mention what it would buy. Example: if the owner sells coffee beans, a café or an office is a buyer, another coffee roastery is a competitor, a bike shop is other. `, cut(offer, 500))
 		roleFormat = `, "role": "buyer" | "competitor" | "other"`
 	}
 	scores := map[string]score{}

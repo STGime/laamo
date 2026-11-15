@@ -1643,6 +1643,9 @@ components:
           type: string
         placeholder:
           type: string
+        help:
+          type: string
+          description: A hint shown under the field (e.g. why a longer answer is better)
         fills:
           type: array
           description: Bricks this answer fills (for a place answered with `feed`, these are left out)

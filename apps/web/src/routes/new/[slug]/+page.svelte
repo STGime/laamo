@@ -161,6 +161,16 @@
 									>+ {t('tpl.addChat')}</a
 								>
 							{/if}
+						{:else if q.help}
+							<!-- A fact worth a sentence or two (e.g. my offer): room to say it. -->
+							<textarea
+								id="q-{q.key}"
+								rows="3"
+								maxlength="500"
+								bind:value={answers[q.key]}
+								placeholder={q.placeholder ?? ''}
+								aria-describedby="h-{q.key}"></textarea>
+							<p class="hint" id="h-{q.key}">{q.help}</p>
 						{:else}
 							<input
 								id="q-{q.key}"
@@ -276,6 +286,14 @@
 		border-radius: var(--radius-control);
 		font: inherit;
 		font-size: var(--text-lg);
+	}
+	textarea {
+		padding: var(--space-3) var(--space-4);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font: inherit;
+		font-size: var(--text-lg);
+		resize: vertical;
 	}
 	.choices {
 		display: flex;
