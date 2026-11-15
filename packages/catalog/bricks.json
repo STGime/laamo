@@ -1580,6 +1580,43 @@
               }
             }
           ]
+        },
+        {
+          "key": "who",
+          "type": "select",
+          "label": {
+            "en": "Who",
+            "de": "Wer"
+          },
+          "default": "any",
+          "help": {
+            "en": "Compared with what you offer (About me).",
+            "de": "Verglichen mit dem, was du anbietest (Über mich)."
+          },
+          "options": [
+            {
+              "value": "any",
+              "label": {
+                "en": "Anyone",
+                "de": "Alle"
+              }
+            },
+            {
+              "value": "buyers",
+              "label": {
+                "en": "Possible buyers of what I offer",
+                "de": "Mögliche Käufer meines Angebots"
+              }
+            },
+            {
+              "value": "competitors",
+              "label": {
+                "en": "Competitors (offer something similar)",
+                "de": "Konkurrenz (bietet Ähnliches an)"
+              }
+            }
+          ],
+          "advanced": true
         }
       ],
       "adds": [

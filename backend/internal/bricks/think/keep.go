@@ -42,22 +42,37 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 	type score struct {
 		ID     string  `json:"id"`
 		About  string  `json:"about"`
+		Role   string  `json:"role,omitempty"`
 		Score  float64 `json:"score"`
 		Reason string  `json:"reason"`
+	}
+	// Who (buyers / competitors): the model labels each card's role toward
+	// the owner's offer, and the label decides, not the score. A small
+	// model mixes "would buy" and "sells the same" up inside one number.
+	who := cfg.String("who")
+	offer, _ := rc.Profile("offer")
+	roleRule, roleFormat := "", ""
+	if who == "buyers" || who == "competitors" {
+		if offer == "" {
+			offer = criteria
+		}
+		roleRule = fmt.Sprintf(`The owner offers: %q. Then give "role", the card's business compared with the owner: "buyer" if it could buy that from the owner for its own work or to serve its own customers; "competitor" if it sells or provides that or something similar itself; else "other". Judge from what the business does whether it could use the offer: a buyer's page usually doesn't mention what it would buy. Example: if the owner sells coffee beans, a café or an office is a buyer, another coffee roastery is a competitor, a bike shop is other. `, cut(offer, 300))
+		roleFormat = `, "role": "buyer" | "competitor" | "other"`
 	}
 	scores := map[string]score{}
 	// 10 per call: each card gets an "about" and a reason, and 20 long
 	// cards (pages read) didn't fit in one answer.
-	for _, batch := range batches(in, 10) {
+	for _, real := range batches(in, 10) {
+		batch, back := shortIDs(real)
 		var out struct {
 			Cards []score `json:"cards"`
 		}
-		system := fmt.Sprintf(`You judge cards for a small business owner. For each card, first write "about": what the card is about and where (city, region, country, or "unknown"), from the card's own words. Then score how useful it is for what they want:
+		system := fmt.Sprintf(`You judge cards for a small business owner. For each card, first write "about": what the card is about and where (city, region, country, or "unknown"), from the card's own words. %sThen score how useful it is for what they want:
 9-10: exactly what they want.
 6-8: clearly useful: the right topic and place, or news for their whole industry or country that affects them.
 3-5: loosely related: the right topic but a far-away city or another country, or the right place but barely about their business.
 0-2: unrelated, a news portal's front page, or a list of headlines.
-%sGive a reason of at most 12 words in %s that states a fact from the card. %s Format: {"cards":[{"id": string, "about": string, "score": number, "reason": string}]} with one entry for every card id.`, learnedRule(rc.Learned), lang, guard)
+%sGive a reason of at most 12 words in %s that states a fact from the card. %s Format: {"cards":[{"id": string, "about": string%s, "score": number, "reason": string}]} with one entry for every card id.`, roleRule, learnedRule(rc.Learned), lang, guard, roleFormat)
 		user := fmt.Sprintf("What they want: %q\n%s%s", criteria, choicesJSON(rc.Learned), cardsJSON(batch))
 		ids := idSet(batch)
 		err := rc.Brain.AskJSON(ctx, rc, llm.Request{System: system, Messages: []llm.Message{{Role: "user", Content: user}}, MaxTokens: 2500}, &out,
@@ -71,6 +86,8 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 						return fmt.Errorf("card %q scored twice", s.ID)
 					case s.Score < 0 || s.Score > 10:
 						return fmt.Errorf("score %v for %q is outside 0–10", s.Score, s.ID)
+					case roleFormat != "" && s.Role != "buyer" && s.Role != "competitor" && s.Role != "other":
+						return fmt.Errorf(`card %q needs "role": "buyer", "competitor" or "other"`, s.ID)
 					}
 					seen[s.ID] = true
 				}
@@ -83,14 +100,16 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 			return nil, err
 		}
 		for _, s := range out.Cards {
-			scores[s.ID] = s
+			scores[back[s.ID]] = s
 		}
 	}
 
 	var kept []engine.Card
 	for _, c := range in {
 		s := scores[c.ID]
-		if s.Score < KeepThreshold {
+		// Why a card stays or goes (runstack -log shows it).
+		rc.Log.Debug("judged", "card", cmp.Or(c.Text("name"), c.Text("title")), "role", s.Role, "score", s.Score, "reason", s.Reason)
+		if s.Score < KeepThreshold || (who == "buyers" && s.Role != "buyer") || (who == "competitors" && s.Role != "competitor") {
 			continue
 		}
 		c.Score, c.Reason = new(s.Score), strings.TrimSpace(s.Reason)

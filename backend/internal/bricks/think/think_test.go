@@ -92,7 +92,10 @@ func TestSummarizeEach(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out) != 12 || out[11].Text("summary") != "about c11" || out[0].Text("title") != "news 0" {
+	// The model sees short ids per batch (card 11 is "c1" in the second
+	// batch); each summary still lands on its own card.
+	if len(out) != 12 || out[11].Text("summary") != "about c1" || out[10].Text("summary") != "about c0" ||
+		out[9].Text("summary") != "about c9" || out[0].Text("title") != "news 0" {
 		t.Fatalf("out: %d %+v", len(out), out[11].Fields)
 	}
 	if len(m.reqs) != 2 {

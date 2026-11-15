@@ -157,3 +157,22 @@ func TestWriteOneBadDraft(t *testing.T) {
 		t.Fatal("all bad drafts: no error")
 	}
 }
+
+// The model mixes up ids: a repeated or unknown one is left out, a skipped
+// card gets no details, and the run goes on.
+func TestExtractLenient(t *testing.T) {
+	m := &model{f: func(string, []string, int) string {
+		return `{"cards":[
+			{"id":"c0","fields":{"email":"hallo@kuchenzeit.de"}},
+			{"id":"c0","fields":{"email":"other@x.de"}},
+			{"id":"01a1dff9-70f7-9ef2-6e1bdb64d327","fields":{"email":"x@y.de"}}]}`
+	}}
+	out, err := brickstest.Contract(t, "think.extract", think.Extract, runCtx(t, "think.extract", m), businesses(),
+		map[string]any{"fields": []any{"email"}})
+	if err != nil || out[0].Text("email") != "hallo@kuchenzeit.de" || out[1].Text("email") != "" {
+		t.Fatalf("%v %+v", err, out)
+	}
+	if !strings.Contains(m.reqs[0].Messages[0].Content, `"id":"c0"`) || strings.Contains(m.reqs[0].Messages[0].Content, `"id":"c1","kind":"place","fields":{"name":"Café`) {
+		t.Fatalf("prompt ids: %s", m.reqs[0].Messages[0].Content)
+	}
+}

@@ -15,6 +15,12 @@ func TestCategories(t *testing.T) {
 	if got := Categories("Bäckereien"); len(got) != 1 || got[0] != "commercial.food_and_drink.bakery" {
 		t.Fatalf("bakeries: %v", got)
 	}
+	if got := Categories("software agencies"); len(got) != 1 || got[0] != "office.it" {
+		t.Fatalf("software agencies: %v", got)
+	}
+	if got := Categories("Werbeagenturen"); len(got) != 1 || got[0] != "office.advertising_agency" {
+		t.Fatalf("Werbeagenturen: %v", got)
+	}
 	if got := Categories("Klempner"); got != nil {
 		t.Fatalf("plumbers have no category: %v", got)
 	}
