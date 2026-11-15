@@ -217,7 +217,7 @@ func run(ctx context.Context, w io.Writer, path string, o options) error {
 	}
 
 	eng := &engine.Engine{Store: st, Catalog: cat, Bricks: bricks.All(deps), Brain: brain, Blobs: env.blobs, Resolve: tmpl.Config,
-		Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+		Log: runLog()}
 	data := map[string]any{}
 	if o.answer != "" {
 		data["answer"] = o.answer
@@ -414,6 +414,15 @@ func services(o options, w io.Writer, st store.Store, keys *crypto.Keyring) (bri
 	brain := &llm.Brain{Chat: &llm.Client{BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey, Auth: cfg.LLMAuth, Model: cfg.LLMModel},
 		Model: cfg.LLMModel, Store: st}
 	return deps, brain, nil
+}
+
+// runLog: the engine's log, on stderr with LAAMO_RUNSTACK_LOG=1 (debug
+// level: e.g. why Keep the good ones dropped a card).
+func runLog() *slog.Logger {
+	if os.Getenv("LAAMO_RUNSTACK_LOG") == "1" {
+		return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	}
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
 // report prints every step's pile and the totals.

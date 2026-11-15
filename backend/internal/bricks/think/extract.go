@@ -63,7 +63,8 @@ var Extract = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, 
 		want = append(want, fmt.Sprintf("%q: %s", f, hint))
 	}
 
-	for _, batch := range batches(in, 10) {
+	for _, real := range batches(in, 10) {
+		batch, back := shortIDs(real)
 		var out struct {
 			Cards []struct {
 				ID     string         `json:"id"`
@@ -74,30 +75,29 @@ var Extract = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, 
 %s
 Use only what the card itself says. If a detail isn't in the card, use null: never guess or make one up. %s Format: {"cards":[{"id": string, "fields": {detail: string or null}}]} with one entry for every card id.`,
 			"- "+strings.Join(want, "\n- "), guard)
-		ids := idSet(batch)
+		// Details are best effort: entries for unknown or repeated cards are
+		// left out, and a card the AI skipped just gets none. Only an answer
+		// that fits no card at all is sent back.
 		err := rc.Brain.AskJSON(ctx, rc, llm.Request{System: system, Messages: []llm.Message{{Role: "user", Content: cardsJSON(batch)}}}, &out,
 			func() error {
-				got := map[string]bool{}
 				for _, c := range out.Cards {
-					if !ids[c.ID] || got[c.ID] {
-						return fmt.Errorf("card %q is unknown or listed twice", c.ID)
+					if back[c.ID] != "" {
+						return nil
 					}
-					got[c.ID] = true
 				}
-				if len(got) != len(ids) {
-					return fmt.Errorf("give details for all %d cards, got %d", len(ids), len(got))
-				}
-				return nil
+				return fmt.Errorf("give an entry for each card id (%d cards)", len(batch))
 			})
 		if err != nil {
 			return nil, err
 		}
 		byID := map[string]map[string]any{}
 		for _, c := range out.Cards {
-			byID[c.ID] = c.Fields
+			if id := back[c.ID]; id != "" && byID[id] == nil {
+				byID[id] = c.Fields
+			}
 		}
-		for i := range batch {
-			c := &batch[i]
+		for i := range real {
+			c := &real[i]
 			for _, f := range fields {
 				s, _ := byID[c.ID][f].(string)
 				if v, ok := checkDetail(f, strings.TrimSpace(s), *c); ok {
