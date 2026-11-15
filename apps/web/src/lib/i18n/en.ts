@@ -27,6 +27,8 @@ export const en = {
 	'new.soon': 'Coming soon',
 	'lists.title': 'Lists',
 	'lists.empty': 'Helpers can save businesses, leads and links here.',
+	'draft.open': 'Open in my email',
+	'draft.copy': 'Copy text',
 	'osm.credit': 'Map data © OpenStreetMap contributors',
 	'osm.creditRows': 'Businesses from OpenStreetMap: © OpenStreetMap contributors (ODbL).',
 	'osm.poweredBy': 'Powered by Geoapify',

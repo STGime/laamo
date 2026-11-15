@@ -28,6 +28,8 @@ export const de: Record<Key, string> = {
 	'new.soon': 'Kommt bald',
 	'lists.title': 'Listen',
 	'lists.empty': 'Hier können Helfer Firmen, Kontakte und Links speichern.',
+	'draft.open': 'In meinem E-Mail-Programm öffnen',
+	'draft.copy': 'Text kopieren',
 	'osm.credit': 'Kartendaten © OpenStreetMap-Mitwirkende',
 	'osm.creditRows': 'Betriebe aus OpenStreetMap: © OpenStreetMap-Mitwirkende (ODbL).',
 	'osm.poweredBy': 'Powered by Geoapify',

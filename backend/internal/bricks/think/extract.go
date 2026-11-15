@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -104,6 +105,17 @@ Use only what the card itself says. If a detail isn't in the card, use null: nev
 				}
 			}
 		}
+	}
+	// Only found: a card missing any of the details stops here (e.g. no
+	// email, so nothing to write to).
+	if cfg.Bool("only_found") {
+		out := in[:0:0]
+		for _, c := range in {
+			if !slices.ContainsFunc(fields, func(f string) bool { return strings.TrimSpace(c.Text(f)) == "" }) {
+				out = append(out, c)
+			}
+		}
+		return out, nil
 	}
 	return in, nil
 })

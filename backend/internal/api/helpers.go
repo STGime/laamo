@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -168,6 +169,11 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 		}
 	}
 
+	// A template names its list ("Leads"): use the workspace's list with
+	// that name, or start it.
+	if err := s.resolveLists(ctx, cat, &stack, w); err != nil {
+		return nil, err
+	}
 	raw, _ := json.Marshal(stack)
 	u, _ := user(ctx)
 	existing, err := s.store.ListHelpers(ctx, w.ID)
@@ -197,6 +203,39 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 		}
 	}
 	return out, nil
+}
+
+var uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// resolveLists turns list settings that hold a name (from a template) into
+// the id of the workspace's list with that name, creating it if needed.
+func (s *Server) resolveLists(ctx context.Context, cat *catalog.Catalog, stack *catalog.Stack, w store.Workspace) error {
+	for i, sb := range stack.Bricks {
+		b, ok := cat.Brick(sb.Type)
+		if !ok {
+			continue
+		}
+		for _, set := range b.Settings {
+			name, _ := sb.Config[set.Key].(string)
+			name = strings.TrimSpace(name)
+			if set.Type != catalog.TypeList || name == "" || uuidRe.MatchString(name) {
+				continue
+			}
+			l, err := s.store.GetListByName(ctx, w.ID, name)
+			if errors.Is(err, store.ErrNotFound) {
+				l = store.List{WorkspaceID: w.ID, UserID: w.UserID, Name: name}
+				err = s.store.CreateList(ctx, &l)
+				if errors.Is(err, store.ErrConflict) { // made meanwhile
+					l, err = s.store.GetListByName(ctx, w.ID, name)
+				}
+			}
+			if err != nil {
+				return err
+			}
+			stack.Bricks[i].Config[set.Key] = l.ID
+		}
+	}
+	return nil
 }
 
 // BlankTemplate starts a helper from scratch ("Build your own"): just a

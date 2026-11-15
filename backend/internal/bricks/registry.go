@@ -45,7 +45,11 @@ func All(d Deps) map[string]engine.Brick {
 		m["look.my_stuff"] = look.MyStuff{Lists: ls}
 	}
 	if d.Businesses != nil {
-		m["look.find_businesses"] = look.FindBusinesses{Finder: d.Businesses}
+		fb := look.FindBusinesses{Finder: d.Businesses}
+		if ls, ok := d.Store.(store.ListStore); ok {
+			fb.Lists = ls
+		}
+		m["look.find_businesses"] = fb
 	}
 	if d.Pages != nil {
 		m["look.read_page"] = look.ReadPage{Reader: d.Pages}

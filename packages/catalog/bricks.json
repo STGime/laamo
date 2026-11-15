@@ -1071,8 +1071,8 @@
         "de": "Betriebe finden"
       },
       "does": {
-        "en": "Finds local businesses by type and place: name, address, website, phone (OpenStreetMap).",
-        "de": "Findet Betriebe nach Art und Ort: Name, Adresse, Website, Telefon (OpenStreetMap)."
+        "en": "Finds local businesses by type and place: name, address, website, phone (OpenStreetMap). Where can be a city, a region, a country, several of them, or DACH / EU.",
+        "de": "Findet Betriebe nach Art und Ort: Name, Adresse, Website, Telefon (OpenStreetMap). Ort kann eine Stadt, eine Region, ein Land, mehrere davon oder DACH / EU sein."
       },
       "sentence": [
         {
@@ -1108,7 +1108,15 @@
           "default": "{my city}",
           "required": true,
           "pills": true,
-          "max_length": 80
+          "max_length": 200,
+          "placeholder": {
+            "en": "Leipzig · Saxony · Germany, Austria · EU",
+            "de": "Leipzig · Sachsen · Deutschland, Österreich · EU"
+          },
+          "help": {
+            "en": "Several places with commas (countries) or “;”. Regions and countries are searched as a whole.",
+            "de": "Mehrere Orte mit Komma (Länder) oder „;“. Regionen und Länder werden ganz durchsucht."
+          }
         },
         {
           "key": "radius_km",
@@ -1146,8 +1154,42 @@
                 "en": "25 km",
                 "de": "25 km"
               }
+            },
+            {
+              "value": 50,
+              "label": {
+                "en": "50 km",
+                "de": "50 km"
+              }
+            },
+            {
+              "value": 100,
+              "label": {
+                "en": "100 km",
+                "de": "100 km"
+              }
+            },
+            {
+              "value": "whole",
+              "label": {
+                "en": "The whole place",
+                "de": "Den ganzen Ort"
+              }
             }
           ]
+        },
+        {
+          "key": "skip_list",
+          "type": "list",
+          "label": {
+            "en": "Skip businesses already in",
+            "de": "Betriebe überspringen, die schon in dieser Liste sind"
+          },
+          "help": {
+            "en": "Next time brings the next ones instead of the same.",
+            "de": "Beim nächsten Mal kommen die nächsten statt derselben."
+          },
+          "advanced": true
         }
       ],
       "card_kind": "business",
@@ -1566,6 +1608,25 @@
             "name",
             "email"
           ]
+        },
+        {
+          "key": "only_found",
+          "type": "toggle",
+          "label": {
+            "en": "Only cards where all of these were found go on",
+            "de": "Nur Karten, bei denen alles gefunden wurde, gehen weiter"
+          },
+          "default": false
+        }
+      ],
+      "shape_if": [
+        {
+          "if": {
+            "only_found": [
+              true
+            ]
+          },
+          "shape": "filter"
         }
       ],
       "adds_from": "fields"

@@ -7,11 +7,14 @@ import (
 	"math"
 	"strings"
 
+	"github.com/STGime/laamo/backend/internal/bricks/do"
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/engine/tmpl"
+	"github.com/STGime/laamo/backend/internal/geo"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/osm"
 	"github.com/STGime/laamo/backend/internal/queue"
+	"github.com/STGime/laamo/backend/internal/store"
 )
 
 // BusinessFinder looks businesses up in OpenStreetMap data (osm.Geoapify,
@@ -22,11 +25,19 @@ type BusinessFinder interface {
 }
 
 // FindBusinesses is the Find businesses brick (look.find_businesses): local
-// businesses of a kind around a place, nearest first, with name, address,
-// website, phone and opening hours where OpenStreetMap has them.
+// businesses of a kind with name, address, website, phone and opening hours
+// where the map has them. Where can be a city (around it, or all of it), a
+// region or country (all of it), several places ("Deutschland, Österreich")
+// or a group ("DACH", "EU"). With a list to skip, it pages on until it has
+// businesses that aren't in that list yet, so next week brings new ones.
 type FindBusinesses struct {
 	Finder BusinessFinder
+	Lists  store.ListStore // for "skip businesses already in"; optional
 }
+
+// maxMapCalls caps the map searches one run makes (the free plan has 3000
+// a day; geocoding is cached).
+const maxMapCalls = 40
 
 func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engine.Card, cfg engine.Config) ([]engine.Card, error) {
 	if f.Finder == nil {
@@ -38,35 +49,101 @@ func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engi
 	}
 	what := strings.TrimSpace(resolved.String("what"))
 	where := strings.TrimSpace(resolved.String("where"))
+	whole := resolved.String("radius_km") == "whole"
 	radius := resolved.Int("radius_km")
-	if radius <= 0 || radius > 25 {
+	if !whole && (radius <= 0 || radius > 100) {
 		radius = 10
 	}
+	limit := max(1, rc.Limits.MaxCards)
 
 	// The kind: from the built-in list, else the AI picks map tags, else
 	// businesses with those words in their name.
-	q := osm.Query{Tags: osm.Kinds(what), Categories: osm.Categories(what), Name: what,
-		RadiusM: radius * 1000, Limit: max(1, rc.Limits.MaxCards)}
-	if len(q.Tags) == 0 && rc.Brain != nil {
-		if q.Tags, err = aiTags(ctx, rc, what); err != nil {
+	base := osm.Query{Tags: osm.Kinds(what), Categories: osm.Categories(what), Name: what, RadiusM: radius * 1000}
+	if len(base.Tags) == 0 && rc.Brain != nil {
+		if base.Tags, err = aiTags(ctx, rc, what); err != nil {
 			rc.Log.Warn("couldn't map the kind to OpenStreetMap tags", "what", what, "err", err)
 		}
-		q.Categories = osm.CategoriesFor(q.Tags)
+		base.Categories = osm.CategoriesFor(base.Tags)
 	}
 
-	place, err := f.Finder.Geocode(ctx, where, rc.Workspace.Locale)
-	if errors.Is(err, osm.ErrNoPlace) {
-		return nil, queue.Permanent(fmt.Errorf("couldn't find “%s” on the map; try a city or district name", where))
+	// Where: one or more places on the map.
+	var places []osm.Place
+	var unknown []string
+	for _, a := range geo.Areas(where) {
+		p, err := f.Finder.Geocode(ctx, a, rc.Workspace.Locale)
+		if errors.Is(err, osm.ErrNoPlace) {
+			unknown = append(unknown, a)
+			continue
+		}
+		if err != nil {
+			return nil, err // busy: the job retries later
+		}
+		places = append(places, p)
 	}
-	if err != nil {
-		return nil, err // busy: the job retries later
+	if len(places) == 0 {
+		return nil, queue.Permanent(fmt.Errorf("couldn't find “%s” on the map; try a city, region or country", where))
 	}
-	q.Lat, q.Lon = place.Lat, place.Lon
-	found, err := f.Finder.Find(ctx, q)
+	if len(unknown) > 0 {
+		rc.Log.Warn("places not on the map", "places", unknown)
+	}
+	// A region, a country or several places: search their whole area.
+	areaMode := whole || len(places) > 1 || places[0].Area()
+
+	skip, err := f.skipper(ctx, rc, resolved.String("skip_list"))
 	if err != nil {
 		return nil, err
 	}
-	rc.Log.Info("found businesses", "what", what, "tags", q.Tags, "where", place.Name, "radius_km", radius, "found", len(found))
+
+	// Take businesses from the places in turn, one at a time, fetching a
+	// place's next page when its batch runs out, until there are enough
+	// new ones (or no more, or the call budget is spent).
+	page := min(100, max(10, limit))
+	offsets := make([]int, len(places))
+	done := make([]bool, len(places))
+	queues := make([][]osm.Business, len(places))
+	seen := map[string]bool{}
+	var found []osm.Business
+	calls := 0
+	for len(found) < limit {
+		took := false
+		for i, p := range places {
+			if len(found) >= limit {
+				break
+			}
+			for len(queues[i]) == 0 && !done[i] && calls < maxMapCalls {
+				q := base
+				q.Lat, q.Lon, q.Limit, q.Offset = p.Lat, p.Lon, page, offsets[i]
+				if areaMode && p.ID != "" {
+					q.PlaceID = p.ID
+				}
+				bs, err := f.Finder.Find(ctx, q)
+				calls++
+				if err != nil {
+					return nil, err
+				}
+				offsets[i] += len(bs)
+				// Pages on while there are more (Geoapify only: Overpass has no pages).
+				done[i] = len(bs) < page || p.ID == ""
+				for _, b := range bs {
+					key := strings.ToLower(b.Name + "|" + b.Address)
+					if !seen[key] && !skip(b) {
+						seen[key] = true
+						queues[i] = append(queues[i], b)
+					}
+				}
+			}
+			if len(queues[i]) > 0 {
+				found = append(found, queues[i][0])
+				queues[i] = queues[i][1:]
+				took = true
+			}
+		}
+		if !took {
+			break
+		}
+	}
+	rc.Log.Info("found businesses", "what", what, "tags", base.Tags, "places", len(places), "area", areaMode,
+		"radius_km", radius, "found", len(found), "map_calls", calls)
 
 	out := make([]engine.Card, 0, len(found))
 	for _, b := range found {
@@ -83,12 +160,41 @@ func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engi
 		}
 		if b.Lat != 0 || b.Lon != 0 {
 			c.Set("location", fmt.Sprintf("%.6f,%.6f", b.Lat, b.Lon), engine.TrustExtracted)
-			c.Set("distance_km", math.Round(b.DistanceM/10)/100, engine.TrustExtracted) // to 10 m
-			c.Set("distance_from", where, engine.TrustUser)                             // "20 m from Steglitz"
+			// How far only means something around one point.
+			if !areaMode {
+				c.Set("distance_km", math.Round(b.DistanceM/10)/100, engine.TrustExtracted) // to 10 m
+				c.Set("distance_from", where, engine.TrustUser)                             // "20 m from Steglitz"
+			}
 		}
 		out = append(out, c)
 	}
 	return out, nil
+}
+
+// skipper says whether a business is in the list to skip already (same
+// name or website, as Save to a list compares them).
+func (f FindBusinesses) skipper(ctx context.Context, rc *engine.RunContext, listID string) (func(osm.Business) bool, error) {
+	none := func(osm.Business) bool { return false }
+	if listID == "" || f.Lists == nil {
+		return none, nil
+	}
+	l, err := f.Lists.GetList(ctx, listID)
+	if errors.Is(err, store.ErrNotFound) || (err == nil && l.WorkspaceID != rc.Run.WorkspaceID) {
+		return none, nil // gone: find without skipping
+	}
+	if err != nil {
+		return nil, err
+	}
+	in := func(key string) bool {
+		if key == "" {
+			return false
+		}
+		_, err := f.Lists.GetListRowByKey(ctx, l.ID, key)
+		return err == nil
+	}
+	return func(b osm.Business) bool {
+		return in(do.DedupeKey("name", b.Name)) || in(do.DedupeKey("website", b.Website))
+	}, nil
 }
 
 // aiTags asks the AI which OpenStreetMap tags fit a kind of business. Only

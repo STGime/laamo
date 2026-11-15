@@ -46,7 +46,9 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 		Reason string  `json:"reason"`
 	}
 	scores := map[string]score{}
-	for _, batch := range batches(in, 20) {
+	// 10 per call: each card gets an "about" and a reason, and 20 long
+	// cards (pages read) didn't fit in one answer.
+	for _, batch := range batches(in, 10) {
 		var out struct {
 			Cards []score `json:"cards"`
 		}
@@ -58,7 +60,7 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 %sGive a reason of at most 12 words in %s that states a fact from the card. %s Format: {"cards":[{"id": string, "about": string, "score": number, "reason": string}]} with one entry for every card id.`, learnedRule(rc.Learned), lang, guard)
 		user := fmt.Sprintf("What they want: %q\n%s%s", criteria, choicesJSON(rc.Learned), cardsJSON(batch))
 		ids := idSet(batch)
-		err := rc.Brain.AskJSON(ctx, rc, llm.Request{System: system, Messages: []llm.Message{{Role: "user", Content: user}}}, &out,
+		err := rc.Brain.AskJSON(ctx, rc, llm.Request{System: system, Messages: []llm.Message{{Role: "user", Content: user}}, MaxTokens: 2500}, &out,
 			func() error {
 				seen := map[string]bool{}
 				for _, s := range out.Cards {

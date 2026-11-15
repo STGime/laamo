@@ -10,6 +10,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -173,9 +174,11 @@ func (g *Geoapify) StaticMap(ctx context.Context, lat, lon float64) ([]byte, err
 func (g *Geoapify) Geocode(ctx context.Context, q, lang string) (Place, error) {
 	var res struct {
 		Results []struct {
-			Formatted string  `json:"formatted"`
-			Lat       float64 `json:"lat"`
-			Lon       float64 `json:"lon"`
+			Formatted  string  `json:"formatted"`
+			Lat        float64 `json:"lat"`
+			Lon        float64 `json:"lon"`
+			PlaceID    string  `json:"place_id"`
+			ResultType string  `json:"result_type"`
 		} `json:"results"`
 	}
 	err := g.get(ctx, "/v1/geocode/search", url.Values{"text": {strings.TrimSpace(q)}, "format": {"json"}, "limit": {"1"},
@@ -187,17 +190,27 @@ func (g *Geoapify) Geocode(ctx context.Context, q, lang string) (Place, error) {
 		return Place{}, ErrNoPlace
 	}
 	r := res.Results[0]
-	return Place{Name: r.Formatted, Lat: r.Lat, Lon: r.Lon}, nil
+	return Place{Name: r.Formatted, Lat: r.Lat, Lon: r.Lon, ID: r.PlaceID, Type: r.ResultType}, nil
 }
 
 func (g *Geoapify) Find(ctx context.Context, q Query) ([]Business, error) {
-	if q.RadiusM <= 0 || q.RadiusM > 50000 {
-		return nil, fmt.Errorf("osm: radius %d m out of range", q.RadiusM)
-	}
 	params := url.Values{
-		"filter": {fmt.Sprintf("circle:%.6f,%.6f,%d", q.Lon, q.Lat, q.RadiusM)},
-		"bias":   {fmt.Sprintf("proximity:%.6f,%.6f", q.Lon, q.Lat)},
-		"limit":  {strconv.Itoa(min(cmp.Or(q.Limit, 50)*2, 200))},
+		"bias":  {fmt.Sprintf("proximity:%.6f,%.6f", q.Lon, q.Lat)},
+		"limit": {strconv.Itoa(min(cmp.Or(q.Limit, 50), 200))},
+	}
+	switch {
+	case q.PlaceID != "":
+		if !placeIDRe.MatchString(q.PlaceID) {
+			return nil, fmt.Errorf("osm: bad place id %q", q.PlaceID)
+		}
+		params.Set("filter", "place:"+q.PlaceID)
+	case q.RadiusM <= 0 || q.RadiusM > 100000:
+		return nil, fmt.Errorf("osm: radius %d m out of range", q.RadiusM)
+	default:
+		params.Set("filter", fmt.Sprintf("circle:%.6f,%.6f,%d", q.Lon, q.Lat, q.RadiusM))
+	}
+	if q.Offset > 0 {
+		params.Set("offset", strconv.Itoa(q.Offset))
 	}
 	if len(q.Categories) > 0 {
 		params.Set("categories", strings.Join(q.Categories, ","))
@@ -277,9 +290,15 @@ func (g *Geoapify) Find(ctx context.Context, q Query) ([]Business, error) {
 		seen[key] = true
 		out = append(out, b)
 	}
-	slices.SortStableFunc(out, func(a, b Business) int { return cmp.Compare(a.DistanceM, b.DistanceM) })
+	// Nearest first, except when paging through a region (the order of
+	// the pages must stay put).
+	if q.Offset == 0 && q.PlaceID == "" {
+		slices.SortStableFunc(out, func(a, b Business) int { return cmp.Compare(a.DistanceM, b.DistanceM) })
+	}
 	if q.Limit > 0 && len(out) > q.Limit {
 		out = out[:q.Limit]
 	}
 	return out, nil
 }
+
+var placeIDRe = regexp.MustCompile(`^[0-9a-f]{20,200}$`)
