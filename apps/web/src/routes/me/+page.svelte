@@ -116,15 +116,28 @@
 						}}
 					>
 						<label for="fact-{f.key}">{f.label[i18n.lang]}</label>
-						<div class="line">
-							<input
+						{#if f.help}
+							<textarea
 								id="fact-{f.key}"
+								rows="3"
 								bind:value={draft}
-								maxlength="200"
-								list={f.key === 'city' ? 'cities' : undefined}
-							/>
+								maxlength="500"
+								placeholder={f.placeholder?.[i18n.lang] ?? ''}
+								aria-describedby="fh-{f.key}"></textarea>
+							<p class="fact-help" id="fh-{f.key}">{f.help[i18n.lang]}</p>
 							<button class="btn primary" disabled={saving}>{t('helper.save')}</button>
-						</div>
+						{:else}
+							<div class="line">
+								<input
+									id="fact-{f.key}"
+									bind:value={draft}
+									maxlength="500"
+									placeholder={f.placeholder?.[i18n.lang] ?? ''}
+									list={f.key === 'city' ? 'cities' : undefined}
+								/>
+								<button class="btn primary" disabled={saving}>{t('helper.save')}</button>
+							</div>
+						{/if}
 						<button type="button" class="link" onclick={() => (editing = null)}
 							>{t('helper.cancel')}</button
 						>
@@ -315,6 +328,19 @@
 		padding: var(--space-4) var(--gutter);
 	}
 	.kit {
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.edit textarea {
+		width: 100%;
+		padding: var(--space-2) var(--space-3);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font: inherit;
+		resize: vertical;
+	}
+	.fact-help {
+		margin: var(--space-1) 0 var(--space-2);
 		color: var(--muted);
 		font-size: var(--text-sm);
 	}

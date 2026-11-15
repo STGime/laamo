@@ -84,6 +84,10 @@
       "question": {
         "en": "What kind of business do you run?",
         "de": "Was für ein Geschäft hast du?"
+      },
+      "placeholder": {
+        "en": "a family bakery",
+        "de": "eine Familienbäckerei"
       }
     },
     {
@@ -95,6 +99,14 @@
       "question": {
         "en": "What do you offer your customers?",
         "de": "Was bietest du deinen Kunden an?"
+      },
+      "help": {
+        "en": "The more you say, the better helpers find the right people and write to them: what it is, who it's for, and what makes it different. A sentence or two is ideal.",
+        "de": "Je genauer, desto besser finden Helfer die richtigen Leute und schreiben ihnen: was es ist, für wen es ist und was es besonders macht. Ein, zwei Sätze sind ideal."
+      },
+      "placeholder": {
+        "en": "Fresh cakes and tarts for cafés, delivered every morning before opening",
+        "de": "Frische Kuchen und Torten für Cafés, jeden Morgen vor der Öffnung geliefert"
       }
     },
     {
@@ -139,6 +151,10 @@
       "question": {
         "en": "How should your emails be signed?",
         "de": "Wie sollen deine E-Mails unterschrieben werden?"
+      },
+      "placeholder": {
+        "en": "Anna Klein\nBäckerei Klein, Leipzig",
+        "de": "Anna Klein\nBäckerei Klein, Leipzig"
       }
     }
   ],

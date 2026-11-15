@@ -160,7 +160,7 @@ func aboutMe(rc *engine.RunContext) string {
 		{"city", "Where"}, {"website", "Their website"},
 	} {
 		if v, ok := rc.Profile(f.key); ok {
-			parts = append(parts, fmt.Sprintf("%s: %s.", f.label, cut(v, 300)))
+			parts = append(parts, fmt.Sprintf("%s: %s.", f.label, cut(v, 500)))
 		}
 	}
 	if len(parts) == 0 {

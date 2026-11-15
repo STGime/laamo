@@ -26,6 +26,9 @@ export interface ProfileFact {
 	key: string;
 	label: Text;
 	question: Text;
+	/** A hint shown under the answer field, e.g. "the more you say, the better". */
+	help?: Text;
+	placeholder?: Text;
 }
 
 export interface Field {

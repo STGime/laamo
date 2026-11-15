@@ -49,9 +49,11 @@ type Group struct {
 }
 
 type ProfileFact struct {
-	Key      string `json:"key"`
-	Label    Text   `json:"label"`
-	Question Text   `json:"question"`
+	Key         string `json:"key"`
+	Label       Text   `json:"label"`
+	Question    Text   `json:"question"`
+	Help        *Text  `json:"help,omitempty"`
+	Placeholder *Text  `json:"placeholder,omitempty"`
 }
 
 type Field struct {

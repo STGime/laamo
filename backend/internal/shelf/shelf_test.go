@@ -109,3 +109,23 @@ func TestInstallJustThisHelper(t *testing.T) {
 		t.Fatalf("sentence %q", got)
 	}
 }
+
+// About me questions carry the fact's hint and example (e.g. "the more you
+// say about your offer, the better").
+func TestQuestionHint(t *testing.T) {
+	cat := catalog.Default()
+	tpl, ok := shelf.Find("customer-finder")
+	if !ok {
+		t.Fatal("no customer-finder")
+	}
+	v := shelf.Preview(cat, tpl, store.Workspace{Locale: "de", Profile: map[string]any{}})
+	for _, q := range v.Questions {
+		if q.Key == "offer" {
+			if !strings.Contains(q.Help, "Je genauer") || q.Placeholder == "" {
+				t.Fatalf("offer question %+v", q)
+			}
+			return
+		}
+	}
+	t.Fatal("no offer question")
+}

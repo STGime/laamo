@@ -959,6 +959,8 @@ export interface components {
 			profile: boolean;
 			text: string;
 			placeholder?: string;
+			/** @description A hint shown under the field (e.g. why a longer answer is better) */
+			help?: string;
 			/** @description Bricks this answer fills (for a place answered with `feed`, these are left out) */
 			fills?: string[];
 		};

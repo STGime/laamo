@@ -1141,7 +1141,10 @@ type SaveStack struct {
 // SetupQuestion defines model for SetupQuestion.
 type SetupQuestion struct {
 	// Fills Bricks this answer fills (for a place answered with `feed`, these are left out)
-	Fills       *[]string         `json:"fills,omitempty"`
+	Fills *[]string `json:"fills,omitempty"`
+
+	// Help A hint shown under the field (e.g. why a longer answer is better)
+	Help        *string           `json:"help,omitempty"`
 	Key         string            `json:"key"`
 	Kind        SetupQuestionKind `json:"kind"`
 	Placeholder *string           `json:"placeholder,omitempty"`

@@ -38,6 +38,7 @@ type Question struct {
 	Profile     bool
 	Text        string
 	Placeholder string
+	Help        string   // a hint under the field (About me facts)
 	Fills       []string // brick ids
 }
 
@@ -69,7 +70,16 @@ func Preview(cat *catalog.Catalog, t catalog.Template, ws store.Workspace) View 
 			if known(ws.Profile, q.Profile) {
 				continue
 			}
-			v.Questions = append(v.Questions, Question{Key: q.Profile, Kind: "text", Profile: true, Text: profileQuestion(cat, q.Profile, lang)})
+			pq := Question{Key: q.Profile, Kind: "text", Profile: true, Text: profileQuestion(cat, q.Profile, lang)}
+			if f := profileFact(cat, q.Profile); f != nil {
+				if f.Help != nil {
+					pq.Help = f.Help.In(lang)
+				}
+				if f.Placeholder != nil {
+					pq.Placeholder = f.Placeholder.In(lang)
+				}
+			}
+			v.Questions = append(v.Questions, pq)
 			continue
 		}
 		pq := Question{Key: q.Key, Kind: q.Type}
@@ -141,7 +151,7 @@ func Install(cat *catalog.Catalog, t catalog.Template, ws store.Workspace, answe
 			if v == "" {
 				return stack, nil, bad("%s is missing", q.Profile)
 			}
-			if utf8.RuneCountInString(v) > 200 {
+			if utf8.RuneCountInString(v) > 500 { // as About me allows
 				return stack, nil, bad("%s is too long", q.Profile)
 			}
 			if slices.Contains(just, q.Profile) {
@@ -214,6 +224,15 @@ func fillProfile(text string, profile map[string]any) string {
 		}
 		return m
 	})
+}
+
+func profileFact(cat *catalog.Catalog, key string) *catalog.ProfileFact {
+	for i := range cat.Profile {
+		if cat.Profile[i].Key == key {
+			return &cat.Profile[i]
+		}
+	}
+	return nil
 }
 
 func profileQuestion(cat *catalog.Catalog, key, lang string) string {
