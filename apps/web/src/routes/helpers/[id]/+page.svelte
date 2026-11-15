@@ -7,7 +7,8 @@
 	import BrickStack, { type StackItem } from '#lib/components/BrickStack.svelte';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { listen } from '#lib/feed.svelte.ts';
-	import { brickProgress, busy as running, progressText } from '#lib/progress.ts';
+	import { brickProgress, busy as running, retrying } from '#lib/progress.ts';
+	import RunTicker from '#lib/components/RunTicker.svelte';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { ago, when } from '#lib/time.ts';
 
@@ -147,7 +148,14 @@
 			</p>
 		</div>
 		<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
-			>{run ? progressText(run) : t('helpers.runNow')}</button
+			>{#if run}<RunTicker
+					{run}
+					retrying={retrying(
+						run,
+						detail?.steps,
+						(detail?.bricks ?? []).map((b) => b.id)
+					)}
+				/>{:else}{t('helpers.runNow')}{/if}</button
 		>
 		{#if started && !run}<p class="started">
 				{t('helpers.started')} <a href="/feed">{t('tab.feed')} →</a>

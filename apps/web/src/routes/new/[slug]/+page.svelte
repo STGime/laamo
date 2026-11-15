@@ -8,7 +8,8 @@
 	import { api, session } from '#lib/session.svelte.ts';
 	import { listen } from '#lib/feed.svelte.ts';
 	import { cities } from '#lib/cities.ts';
-	import { brickProgress, progressText } from '#lib/progress.ts';
+	import { brickProgress, retrying } from '#lib/progress.ts';
+	import RunTicker from '#lib/components/RunTicker.svelte';
 
 	let tpl = $state<Schemas['ShelfTemplate'] | null>(null);
 	let answers = $state<Record<string, string>>({});
@@ -197,11 +198,14 @@
 
 	<div class="cta">
 		<button class="btn primary wide" disabled={!ready || busy} onclick={tryIt}
-			>{detail?.helper.run
-				? progressText(detail.helper.run)
-				: busy
-					? t('helpers.queued')
-					: t('tpl.test')}</button
+			>{#if detail?.helper.run || busy}<RunTicker
+					run={detail?.helper.run}
+					retrying={retrying(
+						detail?.helper.run,
+						detail?.steps,
+						(detail?.bricks ?? []).map((b) => b.id)
+					)}
+				/>{:else}{t('tpl.test')}{/if}</button
 		>
 		<p class="hint">{t('tpl.testHint')}</p>
 	</div>

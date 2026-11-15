@@ -37,3 +37,13 @@ export function brickProgress(
 	});
 	return { items, current };
 }
+
+/** Whether the brick a run is at failed and waits for its retry. */
+export function retrying(
+	run: Schemas['RunProgress'] | undefined,
+	steps: Schemas['StepProgress'][] | undefined,
+	brickIds: string[]
+): boolean {
+	if (!run || run.status !== 'running') return false;
+	return steps?.find((s) => s.brick_id === brickIds[run.step])?.status === 'failed';
+}
