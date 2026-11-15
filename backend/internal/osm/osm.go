@@ -50,6 +50,20 @@ type Place struct {
 	Name string  `json:"name"`
 	Lat  float64 `json:"lat"`
 	Lon  float64 `json:"lon"`
+	// Geoapify only: the place's id (to search inside its boundary) and
+	// what it is: city, county, state, country, …
+	ID   string `json:"id,omitempty"`
+	Type string `json:"type,omitempty"`
+}
+
+// Area reports whether a place is a region or country, where a distance
+// from its middle means nothing: search its whole boundary instead.
+func (p Place) Area() bool {
+	switch p.Type {
+	case "country", "state", "county", "region", "district":
+		return true
+	}
+	return false
 }
 
 // Business is one OSM object with a name.
@@ -200,15 +214,22 @@ type Query struct {
 	Tags       []Tag    // any of them (Overpass)
 	Categories []string // any of them (Geoapify)
 	Name       string   // what was typed: searched by name when there's nothing else
-	Lat        float64
-	Lon        float64
-	RadiusM    int
-	Limit      int
+	// Inside a place's boundary (Geoapify place id) instead of a circle,
+	// and which page of results (for the next batch).
+	PlaceID string
+	Offset  int
+	Lat     float64
+	Lon     float64
+	RadiusM int
+	Limit   int
 }
 
 // Find returns named businesses around a point, nearest first.
 func (c *Client) Find(ctx context.Context, q Query) ([]Business, error) {
 	c.init()
+	if q.PlaceID != "" || q.Offset > 0 {
+		return nil, errors.New("osm: searching a whole region needs GEOAPIFY_API_KEY")
+	}
 	ql, err := overpassQL(q)
 	if err != nil {
 		return nil, err

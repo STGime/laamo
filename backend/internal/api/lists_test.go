@@ -275,12 +275,13 @@ func TestCustomerFinderInstall(t *testing.T) {
 	var lists []string
 	for range 2 {
 		r := must(c.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "customer-finder",
-			Answers: map[string]string{"kind": "Cafés", "offer": "frische Kuchen für Cafés"}}))
+			Answers: map[string]string{"kind": "Cafés", "where": "Sachsen", "offer": "frische Kuchen für Cafés"}}))
 		if r.StatusCode() != 201 {
 			t.Fatalf("install: %d %s", r.StatusCode(), r.Body)
 		}
 		bricks := must(c.GetHelperStackWithResponse(ctx, r.JSON201.Helper.Id)).JSON200.Stack.Bricks
-		if bricks[1].Config["what"] != "Cafés" || bricks[2].Type != "do.list" || bricks[2].Config["only_new"] != true {
+		if bricks[1].Config["what"] != "Cafés" || bricks[1].Config["where"] != "Sachsen" || bricks[1].Config["radius_km"] != "whole" ||
+			bricks[1].Config["skip_list"] != bricks[2].Config["list"] || bricks[2].Type != "do.list" || bricks[2].Config["only_new"] != true {
 			t.Fatalf("stack %+v", bricks)
 		}
 		id, _ := bricks[2].Config["list"].(string)

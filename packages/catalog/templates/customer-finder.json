@@ -4,8 +4,8 @@
   "slug": "customer-finder",
   "name": { "en": "Customer Finder", "de": "Kundenfinder" },
   "promise": {
-    "en": "Every Monday, new local businesses that could use what you offer, with a short email draft for each. You check every draft and send it from your own mailbox.",
-    "de": "Jeden Montag neue Betriebe in deiner Nähe, die dein Angebot brauchen könnten, mit einem kurzen E-Mail-Entwurf für jeden. Du prüfst jeden Entwurf und schickst ihn aus deinem eigenen Postfach."
+    "en": "Every Monday, new businesses that could use what you offer, in your city, region or countries, with a short email draft for each. You check every draft and send it from your own mailbox.",
+    "de": "Jeden Montag neue Betriebe, die dein Angebot brauchen könnten, in deiner Stadt, Region oder deinen Ländern, mit einem kurzen E-Mail-Entwurf für jeden. Du prüfst jeden Entwurf und schickst ihn aus deinem eigenen Postfach."
   },
   "category": "find_customers",
   "avatar": "🧲",
@@ -21,7 +21,16 @@
       "placeholder": { "en": "cafés", "de": "Cafés" },
       "fills": [{ "brick": "b2", "setting": "what" }]
     },
-    { "profile": "city" },
+    {
+      "key": "where",
+      "type": "text",
+      "question": {
+        "en": "Where should I look? A city, a region, countries or the EU.",
+        "de": "Wo soll ich suchen? Eine Stadt, eine Region, Länder oder die EU."
+      },
+      "placeholder": { "en": "Leipzig · Saxony · Germany, Austria · EU", "de": "Leipzig · Sachsen · Deutschland, Österreich · EU" },
+      "fills": [{ "brick": "b2", "setting": "where" }]
+    },
     { "profile": "offer" }
   ],
   "stack": {
@@ -35,7 +44,12 @@
       {
         "id": "b2",
         "type": "look.find_businesses",
-        "config": { "what": "", "where": "{my city}", "radius_km": 10 }
+        "config": {
+          "what": "",
+          "where": "",
+          "radius_km": "whole",
+          "skip_list": { "en": "Leads", "de": "Leads" }
+        }
       },
       {
         "id": "b3",
@@ -61,8 +75,8 @@
         "type": "think.keep",
         "config": {
           "criteria": {
-            "en": "could become customers for {my offer}: they would buy it, not sell the same themselves (competitors score 0)",
-            "de": "Kunden für {my offer} werden könnten: sie würden es kaufen, nicht selbst dasselbe verkaufen (Konkurrenz bekommt 0)"
+            "en": "could become customers for {my offer}. Businesses that serve or use it are possible customers; businesses whose main trade is making or selling it are competitors and score 0",
+            "de": "Kunden für {my offer} werden könnten. Betriebe, die so etwas anbieten oder verwenden, sind mögliche Kunden; Betriebe, deren Hauptgeschäft die Herstellung oder der Verkauf davon ist, sind Konkurrenz und bekommen 0"
           },
           "max": 8,
           "sort": "best"

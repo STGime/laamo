@@ -1,6 +1,7 @@
 package think_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -127,5 +128,32 @@ func TestWriteAllCasual(t *testing.T) {
 	}
 	if n := len(m.reqs); n != 1 {
 		t.Fatal(fmt.Sprint(n, " calls"))
+	}
+}
+
+// One card whose draft stays unusable gets none; the others go on. The
+// model is told who signs, so it has no reason to leave a gap.
+func TestWriteOneBadDraft(t *testing.T) {
+	m := &model{f: func(_ string, ids []string, _ int) string {
+		if len(ids) > 0 && ids[0] == "c1" {
+			return `{"subject":"Hi","body":"Dear [Name], hello."}` // never fixed
+		}
+		return `{"subject":"Kuchen","body":"Sehr geehrtes Team, wir backen."}`
+	}}
+	rc := runCtx(t, "think.write", m)
+	rc.Workspace.Profile = map[string]any{"signature": "Anna Klein"}
+	out, err := brickstest.Contract(t, "think.write", think.Write, rc, businesses(),
+		map[string]any{"what": "an email", "tone": 0.5, "mode": "each", "signature": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out[0].Text("body") == "" || out[1].Text("body") != "" || !strings.Contains(m.reqs[0].System, `"Anna Klein"`) {
+		t.Fatalf("drafts %q / %q; prompt %s", out[0].Text("body"), out[1].Text("body"), m.reqs[0].System)
+	}
+	// All of them unusable: the brick fails.
+	bad := &model{f: func(string, []string, int) string { return `{"subject":"x","body":"[Name]"}` }}
+	if _, err := think.Write.Run(context.Background(), runCtx(t, "think.write", bad), businesses(),
+		engine.Config{"what": "x", "tone": 0.5, "mode": "each"}); err == nil {
+		t.Fatal("all bad drafts: no error")
 	}
 }
