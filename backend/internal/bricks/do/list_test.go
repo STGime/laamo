@@ -91,3 +91,29 @@ func TestSaveToListFull(t *testing.T) {
 		t.Fatalf("full list: %v", err)
 	}
 }
+
+// Only new ones go on: what's in the list already stops here, even on the
+// next run; a retry still passes its own new rows on.
+func TestSaveToListOnlyNew(t *testing.T) {
+	ctx := context.Background()
+	st := memory.New()
+	rc := brickstest.RunContext("do.list")
+	l := store.List{WorkspaceID: rc.Run.WorkspaceID, UserID: rc.Run.UserID, Name: "Leads"}
+	_ = st.CreateList(ctx, &l)
+	b := do.List{Store: st}
+	cfg := map[string]any{"list": l.ID, "dedupe": "website", "only_new": true}
+	in := []engine.Card{lead("c1", "Café Kuchenzeit", "kuchenzeit.de"), lead("c2", "Venezia", "venezia.de")}
+	out, err := brickstest.Contract(t, "do.list", b, rc, in, cfg)
+	if err != nil || len(out) != 2 {
+		t.Fatalf("first: %v %d", err, len(out))
+	}
+	if retry, _ := brickstest.Contract(t, "do.list", b, rc, in, cfg); len(retry) != 2 {
+		t.Fatalf("retry lost its new rows: %d", len(retry))
+	}
+	rc.Run.ID = store.NewID()
+	next := []engine.Card{lead("c1", "Café Kuchenzeit", "https://www.kuchenzeit.de"), lead("c3", "Neu", "neu.de")}
+	out, _ = brickstest.Contract(t, "do.list", b, rc, next, cfg)
+	if len(out) != 1 || out[0].ID != "c3" {
+		t.Fatalf("next week: %+v", out)
+	}
+}

@@ -137,6 +137,10 @@ type ListStore interface {
 	// ListRows returns newest first, at most limit rows (0 = all).
 	ListRows(ctx context.Context, listID string, limit int) ([]ListRow, error)
 	CountListRows(ctx context.Context, listID string) (int, error)
+	// TakeListRows returns up to limit rows of a list the helper hasn't
+	// used yet, oldest first (rows this run took already come back first),
+	// and with mark records them as used by the run.
+	TakeListRows(ctx context.Context, listID, helperID, runID string, limit int, mark bool) ([]ListRow, error)
 	DeleteListRow(ctx context.Context, id string) error
 }
 

@@ -16,8 +16,9 @@ import (
 var rowUntrusted = map[string]bool{"title": true, "snippet": true, "text": true, "page_title": true, "subject": true}
 
 // MyStuff is the Read my stuff brick (look.my_stuff): the rows of one of
-// the user's Lists as cards (newest first, up to the run's card limit), or
-// text they pasted as one card.
+// the user's Lists as cards, up to the run's card limit (by default only
+// rows this helper hasn't used yet, oldest first; else the newest), or text
+// they pasted as one card.
 type MyStuff struct {
 	Lists store.ListStore
 }
@@ -42,7 +43,14 @@ func (m MyStuff) Run(ctx context.Context, rc *engine.RunContext, _ []engine.Card
 	if err != nil {
 		return nil, err
 	}
-	rows, err := m.Lists.ListRows(ctx, list.ID, max(1, rc.Limits.MaxCards))
+	// Only new rows (default): the oldest ones this helper hasn't used, so
+	// a lead isn't written to twice. A test run looks without using them up.
+	var rows []store.ListRow
+	if cfg.Bool("only_new") {
+		rows, err = m.Lists.TakeListRows(ctx, list.ID, rc.Run.HelperID, rc.Run.ID, max(1, rc.Limits.MaxCards), !rc.TestMode)
+	} else {
+		rows, err = m.Lists.ListRows(ctx, list.ID, max(1, rc.Limits.MaxCards))
+	}
 	if err != nil {
 		return nil, err
 	}

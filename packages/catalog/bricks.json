@@ -1256,6 +1256,20 @@
             ]
           },
           "max_length": 20000
+        },
+        {
+          "key": "only_new",
+          "type": "toggle",
+          "label": {
+            "en": "Only rows this helper hasn't used yet",
+            "de": "Nur Zeilen, die dieser Helfer noch nicht genutzt hat"
+          },
+          "default": true,
+          "show_if": {
+            "source": [
+              "list"
+            ]
+          }
         }
       ],
       "card_kind": "row",
@@ -2041,6 +2055,29 @@
               }
             }
           ]
+        },
+        {
+          "key": "only_new",
+          "type": "toggle",
+          "label": {
+            "en": "Only new ones go on",
+            "de": "Nur neue gehen weiter"
+          },
+          "help": {
+            "en": "Cards already in the list stop here, so the bricks after this don't do them twice.",
+            "de": "Karten, die schon in der Liste sind, bleiben hier stehen, damit die Bausteine danach sie nicht doppelt bearbeiten."
+          },
+          "default": false
+        }
+      ],
+      "shape_if": [
+        {
+          "if": {
+            "only_new": [
+              true
+            ]
+          },
+          "shape": "filter"
         }
       ],
       "needs_if": [

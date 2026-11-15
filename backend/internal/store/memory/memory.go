@@ -40,6 +40,7 @@ type Store struct {
 	usage      map[string]store.UsageEntry
 	outbound   map[string]store.OutboundMessage
 	examples   []store.PickExample
+	reads      map[string]string // helper id + "/" + row id → run id
 }
 
 var _ store.Store = (*Store)(nil)
@@ -720,6 +721,41 @@ func (s *Store) GetListRowByKey(_ context.Context, listID, key string) (store.Li
 		}
 	}
 	return store.ListRow{}, store.ErrNotFound
+}
+
+func (s *Store) TakeListRows(_ context.Context, listID, helperID, runID string, n int, mark bool) ([]store.ListRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.reads == nil {
+		s.reads = map[string]string{}
+	}
+	var mine, fresh []store.ListRow
+	for _, r := range s.listRows {
+		if r.ListID != listID {
+			continue
+		}
+		switch run, used := s.reads[helperID+"/"+r.ID]; {
+		case used && run == runID:
+			mine = append(mine, clone(r))
+		case !used:
+			fresh = append(fresh, clone(r))
+		}
+	}
+	oldest := func(a, b store.ListRow) int { return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID)) }
+	slices.SortFunc(fresh, oldest)
+	if room := n - len(mine); room > 0 {
+		fresh = limit(fresh, room)
+	} else {
+		fresh = nil
+	}
+	if mark {
+		for _, r := range fresh {
+			s.reads[helperID+"/"+r.ID] = runID
+		}
+	}
+	out := append(mine, fresh...)
+	slices.SortFunc(out, oldest)
+	return out, nil
 }
 
 func (s *Store) CountListRows(_ context.Context, listID string) (int, error) {
