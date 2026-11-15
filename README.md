@@ -43,3 +43,9 @@ Other tasks: `task test`, `task lint`, `task build`, `task --list`.
 - All data lives in Eurobase (EU). The Eurobase secret key is used only by Go services, never in the web app.
 - Schema changes go in `migrations/` (see its README), never by hand on a live project.
 - UI follows the Look & feel rules in the product plan: tokens only (`apps/web/src/lib/styles/tokens.css`), no gradients, glows, soft shadows or scroll animations.
+
+## License
+
+Copyright (c) 2026 Stefan Gimeson. Source-available under the [PolyForm Shield License 1.0.0](LICENSE).
+
+You may read, run, modify and use this code for any purpose **except** providing a product or service that competes with laamo. For a commercial license or other permissions, contact the copyright holder.

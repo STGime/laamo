@@ -2,6 +2,7 @@
 	"name": "@laamo/catalog",
 	"private": true,
 	"version": "0.0.0",
+	"license": "PolyForm-Shield-1.0.0",
 	"type": "module",
 	"description": "Brick catalog and Shelf templates, shared by the web builder and the Go backend",
 	"exports": {
