@@ -357,7 +357,11 @@
 			class="more"
 			aria-expanded={showMore}
 			onclick={() => (showMore = !showMore)}
-			>{showMore ? t('builder.less') : t('builder.more')}</button
+			><span
+				>{showMore ? t('builder.less') : t('builder.more')}<span class="more-what"
+					>{more.map((m) => m.label[lang]).join(' · ')}</span
+				></span
+			><span class="chev" aria-hidden="true">{showMore ? '▴' : '▾'}</span></button
 		>
 		{#if showMore}{#each more as s (s.key)}{@render field(s)}{/each}{/if}
 	{/if}
@@ -503,17 +507,35 @@
 		flex: 1;
 	}
 	.add,
+	/* Settings most people don't need, but should see are there. */
 	.more {
-		align-self: flex-start;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+		width: 100%;
 		min-height: var(--tap-min);
-		padding: 0;
-		border: 0;
-		background: none;
-		color: inherit;
+		padding: var(--space-2) var(--space-3);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		background: var(--white);
+		color: var(--ink);
 		font: inherit;
 		font-weight: 700;
-		text-decoration: none;
+		text-align: left;
 		cursor: pointer;
+	}
+	.more[aria-expanded='true'] {
+		background: var(--gray-50);
+	}
+	.more-what {
+		display: block;
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: 400;
+	}
+	.chev {
+		font-size: var(--text-lg);
 	}
 	.actions {
 		display: flex;
