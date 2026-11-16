@@ -23,6 +23,15 @@
 	let forgot = $state(false);
 
 	const id = $derived(page.params.id ?? '');
+	// Changes made in the builder but not saved (kept in this tab).
+	let unsaved = $state(false);
+	$effect(() => {
+		try {
+			unsaved = !!sessionStorage.getItem(`laamo.edit.${id}`);
+		} catch {
+			unsaved = false;
+		}
+	});
 
 	async function load() {
 		const { data, response } = await api.GET('/helpers/{helperId}', {
@@ -164,6 +173,11 @@
 
 	<section>
 		<h2>{t('helper.bricks')}</h2>
+		{#if unsaved}
+			<p class="unsaved">
+				{t('helper.unsaved')} <a href="/helpers/{id}/edit">{t('helper.unsavedOpen')} →</a>
+			</p>
+		{/if}
 		<BrickStack {bricks} {current} />
 		<a class="btn wide edit" href="/helpers/{id}/edit">{t('builder.edit')}</a>
 		{#if detail?.learned}
@@ -383,5 +397,13 @@
 	.note {
 		padding: var(--space-6) var(--gutter);
 		color: var(--muted);
+	}
+	.unsaved {
+		margin: 0 0 var(--space-3);
+		padding: var(--space-3);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font-size: var(--text-sm);
+		font-weight: 600;
 	}
 </style>

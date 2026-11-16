@@ -473,6 +473,18 @@
 					<RunTicker {run} retrying={retryingNow} slow />
 				{/if}
 			</p>
+			<!-- A test doesn't save: say so once it's back, and offer to. -->
+			{#if dirty && (finished || run?.status === 'waiting')}
+				<div class="unsaved">
+					<p>{t('builder.testNotSaved')}</p>
+					<button
+						type="button"
+						class="btn primary"
+						disabled={errors.length > 0 || saving}
+						onclick={save}>{t('builder.save')}</button
+					>
+				</div>
+			{/if}
 		{/if}
 		<button
 			type="button"
@@ -741,5 +753,17 @@
 		border: 2px solid var(--gray-200);
 		border-radius: var(--radius-control);
 		color: var(--muted);
+	}
+	.unsaved {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin: 0 0 var(--space-2);
+	}
+	.unsaved p {
+		flex: 1;
+		margin: 0;
+		font-size: var(--text-sm);
+		font-weight: 600;
 	}
 </style>
