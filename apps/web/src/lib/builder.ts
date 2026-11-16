@@ -6,8 +6,10 @@ import {
 	withDefaults,
 	type Brick,
 	type GroupId,
-	type StackBrick
+	type StackBrick,
+	type Text
 } from '@laamo/catalog';
+import { available, validate } from '@laamo/catalog/validate';
 
 /** Bricks the worker can run today. The rest arrive with M4 and show as "Soon". */
 export const ready = new Set([
@@ -61,7 +63,7 @@ export function add(bricks: StackBrick[], type: string): { bricks: StackBrick[];
 	if (!b) return { bricks, id: '' };
 	const sb: StackBrick = { id: nextId(bricks), type, config: withDefaults(b, {}) };
 	if (b.shape === 'start') return { bricks: [sb, ...bricks.filter((x) => !isStart(x))], id: sb.id };
-	return { bricks: [...bricks, sb], id: sb.id };
+	return { bricks: fitSettings([...bricks, sb], sb.id), id: sb.id };
 }
 
 /** Card fields worth a pill (the rest are internal, like page_text). */
@@ -111,4 +113,57 @@ export function applyFix(
 	const out = [...bricks];
 	out.splice(at < 0 ? out.length : at, 0, sb);
 	return { bricks: startOnTop(out), id: sb.id };
+}
+
+/**
+ * A setting change that removes a "needs {field}" problem: another option
+ * of the select that asked for the field, whose own needs the cards before
+ * it do meet. E.g. Save to a list after a web search: "Same website" →
+ * "Same link". Options that still check something come before ones that
+ * don't ("Keep everything").
+ */
+export function settingFix(
+	bricks: StackBrick[],
+	brickId: string,
+	field: string
+): { key: string; value: unknown; label: Text } | null {
+	const i = bricks.findIndex((x) => x.id === brickId);
+	const sb = bricks[i];
+	const b = sb && brick(sb.type);
+	if (!b?.needs_if) return null;
+	const have = available({ schema: 1, bricks }, i).fields;
+	const cfg = withDefaults(b, sb.config);
+	for (const n of b.needs_if) {
+		const keys = Object.keys(n.if);
+		if (!n.fields?.includes(field) || keys.length !== 1) continue;
+		const key = keys[0];
+		const set = b.settings.find((x) => x.key === key && x.type === 'select');
+		if (!set?.options) continue;
+		const needsOf = (v: unknown) =>
+			b.needs_if!.filter((m) => {
+				const want = m.if[key];
+				return Object.keys(m.if).length === 1 && Array.isArray(want) && want.includes(v as never);
+			});
+		const fits = set.options.filter(
+			(o) =>
+				o.status !== 'later' &&
+				o.value !== cfg[key] &&
+				needsOf(o.value).every((m) => (m.fields ?? []).every((f) => have.includes(f)))
+		);
+		const best = fits.find((o) => needsOf(o.value).length > 0) ?? fits[0];
+		if (best) return { key, value: best.value, label: best.label };
+	}
+	return null;
+}
+
+/** A brick just added gets settings that fit the cards before it (see settingFix). */
+export function fitSettings(bricks: StackBrick[], id: string): StackBrick[] {
+	let out = bricks;
+	for (const issue of validate({ schema: 1, bricks: out })) {
+		if (issue.brick !== id || issue.code !== 'missing_field' || !issue.field) continue;
+		const f = settingFix(out, id, issue.field);
+		if (f)
+			out = out.map((x) => (x.id === id ? { ...x, config: { ...x.config, [f.key]: f.value } } : x));
+	}
+	return out;
 }

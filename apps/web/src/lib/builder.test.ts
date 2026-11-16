@@ -7,6 +7,7 @@ import {
 	fillProfile,
 	nextId,
 	ready,
+	settingFix,
 	startOnTop,
 	tray
 } from './builder.ts';
@@ -68,5 +69,22 @@ describe('detailKey', () => {
 		expect(detailKey('  Öffnungstage! ')).toBe('oeffnungstage');
 		expect(detailKey('2nd phone')).toBe('x_2nd_phone');
 		expect(detailKey('?!')).toBe('');
+	});
+});
+
+describe('settingFix', () => {
+	const search = { id: 'b2', type: 'look.search', config: { query: 'events' } };
+	it('offers a duplicate rule the cards can meet', () => {
+		const st = [
+			{ id: 'b1', type: 'when.tap', config: {} },
+			search,
+			{ id: 'b3', type: 'do.list', config: { list: 'x', dedupe: 'website' } }
+		];
+		expect(settingFix(st, 'b3', 'website')).toMatchObject({ key: 'dedupe', value: 'url' });
+	});
+	it('picks a fitting rule when the brick is added', () => {
+		const st = [{ id: 'b1', type: 'when.tap', config: {} }, search];
+		const r = add(st, 'do.list');
+		expect(r.bricks.find((x) => x.id === r.id)?.config.dedupe).toBe('url');
 	});
 });
