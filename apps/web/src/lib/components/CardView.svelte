@@ -5,6 +5,7 @@
 	import { mailto, safeURL } from '#lib/links.ts';
 	import { osmSource } from '#lib/lists.ts';
 	import MapThumb from './MapThumb.svelte';
+	import Picture from './Picture.svelte';
 
 	let {
 		card,
@@ -130,6 +131,7 @@
 				>
 			</div>
 		{/if}
+		{#if text('image')}<Picture path={text('image')} alt={text('image_alt')} />{/if}
 		{#if business && location}<MapThumb {location} href={fromMap} />{/if}
 		{#if fromMap}
 			<p class="host">

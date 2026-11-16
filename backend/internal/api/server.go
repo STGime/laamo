@@ -12,6 +12,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/config"
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/demo"
+	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/packages/openapi"
@@ -35,6 +36,7 @@ type Server struct {
 	keys   *crypto.Keyring
 	chat   ChatSender
 	maps   MapMaker
+	blobs  engine.Blobs
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -60,6 +62,8 @@ type Deps struct {
 	Chat ChatSender
 	// Maps draws the small maps on business cards (osm.Geoapify). Optional.
 	Maps MapMaker
+	// Blobs holds pictures from Draw a picture (served by GET /images). Optional.
+	Blobs engine.Blobs
 }
 
 // MapMaker draws a small map with a pin.
@@ -72,7 +76,7 @@ func NewServer(d Deps) *Server {
 		d.Log = slog.Default()
 	}
 	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log,
-		resume: d.Resume, events: d.Events, queue: d.Queue, demo: d.Demo, keys: d.Keys, chat: d.Chat, maps: d.Maps}
+		resume: d.Resume, events: d.Events, queue: d.Queue, demo: d.Demo, keys: d.Keys, chat: d.Chat, maps: d.Maps, blobs: d.Blobs}
 }
 
 // maxBody caps request bodies.

@@ -357,6 +357,20 @@
       }
     },
     {
+      "key": "image",
+      "label": {
+        "en": "Picture",
+        "de": "Bild"
+      }
+    },
+    {
+      "key": "image_alt",
+      "label": {
+        "en": "Picture description",
+        "de": "Bildbeschreibung"
+      }
+    },
+    {
       "key": "score",
       "label": {
         "en": "Score",
@@ -1819,6 +1833,184 @@
       "adds": [
         "subject",
         "body"
+      ]
+    },
+    {
+      "id": "think.draw",
+      "group": "think",
+      "shape": "enrich",
+      "status": "mvp",
+      "shape_if": [
+        {
+          "if": {
+            "mode": [
+              "all"
+            ]
+          },
+          "shape": "combine"
+        }
+      ],
+      "requires": {
+        "brain": true
+      },
+      "title": {
+        "en": "Draw a picture",
+        "de": "Ein Bild malen"
+      },
+      "does": {
+        "en": "Draws a picture for each card (or one for all of them) from what the card says, e.g. for a post. No real people, logos or text in the picture.",
+        "de": "Malt ein Bild zu jeder Karte (oder eins für alle) aus dem, was auf der Karte steht, z. B. für einen Post. Keine echten Personen, Logos oder Schrift im Bild."
+      },
+      "sentence": [
+        {
+          "if": {
+            "mode": [
+              "all"
+            ]
+          },
+          "text": {
+            "en": "Draw one picture",
+            "de": "Ein Bild malen"
+          }
+        },
+        {
+          "text": {
+            "en": "Draw a picture for each",
+            "de": "Zu jeder ein Bild malen"
+          }
+        }
+      ],
+      "settings": [
+        {
+          "key": "what",
+          "type": "longtext",
+          "label": {
+            "en": "What to draw",
+            "de": "Was malen"
+          },
+          "placeholder": {
+            "en": "Empty: from the card. Or e.g. a cosy café table with {my offer}",
+            "de": "Leer: aus der Karte. Oder z. B. ein gemütlicher Cafétisch mit {my offer}"
+          },
+          "pills": true,
+          "max_length": 500
+        },
+        {
+          "key": "style",
+          "type": "select",
+          "label": {
+            "en": "Style",
+            "de": "Stil"
+          },
+          "default": "illustration",
+          "options": [
+            {
+              "value": "photo",
+              "label": {
+                "en": "Photo",
+                "de": "Foto"
+              }
+            },
+            {
+              "value": "illustration",
+              "label": {
+                "en": "Illustration",
+                "de": "Illustration"
+              }
+            },
+            {
+              "value": "flat",
+              "label": {
+                "en": "Flat graphic",
+                "de": "Flache Grafik"
+              }
+            },
+            {
+              "value": "watercolor",
+              "label": {
+                "en": "Watercolour",
+                "de": "Aquarell"
+              }
+            },
+            {
+              "value": "3d",
+              "label": {
+                "en": "3D / clay",
+                "de": "3D / Knete"
+              }
+            },
+            {
+              "value": "sketch",
+              "label": {
+                "en": "Sketch",
+                "de": "Skizze"
+              }
+            }
+          ]
+        },
+        {
+          "key": "shape",
+          "type": "select",
+          "label": {
+            "en": "Shape",
+            "de": "Format"
+          },
+          "default": "landscape",
+          "options": [
+            {
+              "value": "square",
+              "label": {
+                "en": "Square",
+                "de": "Quadratisch"
+              }
+            },
+            {
+              "value": "portrait",
+              "label": {
+                "en": "Portrait",
+                "de": "Hochformat"
+              }
+            },
+            {
+              "value": "landscape",
+              "label": {
+                "en": "Landscape",
+                "de": "Querformat"
+              }
+            }
+          ]
+        },
+        {
+          "key": "mode",
+          "type": "select",
+          "label": {
+            "en": "One per card or one in total",
+            "de": "Eins pro Karte oder eins insgesamt"
+          },
+          "default": "each",
+          "advanced": true,
+          "options": [
+            {
+              "value": "each",
+              "label": {
+                "en": "One per card",
+                "de": "Eins pro Karte"
+              }
+            },
+            {
+              "value": "all",
+              "label": {
+                "en": "One in total",
+                "de": "Eins insgesamt"
+              }
+            }
+          ]
+        }
+      ],
+      "card_kind": "image",
+      "adds": [
+        "image",
+        "image_alt"
       ]
     },
     {

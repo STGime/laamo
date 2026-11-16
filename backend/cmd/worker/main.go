@@ -23,6 +23,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/engine/tmpl"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
+	"github.com/STGime/laamo/backend/internal/images"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/osm"
 	"github.com/STGime/laamo/backend/internal/queue"
@@ -92,6 +93,11 @@ func run(log *slog.Logger) error {
 func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps {
 	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}, Pages: &web.Fetcher{},
 		Businesses: businessFinder(cfg)}
+	if cfg.FalKey != "" {
+		d.Images = &images.Client{APIKey: cfg.FalKey, Model: cfg.ImageModel}
+	} else {
+		log.Warn("no fal.ai key: Draw a picture is off")
+	}
 	if keys, err := crypto.ParseKeyring(cfg.MasterKeys, cfg.MasterKeyActive); err == nil {
 		d.Keys = keys
 	} else {

@@ -195,6 +195,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/images': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces */
+		get: operations['getImage'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/map': {
 		parameters: {
 			query?: never;
@@ -1514,6 +1531,31 @@ export interface operations {
 				content?: never;
 			};
 			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	getImage: {
+		parameters: {
+			query: {
+				/** @description The card's image field, e.g. images/<workspace>/<run>/<card>.jpg */
+				path: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The picture */
+			200: {
+				headers: {
+					'Cache-Control'?: string;
+					[name: string]: unknown;
+				};
+				content: {
+					'image/jpeg': string;
+				};
+			};
 			404: components['responses']['NotFound'];
 		};
 	};

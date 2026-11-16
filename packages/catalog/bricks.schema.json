@@ -524,7 +524,8 @@
             "row",
             "summary",
             "draft",
-            "event"
+            "event",
+            "image"
           ]
         },
         "needs": {

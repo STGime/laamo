@@ -1365,6 +1365,12 @@ type StartRunJSONBody struct {
 	Test   *bool   `json:"test,omitempty"`
 }
 
+// GetImageParams defines parameters for GetImage.
+type GetImageParams struct {
+	// Path The card's image field, e.g. images/<workspace>/<run>/<card>.jpg
+	Path string `form:"path" json:"path"`
+}
+
 // GetListParams defines parameters for GetList.
 type GetListParams struct {
 	// Q Only rows with this text in any column
@@ -1751,6 +1757,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
 	TestHelperStack(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetImage A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+	//
+	// Corresponds with GET /images (the `GetImage` operationId).
+	GetImage(ctx context.Context, params *GetImageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
 	//
@@ -2278,6 +2289,21 @@ func (c *Client) TestHelperStackWithBody(ctx context.Context, helperId HelperId,
 // Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
 func (c *Client) TestHelperStack(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewTestHelperStackRequest(c.Server, helperId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetImage A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+//
+// Corresponds with GET /images (the `GetImage` operationId).
+func (c *Client) GetImage(ctx context.Context, params *GetImageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetImageRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3340,6 +3366,56 @@ func NewTestHelperStackRequestWithBody(server string, helperId HelperId, content
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetImageRequest constructs an http.Request for the GetImage method
+func NewGetImageRequest(server string, params *GetImageParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/images")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "path", params.Path, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -4596,6 +4672,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
 	TestHelperStackWithResponse(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*TestHelperStackResponse, error)
 
+	// GetImageWithResponse A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /images (the `GetImage` operationId).
+	GetImageWithResponse(ctx context.Context, params *GetImageParams, reqEditors ...RequestEditorFn) (*GetImageResponse, error)
+
 	// DeleteListWithResponse Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -5642,6 +5725,54 @@ func (r TestHelperStackResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r TestHelperStackResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// GetImageResponse200Headers the declared response headers of an HTTP 200 response for GetImage
+type GetImageResponse200Headers struct {
+	CacheControl *string
+}
+
+type GetImageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *GetImageResponse200Headers
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetImageResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetImageResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetImageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetImageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetImageResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7264,6 +7395,19 @@ func (c *ClientWithResponses) TestHelperStackWithResponse(ctx context.Context, h
 	return ParseTestHelperStackResponse(rsp)
 }
 
+// GetImageWithResponse A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /images (the `GetImage` operationId).
+func (c *ClientWithResponses) GetImageWithResponse(ctx context.Context, params *GetImageParams, reqEditors ...RequestEditorFn) (*GetImageResponse, error) {
+	rsp, err := c.GetImage(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetImageResponse(rsp)
+}
+
 // DeleteListWithResponse Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
 //
 // Returns a wrapper object for the known response body format(s).
@@ -8303,6 +8447,45 @@ func ParseTestHelperStackResponse(rsp *http.Response) (*TestHelperStackResponse,
 	return response, nil
 }
 
+// ParseGetImageResponse parses an HTTP response from a GetImageWithResponse call
+func ParseGetImageResponse(rsp *http.Response) (*GetImageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetImageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers GetImageResponse200Headers
+		if values := rsp.Header.Values("Cache-Control"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Cache-Control", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.CacheControl = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
 // ParseDeleteListResponse parses an HTTP response from a DeleteListWithResponse call
 func ParseDeleteListResponse(rsp *http.Response) (*DeleteListResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -9337,6 +9520,9 @@ type ServerInterface interface {
 	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
 	// (POST /helpers/{helperId}/stack/test)
 	TestHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// GetImage A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+	// (GET /images)
+	GetImage(w http.ResponseWriter, r *http.Request, params GetImageParams)
 	// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
 	// (DELETE /lists/{listId})
 	DeleteList(w http.ResponseWriter, r *http.Request, listId ListId)
@@ -9742,6 +9928,39 @@ func (siw *ServerInterfaceWrapper) TestHelperStack(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TestHelperStack(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetImage operation middleware
+func (siw *ServerInterfaceWrapper) GetImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetImageParams
+
+	// ------------- Required query parameter "path" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "path", r.URL.Query(), &params.Path, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "path"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetImage(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10626,6 +10845,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}/csv", wrapper.ExportList)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/share", wrapper.UnshareList)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/lists/{listId}/share", wrapper.ShareList)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/images", wrapper.GetImage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/map", wrapper.GetMap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/shared/lists/{token}", wrapper.GetSharedList)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/places/{placeId}", wrapper.DeletePlace)
@@ -11466,6 +11686,56 @@ func (response TestHelperStack422JSONResponse) VisitTestHelperStackResponse(w ht
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetImageRequestObject struct {
+	Params GetImageParams
+}
+
+type GetImageResponseObject interface {
+	VisitGetImageResponse(w http.ResponseWriter) error
+}
+
+type GetImage200ResponseHeaders struct {
+	CacheControl *string
+}
+
+type GetImage200ImagejpegResponse struct {
+	Body          io.Reader
+	Headers       GetImage200ResponseHeaders
+	ContentLength int64
+}
+
+func (response GetImage200ImagejpegResponse) VisitGetImageResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	if response.Headers.CacheControl != nil {
+		w.Header().Set("Cache-Control", fmt.Sprint(*response.Headers.CacheControl))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetImage404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetImage404JSONResponse) VisitGetImageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -12780,6 +13050,9 @@ type StrictServerInterface interface {
 	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
 	// (POST /helpers/{helperId}/stack/test)
 	TestHelperStack(ctx context.Context, request TestHelperStackRequestObject) (TestHelperStackResponseObject, error)
+	// GetImage A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+	// (GET /images)
+	GetImage(ctx context.Context, request GetImageRequestObject) (GetImageResponseObject, error)
 	// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
 	// (DELETE /lists/{listId})
 	DeleteList(ctx context.Context, request DeleteListRequestObject) (DeleteListResponseObject, error)
@@ -13292,6 +13565,32 @@ func (sh *strictHandler) TestHelperStack(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(TestHelperStackResponseObject); ok {
 		if err := validResponse.VisitTestHelperStackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetImage operation middleware
+func (sh *strictHandler) GetImage(w http.ResponseWriter, r *http.Request, params GetImageParams) {
+	var request GetImageRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetImage(ctx, request.(GetImageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetImage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetImageResponseObject); ok {
+		if err := validResponse.VisitGetImageResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

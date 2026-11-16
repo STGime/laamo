@@ -23,6 +23,7 @@ export const ready = new Set([
 	'think.keep',
 	'think.extract',
 	'think.write',
+	'think.draw',
 	'do.list',
 	'do.chat',
 	'ask.check',

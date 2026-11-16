@@ -702,6 +702,9 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 			if len(res.links) > 0 {
 				card.Payload["links"] = res.links
 			}
+			if res.image != "" {
+				card.Payload["image"] = res.image
+			}
 			// The helper saved its cards to a list itself: say which, so the
 			// Feed doesn't offer "Add to list" on top.
 			if l, ok := e.savedTo(ctx, r); ok {
@@ -763,7 +766,8 @@ func (e *Engine) savedTo(ctx context.Context, r *store.Run) (store.List, bool) {
 type result struct {
 	title, body, stepID string
 	n                   int
-	links               []any // {title, url} the result came from
+	links               []any  // {title, url} the result came from
+	image               string // a picture's storage path (one card with a picture)
 }
 
 // result describes the last pile for the Result card: a single summary as
@@ -798,7 +802,8 @@ func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
 	}
 	res := result{stepID: last.ID, n: len(cards)}
 	if len(cards) == 1 {
-		res.body = truncate(text(cards[0], "summary", "body", "title", "name"), 500)
+		res.body = truncate(text(cards[0], "summary", "body", "title", "name", "image_alt"), 500)
+		res.image = text(cards[0], "image") // Draw a picture: shown on the Feed card
 		if src, ok := cards[0].Data["sources"].([]any); ok {
 			res.links = src[:min(5, len(src))]
 		} else if u := text(cards[0], "url", "website"); u != "" {

@@ -69,6 +69,7 @@ func main() {
 		Keys:   keys,
 		Chat:   &chat.Sender{},
 		Maps:   mapMaker(cfg),
+		Blobs:  eb.Blobs{Client: client, Prefix: "laamo/"},
 	})
 
 	srv := &http.Server{

@@ -586,3 +586,23 @@ func (s *Server) GetMap(ctx context.Context, req GetMapRequestObject) (GetMapRes
 	return GetMap200ImagejpegResponse{Body: bytes.NewReader(img), ContentLength: int64(len(img)),
 		Headers: GetMap200ResponseHeaders{CacheControl: new("private, max-age=604800")}}, nil
 }
+
+// GetImage serves a picture from Draw a picture, to members of the
+// workspace it belongs to (the path starts with its id).
+func (s *Server) GetImage(ctx context.Context, req GetImageRequestObject) (GetImageResponseObject, error) {
+	parts := strings.Split(req.Params.Path, "/")
+	if s.blobs == nil || len(parts) != 4 || parts[0] != "images" {
+		return GetImage404JSONResponse{NotFoundJSONResponse(apiErr(ErrorCodeNotFound, "picture not found"))}, nil
+	}
+	if _, _, ok, err := s.member(ctx, parts[1]); err != nil {
+		return nil, err
+	} else if !ok {
+		return GetImage404JSONResponse{NotFoundJSONResponse(apiErr(ErrorCodeNotFound, "picture not found"))}, nil
+	}
+	data, err := s.blobs.Get(ctx, req.Params.Path)
+	if err != nil {
+		return GetImage404JSONResponse{NotFoundJSONResponse(apiErr(ErrorCodeNotFound, "picture not found"))}, nil
+	}
+	return GetImage200ImagejpegResponse{Body: bytes.NewReader(data), ContentLength: int64(len(data)),
+		Headers: GetImage200ResponseHeaders{CacheControl: new("private, max-age=86400")}}, nil
+}

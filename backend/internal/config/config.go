@@ -30,6 +30,8 @@ type Config struct {
 	OSMNominatimURL string
 	OSMOverpassURL  string
 	GeoapifyAPIKey  string // when set, Find businesses uses Geoapify instead of Overpass
+	FalKey          string // Draw a picture (fal.ai); the LLM key when that is fal's
+	ImageModel      string
 	// Master keys for secrets at rest ("v1:base64,v2:base64"), see
 	// internal/crypto and docs/security/secrets.md. Server side only.
 	MasterKeys      string
@@ -70,6 +72,8 @@ func Load() (Config, error) {
 		OSMNominatimURL:   getenv("OSM_NOMINATIM_URL", ""), // "" = osm.DefaultNominatim
 		OSMOverpassURL:    getenv("OSM_OVERPASS_URL", ""),  // "" = osm.DefaultOverpass
 		GeoapifyAPIKey:    os.Getenv("GEOAPIFY_API_KEY"),
+		FalKey:            firstNonEmpty(os.Getenv("FAL_KEY"), os.Getenv("FAL_AI_API_KEY")),
+		ImageModel:        getenv("IMAGE_MODEL", ""),
 		MasterKeys:        os.Getenv("LAAMO_MASTER_KEYS"),
 		MasterKeyActive:   os.Getenv("LAAMO_MASTER_KEY_ACTIVE"),
 		LLMBaseURL:        getenv("LLM_BASE_URL", DefaultLLMBaseURL),
@@ -78,6 +82,9 @@ func Load() (Config, error) {
 		LLMModel:          getenv("LLM_MODEL", DefaultLLMModel),
 		DemoSecret:        os.Getenv("LAAMO_DEMO_SECRET"),
 		TrustProxy:        os.Getenv("LAAMO_TRUST_PROXY") == "1",
+	}
+	if c.FalKey == "" && c.LLMAuth == "Key" {
+		c.FalKey = c.LLMAPIKey // the brain goes through fal.ai: same key
 	}
 	if c.Env == "dev" {
 		c.SearchCacheDir = getenv("SEARCH_CACHE_DIR", ".cache/search")
