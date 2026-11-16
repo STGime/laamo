@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -244,5 +245,47 @@ func TestCheckDecision(t *testing.T) {
 		if err := engine.CheckDecision(fc, shown, c.state, c.d); (err == nil) != c.ok {
 			t.Errorf("%s %+v: %v", c.state, c.d, err)
 		}
+	}
+}
+
+// A Check first card says what it holds: drafts (cards with a body), and
+// whether anything after it sends them.
+func TestCheckDescribesDrafts(t *testing.T) {
+	e := newEnv(t, []sb{
+		{ID: "b1", Type: "when.tap"},
+		{ID: "b2", Type: "look.search", Config: cfg{"query": "bakery news"}},
+		{ID: "b3", Type: "think.write", Config: cfg{"what": "a short email", "tone": 0.5, "mode": "each"}},
+		{ID: "b4", Type: "ask.check", Config: cfg{"on_timeout": "skip"}},
+	})
+	e.eng.Bricks["think.write"] = engine.BrickFunc(func(_ context.Context, _ *engine.RunContext, in []engine.Card, _ engine.Config) ([]engine.Card, error) {
+		for i := range in {
+			in[i].Set("subject", "Hello", engine.TrustExtracted)
+			in[i].Set("body", "Dear team…", engine.TrustExtracted)
+			in[i].Set("email", fmt.Sprintf("info%d@example.com", i), engine.TrustExtracted)
+		}
+		return in, nil
+	})
+	fc := e.waiting(e.run(e.start("manual", false)))
+	preview, _ := fc.Payload["preview"].([]any)
+	first, _ := preview[0].(map[string]any)
+	if fc.Payload["drafts"] != true || fc.Payload["sends"] != false || len(preview) != 3 || first["to"] != "info0@example.com" || first["subject"] != "Hello" {
+		t.Fatalf("payload %+v", fc.Payload)
+	}
+	// Approved: the result says they're drafts and how they go out.
+	r := e.decide(e.get(*fc.RunID), engine.StateApproved, engine.Decision{})
+	var result *store.FeedCard
+	for _, f := range e.feed(r.ID) {
+		if f.Type == "result" {
+			result = &f
+		}
+	}
+	if result == nil || result.Title != "5 drafts ready to send" || result.Body == nil || !strings.Contains(*result.Body, "in your email") {
+		t.Fatalf("result %+v", result)
+	}
+
+	// With Post to chat after it, the cards do go out.
+	e2 := newEnv(t, checkStack("skip"))
+	if fc := e2.waiting(e2.run(e2.start("manual", false))); fc.Payload["sends"] != true || fc.Payload["drafts"] != false {
+		t.Fatalf("chat payload %+v", fc.Payload)
 	}
 }

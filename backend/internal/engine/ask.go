@@ -264,7 +264,7 @@ var errPaused = errors.New("waiting for the user")
 // is the step id, so a retried job can't make a second one) and sets the
 // run waiting. It is safe to repeat.
 func (e *Engine) pause(ctx context.Context, rc *RunContext, r *store.Run, steps []store.Step, i int,
-	sb catalog.StackBrick, b *catalog.Brick, pile []Card) error {
+	sb catalog.StackBrick, b *catalog.Brick, pile []Card, rest []catalog.StackBrick) error {
 	var step store.Step
 	for _, s := range steps {
 		if s.BrickID == sb.ID && s.Status == "waiting" && s.Attempt >= step.Attempt {
@@ -306,6 +306,9 @@ func (e *Engine) pause(ctx context.Context, rc *RunContext, r *store.Run, steps 
 	fc := store.FeedCard{ID: step.ID, WorkspaceID: r.WorkspaceID, UserID: r.UserID, HelperID: &r.HelperID,
 		RunID: &r.ID, StepID: &step.ID, Type: feedType(sb.Type), Title: rc.Helper.Name,
 		Body: new(askText(sb.Type, cfg, len(pile), rc.Workspace.Locale)), Payload: askPayload(sb, cfg, len(pile))}
+	if sb.Type == "ask.check" {
+		e.describeCheck(fc.Payload, pile, rest)
+	}
 	if h := cfg.Int("timeout_h"); sb.Type == "ask.check" && h > 0 {
 		fc.ExpiresAt = new(e.now().Add(time.Duration(h) * time.Hour))
 	} else if sb.Type != "ask.check" {
@@ -389,6 +392,46 @@ func (e *Engine) resume(ctx context.Context, r *store.Run, stack catalog.Stack) 
 	*r, err = e.Store.UpdateRun(ctx, r.ID, store.RunPatch{Status: new(store.RunRunning), NextBrickIndex: &next,
 		WaitingOnCardID: store.Null[string]()})
 	return err == nil, err
+}
+
+// describeCheck tells the app what a Check first card is about: whether
+// the cards are drafts (they have a body), whether anything after this
+// step sends them anywhere (a Do brick other than Save to a list), and the
+// first few, so the card can show them without opening the pile.
+func (e *Engine) describeCheck(p map[string]any, pile []Card, rest []catalog.StackBrick) {
+	drafts := len(pile) > 0
+	for _, c := range pile {
+		if strings.TrimSpace(c.Text("body")) == "" {
+			drafts = false
+		}
+	}
+	sends := false
+	for _, sb := range rest {
+		if b, ok := e.Catalog.Brick(sb.Type); ok && b.Group == "do" && sb.Type != "do.list" {
+			sends = true
+		}
+	}
+	var preview []any
+	for _, c := range pile[:min(3, len(pile))] {
+		item := map[string]any{"title": cutRunes(firstOf(c, "name", "title", "subject"), 120)}
+		if to := c.Text("email"); to != "" {
+			item["to"] = cutRunes(to, 200)
+		}
+		if sub := c.Text("subject"); sub != "" {
+			item["subject"] = cutRunes(sub, 160)
+		}
+		preview = append(preview, item)
+	}
+	p["drafts"], p["sends"], p["preview"] = drafts, sends, preview
+}
+
+func firstOf(c Card, fields ...string) string {
+	for _, f := range fields {
+		if v := strings.TrimSpace(c.Text(f)); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func askPayload(sb catalog.StackBrick, cfg Config, n int) map[string]any {

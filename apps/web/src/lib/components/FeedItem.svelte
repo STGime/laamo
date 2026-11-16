@@ -133,6 +133,24 @@
 	);
 
 	const stateKey = $derived(`feed.state.${card.state}` as Key);
+
+	// Check first: what's waiting. Drafts nothing will send are "drafts to
+	// check"; the first few show right here.
+	const drafts = $derived(card.payload.drafts === true);
+	const sends = $derived(card.payload.sends !== false);
+	const checkTitle = $derived(
+		drafts && !sends
+			? t('feed.check.draftsTitle', { n: count })
+			: sends
+				? t('feed.check.title', { n: count })
+				: t('feed.check.goOnTitle', { n: count })
+	);
+	const checkPreview = $derived(
+		(
+			(card.payload.preview as { title?: string; to?: string; subject?: string }[] | undefined) ??
+			[]
+		).filter((p) => p.title)
+	);
 </script>
 
 <article
@@ -165,8 +183,23 @@
 
 	{#if card.type === 'approval'}
 		<h3 class="display">
-			{isOpen ? t('feed.check.title', { n: Number(card.payload.cards ?? 0) }) : card.title}
+			{isOpen ? checkTitle : card.title}
 		</h3>
+		{#if isOpen && checkPreview.length}
+			<ul class="preview">
+				{#each checkPreview as p, i (i)}
+					<li>
+						<strong>{p.title}</strong>
+						{#if p.to}<span>→ {p.to}</span>{/if}
+						{#if p.subject}<span class="subject">{p.subject}</span>{/if}
+					</li>
+				{/each}
+				{#if count > checkPreview.length}
+					<li class="more">{t('feed.check.more', { n: count - checkPreview.length })}</li>
+				{/if}
+			</ul>
+		{/if}
+		{#if isOpen && drafts && !sends}<p class="note">{t('feed.check.draftsHint')}</p>{/if}
 	{:else if card.type === 'pick'}
 		<h3 class="display">{t('feed.pick.title')}</h3>
 	{:else}
@@ -278,7 +311,7 @@
 		</SwipeStack>
 	</BottomSheet>
 {:else if card.type === 'approval'}
-	<BottomSheet bind:open={sheet} title={t('feed.check.title', { n: pile.length })}>
+	<BottomSheet bind:open={sheet} title={checkTitle}>
 		<ul class="pile">
 			{#each pile as c (c.id)}
 				<li class:skipped={skip[c.id]}>
@@ -528,5 +561,32 @@
 		display: flex;
 		gap: var(--space-2);
 		margin-top: var(--space-3);
+	}
+	.preview {
+		list-style: none;
+		margin: var(--space-2) 0 0;
+		padding: 0;
+		border-top: var(--border);
+	}
+	.preview li {
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-2) 0;
+		border-bottom: var(--border);
+		font-size: var(--text-sm);
+	}
+	.preview span {
+		color: var(--muted);
+	}
+	.preview .subject {
+		color: var(--ink);
+	}
+	.preview .more {
+		color: var(--muted);
+	}
+	.note {
+		margin: var(--space-2) 0 0;
+		color: var(--muted);
+		font-size: var(--text-sm);
 	}
 </style>
