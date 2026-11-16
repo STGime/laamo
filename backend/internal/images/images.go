@@ -10,6 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
+	_ "image/png" // some models send PNG anyway
 	"io"
 	"net/http"
 	"net/url"
@@ -21,6 +24,9 @@ const (
 	DefaultBaseURL = "https://fal.run"
 	DefaultModel   = "fal-ai/flux/schnell"
 	maxImageBytes  = 10 << 20
+	// MaxBytes: a stored picture stays under this (storage takes up to 1 MB
+	// per upload; a web picture this size looks the same).
+	MaxBytes = 600_000
 )
 
 // Prices in USD per megapixel (fal.ai, checked 2026-11). All take the same
@@ -124,7 +130,11 @@ func (c *Client) Draw(ctx context.Context, prompt, shape, model string) (Image, 
 		return Image{}, err
 	}
 	w, h := cmp.Or(img.Width, sz.Width), cmp.Or(img.Height, sz.Height)
-	return Image{Data: data, Mime: cmp.Or(img.ContentType, "image/jpeg"), Width: w, Height: h, Model: model,
+	data, err = Shrink(data, MaxBytes)
+	if err != nil {
+		return Image{}, err
+	}
+	return Image{Data: data, Mime: "image/jpeg", Width: w, Height: h, Model: model,
 		CostUSD: float64(w*h) / 1e6 * price}, nil
 }
 
@@ -167,4 +177,29 @@ func unwrapURL(err error) error {
 		return ue.Err
 	}
 	return err
+}
+
+// Shrink re-encodes a picture as JPEG, lowering the quality until it's at
+// most max bytes. A picture already small enough and in JPEG stays as it is.
+func Shrink(data []byte, max int) ([]byte, error) {
+	if len(data) <= max && bytes.HasPrefix(data, []byte{0xFF, 0xD8}) {
+		return data, nil
+	}
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("images: reading the picture: %w", err)
+	}
+	for _, q := range []int{85, 75, 65, 50} {
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: q}); err != nil {
+			return nil, err
+		}
+		if buf.Len() <= max || q == 50 {
+			if buf.Len() > max {
+				return nil, fmt.Errorf("images: picture still %d bytes", buf.Len())
+			}
+			return buf.Bytes(), nil
+		}
+	}
+	return nil, nil // unreachable
 }
