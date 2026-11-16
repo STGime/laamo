@@ -277,7 +277,7 @@ export const en = {
 	'tpl.feedOnly': 'Just in my Feed',
 	'tpl.test': 'Try it now',
 	'tpl.testHint':
-		'A test run uses at most 3 results. Your chat gets them marked as a test; nothing goes to anyone else.',
+		'A test run uses at most 3 results. Your chat gets them marked as a test; nothing goes to anyone else, and your lists stay as they are.',
 	'tpl.failed': 'That didn’t work: {error}',
 	'helpers.runNow': 'Run now',
 	'helpers.started': 'Started. Results land in your Feed.',

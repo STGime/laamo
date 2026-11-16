@@ -117,3 +117,23 @@ func TestSaveToListOnlyNew(t *testing.T) {
 		t.Fatalf("next week: %+v", out)
 	}
 }
+
+// A test run saves nothing, but still stops what's in the list already.
+func TestSaveToListTest(t *testing.T) {
+	ctx := context.Background()
+	st := memory.New()
+	rc := brickstest.RunContext("do.list")
+	l := store.List{WorkspaceID: rc.Run.WorkspaceID, UserID: rc.Run.UserID, Name: "Leads"}
+	_ = st.CreateList(ctx, &l)
+	key := do.DedupeKey("website", "kuchenzeit.de")
+	_ = st.AddListRow(ctx, &store.ListRow{WorkspaceID: l.WorkspaceID, UserID: l.UserID, ListID: l.ID, DedupeKey: &key})
+	rc.TestMode = true
+	out, err := do.List{Store: st}.Run(ctx, rc, []engine.Card{lead("c1", "Café Kuchenzeit", "kuchenzeit.de"), lead("c2", "Neu", "neu.de")},
+		engine.Config{"list": l.ID, "dedupe": "website", "only_new": true})
+	if err != nil || len(out) != 1 || out[0].ID != "c2" {
+		t.Fatalf("%v %+v", err, out)
+	}
+	if n, _ := st.CountListRows(ctx, l.ID); n != 1 {
+		t.Fatalf("a test saved rows: %d", n)
+	}
+}
