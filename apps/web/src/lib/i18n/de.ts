@@ -347,7 +347,7 @@ export const de: Record<Key, string> = {
 	'helper.forgetSure': 'Wirklich vergessen?',
 	'helper.forgotten': 'Vergessen. Ab deiner nächsten Auswahl lernt er neu.',
 	'helper.atWork': 'arbeitet…',
-	'helper.waitsHere': 'wartet auf dich',
+	'helper.waitsHere': 'wartet auf dich · im Feed öffnen',
 	'error.offline': 'Laamo ist gerade nicht erreichbar. Versuch es gleich noch mal.',
 	'me.timeFormat': 'Uhrzeit',
 	'time.hours': 'Stunden',

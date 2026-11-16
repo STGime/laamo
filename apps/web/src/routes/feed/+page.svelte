@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import FeedItem from '#lib/components/FeedItem.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { feed, listen, type Filter } from '#lib/feed.svelte.ts';
@@ -13,9 +14,11 @@
 		{ id: 'results', key: 'feed.filter.results' }
 	];
 
+	// A link can open a tab: /feed?filter=needs_me (e.g. from a waiting brick).
+	const linked = page.url.searchParams.get('filter');
 	$effect(() => {
 		if (!session.workspace) return;
-		feed.load();
+		feed.load(filters.some((f) => f.id === linked) ? (linked as Filter) : undefined);
 		return listen(
 			() => feed.load(),
 			() => session.fresh()

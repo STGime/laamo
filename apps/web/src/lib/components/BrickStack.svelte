@@ -11,6 +11,7 @@
 		title: string;
 		sub?: string;
 		state?: BrickState;
+		href?: string;
 	}
 
 	let {
@@ -37,6 +38,7 @@
 				group={b.group}
 				title={b.title}
 				sub={b.sub}
+				href={b.href}
 				state={stateOf(b, i)}
 				onclick={onselect ? () => onselect(b, i) : undefined}
 			/>

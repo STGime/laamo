@@ -33,3 +33,11 @@ describe('osmSource', () => {
 		expect(osmSource(undefined)).toBeNull();
 	});
 });
+
+describe('dates', () => {
+	it('shows dates and times for people', () => {
+		expect(cellText('2026-11-13')).toMatch(/13 Nov 2026/);
+		expect(cellText('2026-11-13T13:18:35Z')).toMatch(/13 Nov 2026, \d{2}:18/);
+		expect(cellText('2026-11-13 is a date in text')).toBe('2026-11-13 is a date in text');
+	});
+});

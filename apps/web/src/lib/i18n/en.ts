@@ -338,7 +338,7 @@ export const en = {
 	'helper.forgetSure': 'Forget them?',
 	'helper.forgotten': 'Forgotten. It starts learning again from your next picks.',
 	'helper.atWork': 'working…',
-	'helper.waitsHere': 'waiting for you',
+	'helper.waitsHere': 'waiting for you · open the Feed',
 	'error.offline': 'Can’t reach Laamo right now. Try again in a moment.',
 	'me.timeFormat': 'Time',
 	'time.hours': 'Hours',

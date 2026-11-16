@@ -24,7 +24,10 @@ export function brickProgress(
 	bricks: Brick[],
 	run: Schemas['RunProgress'] | undefined,
 	steps: Schemas['StepProgress'][] | undefined
-): { items: (Brick & { sub: string })[]; current: number } {
+): {
+	items: (Brick & { sub: string; state?: 'waiting'; href?: string })[];
+	current: number;
+} {
 	const current = run ? run.step : -1;
 	const items = bricks.map((b, i) => {
 		const step = run ? steps?.find((s) => s.brick_id === b.id) : undefined;
@@ -33,6 +36,9 @@ export function brickProgress(
 			sub = t('helper.cards', { n: step.cards_out });
 		else if (run && i === current)
 			sub = run.status === 'waiting' ? t('helper.waitsHere') : t('helper.atWork');
+		// Waiting for the user: it pulses and leads to the Feed card.
+		if (run?.status === 'waiting' && i === current)
+			return { ...b, sub, state: 'waiting' as const, href: '/feed?filter=needs_me' };
 		return { ...b, sub };
 	});
 	return { items, current };
