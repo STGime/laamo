@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -407,7 +408,7 @@ func (e *Engine) runStep(ctx context.Context, rc *RunContext, r *store.Run, step
 		case errors.Is(err, queue.ErrPermanent), errors.Is(err, errShape), errors.Is(err, ErrMissingValue),
 			errors.Is(err, llm.ErrBadOutput), errors.Is(err, llm.ErrNotConfigured):
 			return nil, &stepError{final: true, err: err, outcome: outcome{status: store.RunFailed, err: err,
-				problem: fmt.Sprintf("“%s” didn't work: %s", title, friendly(err))}}
+				problem: didntWork(title, friendly(err), rc.Workspace.Locale)}}
 		}
 		return nil, err
 	}
@@ -849,13 +850,37 @@ func pick(de bool, en, deText string) string {
 }
 
 // friendly turns an error into a short sentence for a Problem card.
+// friendly is the part of an error the Feed may show: the plain words a
+// brick wrote ("this list doesn't exist anymore; pick another…"), or ""
+// when it's technical (package names, URLs, sizes). The full error stays
+// in the step's log.
 func friendly(err error) string {
 	if err == nil {
 		return ""
 	}
-	msg := err.Error()
-	msg = strings.TrimPrefix(msg, queue.ErrPermanent.Error()+"\n")
+	msg := strings.TrimSpace(strings.TrimPrefix(err.Error(), queue.ErrPermanent.Error()+"\n"))
+	if technical.MatchString(msg) {
+		// "couldn't do X: <technical cause>": keep "couldn't do X".
+		before, _, ok := strings.Cut(msg, ": ")
+		if !ok || technical.MatchString(before) || technical.MatchString(before+": ") {
+			return ""
+		}
+		msg = before
+	}
 	return truncate(msg, 300)
+}
+
+// technical: signs an error message was written for developers.
+var technical = regexp.MustCompile(`(?i)^[a-z][a-z0-9_.]*: |https?://|/v\d+/|\b(get|post|put|patch|delete) /|\bbytes\b|status \d{3}|\b[45]\d\d\b|deadline exceeded|context canceled|\beof\b|dial tcp|connection (refused|reset)|\btls\b|json: |sql|\bpq: |\bnil\b|panic`)
+
+// didntWork is the Feed text for a brick that failed.
+func didntWork(title, why, lang string) string {
+	if why == "" {
+		return pick(lang == "de",
+			fmt.Sprintf("“%s” didn't work. Please try again later.", title),
+			fmt.Sprintf("„%s“ hat nicht geklappt. Bitte versuch es später noch mal.", title))
+	}
+	return pick(lang == "de", fmt.Sprintf("“%s” didn't work: %s", title, why), fmt.Sprintf("„%s“ hat nicht geklappt: %s", title, why))
 }
 
 func limitText(err error, lang string) string {
