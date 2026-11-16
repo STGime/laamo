@@ -37,7 +37,7 @@ func TestLiveDraw(t *testing.T) {
 		total += img.CostUSD
 		t.Logf("%-12s %-24s %dx%d %5.1f KB $%.4f", name, l[0], img.Width, img.Height, float64(len(img.Data))/1024, img.CostUSD)
 		if dir := os.Getenv("LAAMO_IMAGES_OUT"); dir != "" {
-			_ = os.WriteFile(filepath.Join(dir, name+".jpg"), img.Data, 0o644)
+			_ = os.WriteFile(filepath.Join(dir, name+".jpg"), img.Data, 0o600)
 		}
 	}
 	t.Logf("total $%.4f", total)
