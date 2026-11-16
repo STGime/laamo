@@ -289,3 +289,26 @@ func TestCheckDescribesDrafts(t *testing.T) {
 		t.Fatalf("chat payload %+v", fc.Payload)
 	}
 }
+
+// A test run asks about at most 3 cards, and its question is marked a test.
+func TestTestRunPick(t *testing.T) {
+	e := newEnv(t, []sb{
+		{ID: "b1", Type: "when.tap"},
+		{ID: "b2", Type: "look.search", Config: cfg{"query": "bakery news"}},
+		{ID: "b3", Type: "ask.pick", Config: cfg{"max_show": 8}},
+	})
+	fc := e.waiting(e.run(e.start("test", true)))
+	if n := len(e.cards(fc.ID)); n != engine.TestModeMaxCards || fc.Payload["test"] != true || fmt.Sprint(fc.Payload["cards"]) != "3" {
+		t.Fatalf("test pick: %d cards, payload %v", n, fc.Payload)
+	}
+	// A real run shows them all and isn't marked.
+	e2 := newEnv(t, []sb{
+		{ID: "b1", Type: "when.tap"},
+		{ID: "b2", Type: "look.search", Config: cfg{"query": "bakery news"}},
+		{ID: "b3", Type: "ask.pick", Config: cfg{"max_show": 8}},
+	})
+	fc2 := e2.waiting(e2.run(e2.start("manual", false)))
+	if n := len(e2.cards(fc2.ID)); n != 5 || fc2.Payload["test"] != false {
+		t.Fatalf("real pick: %d cards, payload %v", n, fc2.Payload)
+	}
+}
