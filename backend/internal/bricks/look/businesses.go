@@ -89,6 +89,20 @@ func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engi
 	// A region, a country or several places: search their whole area.
 	areaMode := whole || len(places) > 1 || places[0].Area()
 
+	// A kind with no map category of its own (e.g. solar installers): look
+	// through businesses and offices and keep those whose name or website
+	// says it ("Elysium Solar"). The map's own name search wants the exact
+	// name, so it found nothing.
+	keywords := []string(nil)
+	if len(base.Categories) == 0 {
+		keywords = osm.Keywords(what)
+		if len(keywords) == 0 {
+			keywords = []string{strings.ToLower(what)}
+		}
+		base.Categories = osm.Broad
+		base.Name = strings.Join(keywords, " ") // Overpass: a name search for these words
+	}
+
 	skip, err := f.skipper(ctx, rc, resolved.String("skip_list"))
 	if err != nil {
 		return nil, err
@@ -98,6 +112,9 @@ func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engi
 	// place's next page when its batch runs out, until there are enough
 	// new ones (or no more, or the call budget is spent).
 	page := min(100, max(10, limit))
+	if keywords != nil {
+		page = 100 // most of what comes back is dropped
+	}
 	offsets := make([]int, len(places))
 	done := make([]bool, len(places))
 	queues := make([][]osm.Business, len(places))
@@ -121,11 +138,16 @@ func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engi
 				if err != nil {
 					return nil, err
 				}
-				offsets[i] += len(bs)
-				// Pages on while there are more (Geoapify only: Overpass has no pages).
-				done[i] = len(bs) < page || p.ID == ""
+				// The map drops nameless places from a page, so fewer than a
+				// page back doesn't mean the end: go on until a page is empty.
+				offsets[i] += page
+				// (Geoapify only: Overpass has no pages.)
+				done[i] = len(bs) == 0 || p.ID == ""
 				for _, b := range bs {
 					key := strings.ToLower(b.Name + "|" + b.Address)
+					if keywords != nil && p.ID != "" && !osm.Mentions(b, keywords) {
+						continue
+					}
 					if !seen[key] && !skip(b) {
 						seen[key] = true
 						queues[i] = append(queues[i], b)
@@ -142,7 +164,7 @@ func (f FindBusinesses) Run(ctx context.Context, rc *engine.RunContext, _ []engi
 			break
 		}
 	}
-	rc.Log.Info("found businesses", "what", what, "tags", base.Tags, "places", len(places), "area", areaMode,
+	rc.Log.Info("found businesses", "what", what, "tags", base.Tags, "keywords", keywords, "places", len(places), "area", areaMode,
 		"radius_km", radius, "found", len(found), "map_calls", calls)
 
 	out := make([]engine.Card, 0, len(found))

@@ -80,6 +80,11 @@ var kinds = []struct {
 	{[]string{"car dealer", "autohaus", "autohaendler"}, tags("shop", "car"), cats("commercial.vehicle")},
 	{[]string{"bike shop", "bicycle shop", "fahrradladen", "fahrradgeschaeft", "fahrrad"}, tags("shop", "bicycle"), cats("commercial.outdoor_and_sport.bicycle")},
 	{[]string{"electrician", "elektriker", "elektroinstallateur"}, tags("craft", "electrician"), cats("service.electrician")},
+	// Solar: on the map mostly electricians, energy firms and shops.
+	{[]string{"solar", "solar panels", "solar installer", "solar installers", "installers and sellers of solar panels", "solar company",
+		"photovoltaic", "photovoltaics", "pv installer", "photovoltaik", "solaranlagen", "solarteur", "solartechnik", "solarfirma",
+		"solarenergie", "pv anlagen"}, tags("craft", "electrician", "shop", "energy", "office", "energy_supplier"),
+		cats("service.electrician,office.energy_supplier,commercial.energy")},
 	{[]string{"plumber", "klempner", "installateur", "sanitaer"}, tags("craft", "plumber"), nil},
 	{[]string{"carpenter", "tischler", "schreiner", "tischlerei", "schreinerei"}, tags("craft", "carpenter"), cats("service.carpenter")},
 	{[]string{"painter", "maler", "malerbetrieb"}, tags("craft", "painter"), nil},
@@ -135,35 +140,47 @@ func forms(s string) []string {
 	return out
 }
 
-// Kinds maps what someone typed to tags, or nil when it's not a known kind.
-func Kinds(what string) []Tag {
-	typed := forms(what)
-	if len(typed) == 0 {
-		return nil
-	}
-	for _, k := range kinds {
-		for _, word := range k.words {
-			for _, f := range forms(word) {
-				if slices.Contains(typed, f) {
-					return k.tags
+// kindOf finds the kind someone typed: the whole phrase first ("hair
+// salons"), else one of its words ("solar panel installers" → solar).
+func kindOf(what string) int {
+	match := func(typed []string, singleOnly bool) int {
+		for i, k := range kinds {
+			for _, word := range k.words {
+				if singleOnly && strings.Contains(word, " ") {
+					continue
+				}
+				for _, f := range forms(word) {
+					if slices.Contains(typed, f) {
+						return i
+					}
 				}
 			}
 		}
+		return -1
+	}
+	if i := match(forms(what), false); i >= 0 {
+		return i
+	}
+	for _, w := range Keywords(what) {
+		if i := match(forms(w), true); i >= 0 {
+			return i
+		}
+	}
+	return -1
+}
+
+// Kinds maps what someone typed to tags, or nil when it's not a known kind.
+func Kinds(what string) []Tag {
+	if i := kindOf(what); i >= 0 {
+		return kinds[i].tags
 	}
 	return nil
 }
 
 // Categories maps what someone typed to Geoapify categories, or nil.
 func Categories(what string) []string {
-	typed := forms(what)
-	for _, k := range kinds {
-		for _, word := range k.words {
-			for _, f := range forms(word) {
-				if slices.Contains(typed, f) {
-					return k.geo
-				}
-			}
-		}
+	if i := kindOf(what); i >= 0 {
+		return kinds[i].geo
 	}
 	return nil
 }
@@ -184,4 +201,53 @@ func CategoriesFor(tags []Tag) []string {
 		}
 	}
 	return out
+}
+
+// Words that say what kind of business, not which: they don't help to tell
+// a solar firm from a bakery by its name.
+var filler = map[string]bool{
+	"and": true, "or": true, "of": true, "for": true, "the": true, "in": true, "with": true, "near": true,
+	"und": true, "oder": true, "von": true, "für": true, "fuer": true, "der": true, "die": true, "das": true, "mit": true, "im": true,
+	"installer": true, "installers": true, "seller": true, "sellers": true, "shop": true, "shops": true, "store": true,
+	"stores": true, "company": true, "companies": true, "firm": true, "firms": true, "agency": true, "agencies": true,
+	"business": true, "businesses": true, "service": true, "services": true, "provider": true, "providers": true,
+	"dealer": true, "dealers": true, "supplier": true, "suppliers": true, "maker": true, "makers": true,
+	"händler": true, "haendler": true, "handel": true, "firma": true, "firmen": true, "betrieb": true, "betriebe": true,
+	"unternehmen": true, "anbieter": true, "laden": true, "läden": true, "geschäft": true, "geschäfte": true,
+	"installateur": true, "installateure": true, "verkäufer": true, "lieferant": true, "lieferanten": true,
+}
+
+// Keywords are the words of a kind worth finding in a business's name or
+// website, lower case: "installers and sellers of solar panels" → solar,
+// panel (plural endings off).
+func Keywords(what string) []string {
+	var out []string
+	for _, w := range wordRe.FindAllString(strings.ToLower(what), 8) {
+		if filler[w] || len([]rune(w)) < 3 {
+			continue
+		}
+		for _, f := range forms(w) { // the shortest form: "panels" → "panel", "Imkereien" → "imkerei"
+			if len(f) < len(w) {
+				w = f
+			}
+		}
+		if !slices.Contains(out, w) {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// Mentions reports whether a business's name or website contains one of
+// the keywords.
+func Mentions(b Business, keywords []string) bool {
+	text := strings.ToLower(b.Name + " " + b.Website)
+	text = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue", "ß", "ss").Replace(text)
+	for _, k := range keywords {
+		k = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue", "ß", "ss").Replace(k)
+		if strings.Contains(text, k) {
+			return true
+		}
+	}
+	return false
 }
