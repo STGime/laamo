@@ -43,7 +43,7 @@
 	<ul class="list">
 		{#each helpers as h (h.id)}
 			<li>
-				<a class="open" href="/helpers/{h.id}">
+				<a class="open" href={h.status === 'draft' ? `/helpers/${h.id}/edit` : `/helpers/${h.id}`}>
 					<span class="avatar" aria-hidden="true">{h.avatar ?? '🧱'}</span>
 					<span class="text">
 						<span class="name display">{h.name}</span>

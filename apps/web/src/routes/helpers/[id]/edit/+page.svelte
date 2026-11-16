@@ -35,6 +35,9 @@
 	const lang = $derived(i18n.lang);
 
 	let name = $state('');
+	// A draft (just made from "Use in a helper" or "Build your own"): Save
+	// makes it a helper, Cancel deletes it.
+	let isDraft = $state(false);
 	let version = $state(0);
 	let base = $state<Stack | null>(null); // as loaded, for "anything changed?"
 	let bricks = $state<StackBrick[]>([]);
@@ -58,7 +61,10 @@
 	$effect(() => {
 		if (!id) return;
 		api.GET('/helpers/{helperId}', { params: { path: { helperId: id } } }).then(({ data }) => {
-			if (data) name = data.helper.name;
+			if (data) {
+				name = data.helper.name;
+				isDraft = data.helper.status === 'draft';
+			}
 		});
 		api
 			.GET('/helpers/{helperId}/stack', { params: { path: { helperId: id } } })
@@ -118,6 +124,15 @@
 		} catch {
 			/* private mode */
 		}
+	}
+	// Cancel: a draft goes away (nothing was saved), else back to the helper.
+	async function cancel(e: MouseEvent) {
+		dropDraft();
+		if (!isDraft) return; // the link goes to the helper page
+		e.preventDefault();
+		await api.DELETE('/helpers/{helperId}', { params: { path: { helperId: id } } });
+		if (history.length > 1) history.back();
+		else goto('/helpers', { replaceState: true });
 	}
 	function discard() {
 		if (base) bricks = structuredClone($state.snapshot(base.bricks)) as StackBrick[];
@@ -393,11 +408,11 @@
 	<PageHeader title={t('builder.title')}>
 		{#snippet right()}
 			<div class="head-actions">
-				<a class="cancel" href="/helpers/{id}" onclick={dropDraft}>{t('helper.cancel')}</a>
+				<a class="cancel" href="/helpers/{id}" onclick={cancel}>{t('helper.cancel')}</a>
 				<button
 					type="button"
 					class="btn primary"
-					disabled={!dirty || errors.length > 0 || saving}
+					disabled={(!dirty && !isDraft) || errors.length > 0 || saving}
 					onclick={save}>{saving ? t('builder.saving') : t('builder.save')}</button
 				>
 			</div>
