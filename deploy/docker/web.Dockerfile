@@ -16,6 +16,8 @@ ENV EUROBASE_URL=$EUROBASE_URL EUROBASE_PUBLIC_KEY=$EUROBASE_PUBLIC_KEY
 RUN pnpm --filter @laamo/web build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine
-COPY deploy/docker/web.nginx.conf /etc/nginx/conf.d/default.conf
+# Where /api goes (set per environment; the default suits docker run locally).
+ENV API_UPSTREAM=http://host.docker.internal:8787
+COPY deploy/docker/web.nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /src/apps/web/build /usr/share/nginx/html
 EXPOSE 8080

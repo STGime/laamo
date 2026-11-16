@@ -21,3 +21,6 @@ coverage/
 .vscode/*
 !.vscode/extensions.json
 /backend/runstack
+
+# deploy settings per environment (deploy/env.example is the template)
+deploy/*.env

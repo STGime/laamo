@@ -76,7 +76,6 @@ jobs:
         include:
           - { service: api, dockerfile: deploy/docker/go.Dockerfile }
           - { service: worker, dockerfile: deploy/docker/go.Dockerfile }
-          - { service: mailin, dockerfile: deploy/docker/go.Dockerfile }
           - { service: web, dockerfile: deploy/docker/web.Dockerfile }
     env:
       # Scaleway Container Registry, Paris. Set repo variable SCW_REGISTRY_NAMESPACE
