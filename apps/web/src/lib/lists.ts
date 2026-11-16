@@ -1,5 +1,6 @@
 // Lists (#47): how rows and columns read on screen.
 import { catalog } from '@laamo/catalog';
+import { readableDate } from './time.ts';
 
 /** A column's name: the catalog's label, or the key in words ("opening_days" → "opening days"). */
 export function columnLabel(key: string, lang: 'en' | 'de'): string {
@@ -20,6 +21,9 @@ export function rowHeading(data: Record<string, unknown>): string {
 export function cellText(v: unknown): string {
 	if (v == null) return '';
 	if (typeof v === 'string') {
+		// Dates and times ("published_at") for people, not machines.
+		const date = readableDate(v);
+		if (date) return date;
 		if (/^https?:\/\//.test(v)) {
 			try {
 				const u = new URL(v);

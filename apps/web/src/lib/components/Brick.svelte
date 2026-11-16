@@ -15,17 +15,25 @@
 		title,
 		sub = '',
 		state = 'idle',
+		href,
 		onclick
 	}: {
 		group: Group;
 		title: string;
 		sub?: string;
 		state?: BrickState;
+		/** Makes the brick a link, e.g. to the Feed card it waits on. */
+		href?: string;
 		onclick?: () => void;
 	} = $props();
 </script>
 
-{#if onclick}
+{#if href}
+	<a class="brick {group}" data-state={state} {href}>
+		<span class="title">{clockText(title)}</span>
+		{#if sub}<span class="sub">{sub} →</span>{/if}
+	</a>
+{:else if onclick}
 	<button type="button" class="brick {group}" data-state={state} {onclick}>
 		<span class="title">{clockText(title)}</span>
 		{#if sub}<span class="sub">{sub}</span>{/if}
@@ -93,6 +101,26 @@
 	/* During a run the working brick steps out of the stack. */
 	[data-state='running'] {
 		transform: translateX(var(--space-2));
+	}
+	a.brick {
+		text-decoration: none;
+	}
+	/* Waiting for the user: steps out, and its outline pulses until they act. */
+	[data-state='waiting'] {
+		transform: translateX(var(--space-2));
+		outline: 3px solid var(--ink);
+		outline-offset: 2px;
+		animation: waiting 1.6s ease-in-out infinite;
+	}
+	@keyframes waiting {
+		50% {
+			outline-color: transparent;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		[data-state='waiting'] {
+			animation: none;
+		}
 	}
 	[data-state='failed'] {
 		outline: 3px solid var(--ink);
