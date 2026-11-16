@@ -3,6 +3,7 @@ package eurobase_test
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -224,5 +225,19 @@ func TestObjects(t *testing.T) {
 	b := eb.Blobs{Client: c, Prefix: "laamo/"}
 	if err := b.Put(ctx, "runs/r2/x.txt", text); err != nil || f.Objects["laamo/runs/r2/x.txt"] == nil {
 		t.Fatalf("blobs put: %v", err)
+	}
+}
+
+// Files to Storage may be bigger than a database write (50 MB, not 1 MB).
+func TestUploadOverDBLimit(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, http.MaxBytesReader(w, r.Body, 10<<20))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	c := eb.New(srv.URL, "key")
+	if err := c.PutObject(context.Background(), "images/a.jpg", "image/jpeg", make([]byte, 2_000_000)); err != nil {
+		t.Fatalf("2 MB upload: %v", err)
 	}
 }

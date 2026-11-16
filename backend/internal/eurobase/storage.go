@@ -40,7 +40,7 @@ func (c *Client) PutObject(ctx context.Context, key, contentType string, data []
 		return err
 	}
 	_, err = c.do(ctx, call{method: http.MethodPost, path: "/v1/storage/upload", body: body.Bytes(),
-		ctype: mw.FormDataContentType(), idempotent: true}, nil)
+		ctype: mw.FormDataContentType(), idempotent: true, maxBody: MaxUpload}, nil)
 	return err
 }
 
