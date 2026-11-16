@@ -417,6 +417,14 @@
 	async function save() {
 		saving = true;
 		error = '';
+		// The name first: a new email address is made from it on save.
+		if (renamed) {
+			const { response: r } = await api.PATCH('/helpers/{helperId}', {
+				params: { path: { helperId: id } },
+				body: { name: newName.trim() }
+			});
+			if (r.ok) name = newName.trim();
+		}
 		const {
 			data,
 			error: err,
@@ -425,12 +433,6 @@
 			params: { path: { helperId: id } },
 			body: { stack: stack as Schemas['Stack'], version }
 		});
-		if (data && renamed) {
-			await api.PATCH('/helpers/{helperId}', {
-				params: { path: { helperId: id } },
-				body: { name: newName.trim() }
-			});
-		}
 		saving = false;
 		if (data) {
 			dropDraft();
