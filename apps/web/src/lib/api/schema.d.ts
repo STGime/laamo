@@ -917,6 +917,8 @@ export interface components {
 			last_out: {
 				[key: string]: number;
 			};
+			/** @description The helper's own address, once saved with Email this helper first */
+			email_address?: string;
 		};
 		/** @description A stack as in packages/catalog (schema 1); checked against bricks.json */
 		Stack: {
@@ -1005,6 +1007,8 @@ export interface components {
 			 * @description When its schedule runs next (only when on and scheduled)
 			 */
 			next_run_at?: string;
+			/** @description The helper's own address (stacks that start with Email this helper), e.g. meetings.x7k2qa@in.laamo.app */
+			email_address?: string;
 			run?: components['schemas']['RunProgress'];
 			/** Format: date-time */
 			created_at: string;

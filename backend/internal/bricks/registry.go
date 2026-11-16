@@ -34,6 +34,7 @@ func All(d Deps) map[string]engine.Brick {
 	m := map[string]engine.Brick{
 		"when.every":      when.Every,
 		"when.tap":        when.Tap,
+		"when.email":      when.Email,
 		"think.summarize": think.Summarize,
 		"think.keep":      think.Keep,
 		"think.extract":   think.Extract,

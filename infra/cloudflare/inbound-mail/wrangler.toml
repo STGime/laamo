@@ -1,0 +1,8 @@
+name = "laamo-inbound-mail"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+API_URL = "https://laamo.app/api/inbound/email"
+
+# The shared secret is not here: wrangler secret put INBOUND_SECRET

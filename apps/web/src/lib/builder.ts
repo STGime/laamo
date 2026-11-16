@@ -15,6 +15,7 @@ import { available, validate } from '@laamo/catalog/validate';
 export const ready = new Set([
 	'when.every',
 	'when.tap',
+	'when.email',
 	'look.search',
 	'look.read_page',
 	'look.find_businesses',
@@ -173,7 +174,8 @@ export function fitSettings(bricks: StackBrick[], id: string): StackBrick[] {
 }
 
 /**
- * Whether any brick before index makes cards: a Look brick, or a brick
+ * Whether any brick before index makes cards: a Look brick, Email this
+ * helper (the email), or a brick
  * that makes one on its own (Draw a picture, one in total). Without that, a
  * brick that works on cards gets none (e.g. When I tap → Draw a picture).
  */
@@ -182,6 +184,7 @@ export function cardsBefore(bricks: StackBrick[], index: number): boolean {
 		const def = brick(b.type);
 		return (
 			def?.group === 'look' ||
+			b.type === 'when.email' || // the email is a card
 			(b.type === 'think.draw' && withDefaults(def!, b.config).mode === 'all')
 		);
 	});

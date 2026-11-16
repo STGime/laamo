@@ -155,6 +155,9 @@ type TriggerStore interface {
 	// HelperTriggers returns a helper's triggers, oldest first.
 	HelperTriggers(ctx context.Context, helperID string) ([]Trigger, error)
 	CreateTrigger(ctx context.Context, t *Trigger) error
+	// TriggerByAddress finds the email trigger with this inbound address
+	// (ErrNotFound if none).
+	TriggerByAddress(ctx context.Context, address string) (Trigger, error)
 	UpdateTrigger(ctx context.Context, id string, p TriggerPatch) (Trigger, error)
 	// DeleteTrigger removes a trigger; a missing one is not an error.
 	DeleteTrigger(ctx context.Context, id string) error

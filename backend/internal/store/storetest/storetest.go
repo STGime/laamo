@@ -569,6 +569,11 @@ func testTriggers(t *testing.T, newStore New) {
 	must(t, s.CreateTrigger(ctx, &mail))
 	again := store.Trigger{WorkspaceID: fx.WorkspaceID, UserID: fx.UserID, HelperID: fx.HelperID, Type: store.TriggerEmail, InboundAddress: &addr}
 	isErr(t, "same inbound address", s.CreateTrigger(ctx, &again), store.ErrConflict)
+	if byAddr, err := s.TriggerByAddress(ctx, addr); err != nil || byAddr.ID != mail.ID || byAddr.HelperID != fx.HelperID {
+		t.Fatalf("by address: %+v %v", byAddr, err)
+	}
+	_, err := s.TriggerByAddress(ctx, "nobody.aaaaaa@in.laamo.app")
+	isErr(t, "unknown address", err, store.ErrNotFound)
 
 	got, err := s.HelperTriggers(ctx, fx.HelperID)
 	must(t, err)

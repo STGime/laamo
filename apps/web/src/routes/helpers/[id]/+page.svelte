@@ -9,6 +9,7 @@
 	import { listen } from '#lib/feed.svelte.ts';
 	import { brickProgress, busy as running, retrying } from '#lib/progress.ts';
 	import RunTicker from '#lib/components/RunTicker.svelte';
+	import HelperAddress from '#lib/components/HelperAddress.svelte';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { ago, when } from '#lib/time.ts';
 
@@ -153,9 +154,12 @@
 			<p class="next">
 				{#if !on}{t('helper.paused')}{:else if helper.next_run_at}{t('helper.next', {
 						when: when(helper.next_run_at, i18n.lang)
-					})}{:else}{t('helper.noSchedule')}{/if}
+					})}{:else if helper.email_address}{t('helper.onEmail')}{:else}{t(
+						'helper.noSchedule'
+					)}{/if}
 			</p>
 		</div>
+		{#if helper.email_address}<HelperAddress address={helper.email_address} />{/if}
 		<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
 			>{#if run}<RunTicker
 					{run}

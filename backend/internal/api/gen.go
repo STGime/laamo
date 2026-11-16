@@ -899,10 +899,13 @@ type HealthEurobase string
 
 // Helper defines model for Helper.
 type Helper struct {
-	Avatar    *string            `json:"avatar,omitempty"`
-	CreatedAt time.Time          `json:"created_at"`
-	Id        openapi_types.UUID `json:"id"`
-	Name      string             `json:"name"`
+	Avatar    *string   `json:"avatar,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// EmailAddress The helper's own address (stacks that start with Email this helper), e.g. meetings.x7k2qa@in.laamo.app
+	EmailAddress *string            `json:"email_address,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+	Name         string             `json:"name"`
 
 	// NextRunAt When its schedule runs next (only when on and scheduled)
 	NextRunAt *time.Time `json:"next_run_at,omitempty"`
@@ -940,6 +943,9 @@ type HelperRef struct {
 
 // HelperStack defines model for HelperStack.
 type HelperStack struct {
+	// EmailAddress The helper's own address, once saved with Email this helper first
+	EmailAddress *string `json:"email_address,omitempty"`
+
 	// LastOut Cards each brick (by stack brick id) gave in the last finished run
 	LastOut map[string]int `json:"last_out"`
 

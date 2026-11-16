@@ -45,6 +45,7 @@
 	let base = $state<Stack | null>(null); // as loaded, for "anything changed?"
 	let bricks = $state<StackBrick[]>([]);
 	let lastOut = $state<Record<string, number>>({});
+	let emailAddress = $state<string | null>(null);
 	let places = $state<Schemas['Place'][]>([]);
 	let lists = $state<Schemas['ListSummary'][]>([]);
 	let about = $state<Record<string, unknown>>({});
@@ -81,6 +82,7 @@
 				version = data.version;
 				base = data.stack as Stack;
 				lastOut = data.last_out;
+				emailAddress = data.email_address ?? null;
 				bricks = structuredClone(data.stack.bricks) as StackBrick[];
 				// An edit that wasn't saved comes back. After Connect a chat
 				// that's expected; otherwise it's marked, with Discard.
@@ -415,6 +417,14 @@
 	async function save() {
 		saving = true;
 		error = '';
+		// The name first: a new email address is made from it on save.
+		if (renamed) {
+			const { response: r } = await api.PATCH('/helpers/{helperId}', {
+				params: { path: { helperId: id } },
+				body: { name: newName.trim() }
+			});
+			if (r.ok) name = newName.trim();
+		}
 		const {
 			data,
 			error: err,
@@ -423,12 +433,6 @@
 			params: { path: { helperId: id } },
 			body: { stack: stack as Schemas['Stack'], version }
 		});
-		if (data && renamed) {
-			await api.PATCH('/helpers/{helperId}', {
-				params: { path: { helperId: id } },
-				body: { name: newName.trim() }
-			});
-		}
 		saving = false;
 		if (data) {
 			dropDraft();
@@ -607,6 +611,7 @@
 			{places}
 			bind:lists
 			lastOut={lastOut[editing]}
+			{emailAddress}
 			{pills}
 			onfact={rememberFact}
 			onleave={keepDraft}

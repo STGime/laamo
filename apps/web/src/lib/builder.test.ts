@@ -102,5 +102,7 @@ describe('cards before', () => {
 		expect(starved(st, 1)).toBe(true);
 		const withSearch = [tap, { id: 'b3', type: 'look.search', config: { query: 'x' } }, st[1]];
 		expect(starved(withSearch, 2)).toBe(false);
+		const mail = [{ id: 'b1', type: 'when.email', config: {} }, st[1]];
+		expect(starved(mail, 1)).toBe(false);
 	});
 });

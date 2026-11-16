@@ -1575,6 +1575,9 @@ components:
           description: Cards each brick (by stack brick id) gave in the last finished run
           additionalProperties:
             type: integer
+        email_address:
+          type: string
+          description: The helper's own address, once saved with Email this helper first
     Stack:
       type: object
       description: A stack as in packages/catalog (schema 1); checked against bricks.json
@@ -1730,6 +1733,9 @@ components:
           type: string
           format: date-time
           description: When its schedule runs next (only when on and scheduled)
+        email_address:
+          type: string
+          description: The helper's own address (stacks that start with Email this helper), e.g. meetings.x7k2qa@in.laamo.app
         run:
           $ref: '#/components/schemas/RunProgress'
         created_at:

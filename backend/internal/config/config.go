@@ -30,8 +30,11 @@ type Config struct {
 	OSMNominatimURL string
 	OSMOverpassURL  string
 	GeoapifyAPIKey  string // when set, Find businesses uses Geoapify instead of Overpass
-	FalKey          string // Draw a picture (fal.ai); the LLM key when that is fal's
-	ImageModel      string
+	// Incoming email (Cloudflare Email Worker → POST /api/inbound/email).
+	InboundDomain string // helpers' addresses: <name>.<random>@InboundDomain
+	InboundSecret string // shared with the Worker; signs each delivery (off when empty)
+	FalKey        string // Draw a picture (fal.ai); the LLM key when that is fal's
+	ImageModel    string
 	// Master keys for secrets at rest ("v1:base64,v2:base64"), see
 	// internal/crypto and docs/security/secrets.md. Server side only.
 	MasterKeys      string
@@ -72,6 +75,8 @@ func Load() (Config, error) {
 		OSMNominatimURL:   getenv("OSM_NOMINATIM_URL", ""), // "" = osm.DefaultNominatim
 		OSMOverpassURL:    getenv("OSM_OVERPASS_URL", ""),  // "" = osm.DefaultOverpass
 		GeoapifyAPIKey:    os.Getenv("GEOAPIFY_API_KEY"),
+		InboundDomain:     getenv("INBOUND_DOMAIN", "in.laamo.app"),
+		InboundSecret:     os.Getenv("INBOUND_SECRET"),
 		FalKey:            firstNonEmpty(os.Getenv("FAL_KEY"), os.Getenv("FAL_AI_API_KEY")),
 		ImageModel:        getenv("IMAGE_MODEL", ""),
 		MasterKeys:        os.Getenv("LAAMO_MASTER_KEYS"),
