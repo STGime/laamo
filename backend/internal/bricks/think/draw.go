@@ -9,6 +9,7 @@ import (
 
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/engine/tmpl"
+	"github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/images"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/queue"
@@ -141,6 +142,10 @@ func (d Draw) picture(ctx context.Context, rc *engine.RunContext, c *engine.Card
 	}
 	path := fmt.Sprintf("images/%s/%s/%s.jpg", rc.Run.WorkspaceID, cmp.Or(rc.Run.ID, "run"), name)
 	if err := rc.Blobs.Put(ctx, path, img.Data); err != nil {
+		// Trying again would draw (and pay) again for the same failure.
+		if errors.Is(err, eurobase.ErrTooLarge) {
+			return queue.Permanent(err)
+		}
 		return err
 	}
 	c.Set("image", path, engine.TrustExtracted)

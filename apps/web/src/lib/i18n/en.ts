@@ -385,6 +385,8 @@ export const en = {
 	'builder.useOption': 'Use “{option}”',
 	'builder.issue.check': 'This goes to other people, so it needs Check first above it',
 	'builder.issue.checkMaybe': 'This goes out to others; a Check first lets you see it before.',
+	'builder.issue.noCards':
+		'Nothing before this brick finds anything, so it has nothing to work on. Add a Look brick first (e.g. Search the web)',
 	'builder.issue.later': 'This brick can’t run yet; it’s coming soon',
 	'builder.issue.unset': 'Needs {fact}: tap to tell me',
 	'builder.lastTime': 'Last time: {n} cards',

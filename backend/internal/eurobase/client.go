@@ -20,6 +20,7 @@ package eurobase
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -40,8 +41,13 @@ var (
 	ErrUncertain = errors.New("eurobase: request may or may not have been applied")
 )
 
-// MaxBody is Eurobase's request body limit (1 MB), minus headroom.
+// MaxBody is Eurobase's request body limit for database writes (1 MB),
+// minus headroom.
 const MaxBody = 1_000_000 - 16_384
+
+// MaxUpload is the limit for a file sent to Storage (50 MB per upload),
+// minus headroom for the form around it.
+const MaxUpload = 50<<20 - 16_384
 
 // APIError is a non-2xx answer from Eurobase.
 type APIError struct {
@@ -240,12 +246,13 @@ type call struct {
 	body       []byte
 	ctype      string // default application/json
 	idempotent bool
+	maxBody    int // default MaxBody
 }
 
 // do runs the call with retries. retried reports whether more than one try
 // was sent (an insert's conflict may then be its own earlier try).
 func (c *Client) do(ctx context.Context, cl call, out any) (retried bool, err error) {
-	if len(cl.body) > MaxBody {
+	if len(cl.body) > cmp.Or(cl.maxBody, MaxBody) {
 		return false, fmt.Errorf("eurobase: %s %s: %d bytes: %w", cl.method, cl.path, len(cl.body), ErrTooLarge)
 	}
 	target := c.base + cl.path

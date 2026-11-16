@@ -395,6 +395,8 @@ export const de: Record<Key, string> = {
 	'builder.useOption': '„{option}“ nehmen',
 	'builder.issue.check': 'Das geht an andere, also braucht es „Erst prüfen“ davor',
 	'builder.issue.checkMaybe': 'Das geht an andere; mit „Erst prüfen“ siehst du es vorher.',
+	'builder.issue.noCards':
+		'Kein Stein davor findet etwas, also hat dieser nichts zu tun. Füge zuerst einen Schau-Stein hinzu (z. B. Im Web suchen)',
 	'builder.issue.later': 'Dieser Stein kann noch nicht laufen; er kommt bald',
 	'builder.issue.unset': 'Braucht {fact}: tippen und sagen',
 	'builder.lastTime': 'Letztes Mal: {n} Karten',
