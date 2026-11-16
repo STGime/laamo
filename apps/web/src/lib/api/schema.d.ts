@@ -129,7 +129,8 @@ export interface paths {
 		put?: never;
 		/** Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped */
 		post: operations['addListRows'];
-		delete?: never;
+		/** Delete all rows of a list (owner only). The list stays, and so do the helpers that use it */
+		delete: operations['emptyList'];
 		options?: never;
 		head?: never;
 		patch?: never;
@@ -1400,6 +1401,28 @@ export interface operations {
 				};
 			};
 			400: components['responses']['BadRequest'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	emptyList: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Emptied */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			403: components['responses']['Forbidden'];
 			404: components['responses']['NotFound'];
 		};
 	};

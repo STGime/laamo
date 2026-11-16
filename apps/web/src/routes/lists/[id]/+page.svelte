@@ -21,6 +21,7 @@
 	let renaming = $state(false);
 	let name = $state('');
 	let confirmDelete = $state(false);
+	let confirmEmpty = $state(false);
 	let copied = $state(false);
 	let busy = $state(false);
 
@@ -126,6 +127,17 @@
 		});
 		busy = false;
 		if (data) goto(`/helpers/${data.helper.id}/edit`);
+	}
+
+	// Empty list: all rows go; the list and its helpers stay.
+	async function empty() {
+		busy = true;
+		const { response } = await api.DELETE('/lists/{listId}/rows', {
+			params: { path: { listId: id } }
+		});
+		busy = false;
+		confirmEmpty = false;
+		if (response.ok) load();
 	}
 
 	async function remove() {
@@ -252,12 +264,29 @@
 		<button class="btn wide" onclick={() => ((renaming = !renaming), (name = list.name))}
 			>{t('helper.rename')}</button
 		>
+		{#if owner && list.rows}
+			<button class="btn wide danger" onclick={() => (confirmEmpty = true)}
+				>{t('lists.empty.button')}</button
+			>
+		{/if}
 		{#if owner}
 			<button class="btn wide danger" onclick={() => (confirmDelete = true)}
 				>{t('lists.delete')}</button
 			>
 		{/if}
 	</section>
+
+	<BottomSheet bind:open={confirmEmpty} title={t('lists.empty.title', { name: list.name })}>
+		<p>{t('lists.empty.body', { n: list.rows })}</p>
+		{#snippet footer()}
+			<div class="two">
+				<button class="btn" onclick={() => (confirmEmpty = false)}>{t('helper.cancel')}</button>
+				<button class="btn danger-solid" disabled={busy} onclick={empty}
+					>{t('lists.empty.yes')}</button
+				>
+			</div>
+		{/snippet}
+	</BottomSheet>
 
 	<BottomSheet bind:open={confirmDelete} title={t('lists.deleteTitle', { name: list.name })}>
 		<p>{t('lists.deleteBody', { n: list.rows })}</p>

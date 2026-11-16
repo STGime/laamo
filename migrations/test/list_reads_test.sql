@@ -49,11 +49,20 @@ BEGIN
 
   BEGIN PERFORM take_list_rows(lst, hlp, run1, 0, true); RAISE EXCEPTION 'limit 0 accepted';
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+
+  -- Empty list (0016): rows and reads go, the list stays.
+  got := empty_list(lst);
+  ASSERT got::int = 4, 'emptied: ' || got::text;
+  ASSERT NOT EXISTS (SELECT 1 FROM list_rows WHERE list_id = lst), 'rows left';
+  ASSERT NOT EXISTS (SELECT 1 FROM list_reads WHERE helper_id = hlp), 'reads left';
+  ASSERT EXISTS (SELECT 1 FROM lists WHERE id = lst), 'list gone';
   DELETE FROM lists WHERE id = lst;
 END $$;
 
 SELECT pg_temp.act('authenticated', 'aaaaaaaa-0000-0000-0000-000000000001');
 DO $$ BEGIN
   BEGIN PERFORM take_list_rows(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 1, false); RAISE EXCEPTION 'user called take_list_rows';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN PERFORM empty_list(gen_random_uuid()); RAISE EXCEPTION 'user called empty_list';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;

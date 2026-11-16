@@ -75,6 +75,12 @@ export const en = {
 	'lists.copied': 'Copied',
 	'lists.unshare': 'Stop sharing',
 	'lists.delete': 'Delete list',
+	'lists.empty.button': 'Empty list',
+	'lists.empty.title': 'Empty “{name}”?',
+	'lists.empty.body':
+		'All {n} rows go. The list stays, and helpers that use it keep working: they start finding and saving from scratch.',
+	'lists.empty.body.one': 'The 1 row goes. The list stays, and helpers that use it keep working.',
+	'lists.empty.yes': 'Empty',
 	'lists.deleteTitle': 'Delete “{name}”?',
 	'lists.deleteBody':
 		'Its {n} rows go too. Helpers that save here will stop and ask you to pick another list.',
@@ -277,7 +283,7 @@ export const en = {
 	'tpl.feedOnly': 'Just in my Feed',
 	'tpl.test': 'Try it now',
 	'tpl.testHint':
-		'A test run uses at most 3 results. Your chat gets them marked as a test; nothing goes to anyone else.',
+		'A test run uses at most 3 results. Your chat gets them marked as a test; nothing goes to anyone else, and your lists stay as they are.',
 	'tpl.failed': 'That didn’t work: {error}',
 	'helpers.runNow': 'Run now',
 	'helpers.started': 'Started. Results land in your Feed.',

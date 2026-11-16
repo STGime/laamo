@@ -142,6 +142,9 @@ type ListStore interface {
 	// and with mark records them as used by the run.
 	TakeListRows(ctx context.Context, listID, helperID, runID string, limit int, mark bool) ([]ListRow, error)
 	DeleteListRow(ctx context.Context, id string) error
+	// EmptyList deletes all rows of a list (and what helpers read of them);
+	// the list stays.
+	EmptyList(ctx context.Context, listID string) error
 }
 
 type UsageStore interface {

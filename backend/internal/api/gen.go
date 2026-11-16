@@ -1781,6 +1781,11 @@ type ClientInterface interface {
 	// Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
 	ExportList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// EmptyList Delete all rows of a list (owner only). The list stays, and so do the helpers that use it
+	//
+	// Corresponds with DELETE /lists/{listId}/rows (the `EmptyList` operationId).
+	EmptyList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// AddListRowsWithBody Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
 	//
 	// Takes any type of body and a specified content type.
@@ -2352,6 +2357,21 @@ func (c *Client) UpdateList(ctx context.Context, listId ListId, body UpdateListJ
 // Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
 func (c *Client) ExportList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportListRequest(c.Server, listId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// EmptyList Delete all rows of a list (owner only). The list stays, and so do the helpers that use it
+//
+// Corresponds with DELETE /lists/{listId}/rows (the `EmptyList` operationId).
+func (c *Client) EmptyList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEmptyListRequest(c.Server, listId)
 	if err != nil {
 		return nil, err
 	}
@@ -3524,6 +3544,40 @@ func NewExportListRequest(server string, listId ListId) (*http.Request, error) {
 	return req, nil
 }
 
+// NewEmptyListRequest constructs an http.Request for the EmptyList method
+func NewEmptyListRequest(server string, listId ListId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s/rows", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewAddListRowsRequest calls the generic AddListRows builder with application/json body
 func NewAddListRowsRequest(server string, listId ListId, body AddListRowsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -4576,6 +4630,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /lists/{listId}/csv (the `ExportList` operationId).
 	ExportListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ExportListResponse, error)
+
+	// EmptyListWithResponse Delete all rows of a list (owner only). The list stays, and so do the helpers that use it
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /lists/{listId}/rows (the `EmptyList` operationId).
+	EmptyListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*EmptyListResponse, error)
 
 	// AddListRowsWithBodyWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
 	//
@@ -5780,6 +5841,54 @@ func (r ExportListResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ExportListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type EmptyListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r EmptyListResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r EmptyListResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r EmptyListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r EmptyListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r EmptyListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r EmptyListResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7220,6 +7329,19 @@ func (c *ClientWithResponses) ExportListWithResponse(ctx context.Context, listId
 	return ParseExportListResponse(rsp)
 }
 
+// EmptyListWithResponse Delete all rows of a list (owner only). The list stays, and so do the helpers that use it
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /lists/{listId}/rows (the `EmptyList` operationId).
+func (c *ClientWithResponses) EmptyListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*EmptyListResponse, error) {
+	rsp, err := c.EmptyList(ctx, listId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEmptyListResponse(rsp)
+}
+
 // AddListRowsWithBodyWithResponse Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -8323,6 +8445,42 @@ func ParseExportListResponse(rsp *http.Response) (*ExportListResponse, error) {
 	return response, nil
 }
 
+// ParseEmptyListResponse parses an HTTP response from a EmptyListWithResponse call
+func ParseEmptyListResponse(rsp *http.Response) (*EmptyListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EmptyListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseAddListRowsResponse parses an HTTP response from a AddListRowsWithResponse call
 func ParseAddListRowsResponse(rsp *http.Response) (*AddListRowsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -9191,6 +9349,9 @@ type ServerInterface interface {
 	// ExportList All rows as a CSV file (UTF-8, comma separated, header row)
 	// (GET /lists/{listId}/csv)
 	ExportList(w http.ResponseWriter, r *http.Request, listId ListId)
+	// EmptyList Delete all rows of a list (owner only). The list stays, and so do the helpers that use it
+	// (DELETE /lists/{listId}/rows)
+	EmptyList(w http.ResponseWriter, r *http.Request, listId ListId)
 	// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
 	// (POST /lists/{listId}/rows)
 	AddListRows(w http.ResponseWriter, r *http.Request, listId ListId)
@@ -9727,6 +9888,32 @@ func (siw *ServerInterfaceWrapper) ExportList(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportList(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EmptyList operation middleware
+func (siw *ServerInterfaceWrapper) EmptyList(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EmptyList(w, r, listId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10433,6 +10620,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}", wrapper.DeleteList)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}", wrapper.GetList)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/lists/{listId}", wrapper.UpdateList)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/rows", wrapper.EmptyList)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/lists/{listId}/rows", wrapper.AddListRows)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/rows/{rowId}", wrapper.DeleteListRow)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}/csv", wrapper.ExportList)
@@ -11459,6 +11647,50 @@ func (response ExportList200TextcsvResponse) VisitExportListResponse(w http.Resp
 type ExportList404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response ExportList404JSONResponse) VisitExportListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EmptyListRequestObject struct {
+	ListId ListId `json:"listId"`
+}
+
+type EmptyListResponseObject interface {
+	VisitEmptyListResponse(w http.ResponseWriter) error
+}
+
+type EmptyList204Response struct {
+}
+
+func (response EmptyList204Response) VisitEmptyListResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type EmptyList403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response EmptyList403JSONResponse) VisitEmptyListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EmptyList404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response EmptyList404JSONResponse) VisitEmptyListResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -12560,6 +12792,9 @@ type StrictServerInterface interface {
 	// ExportList All rows as a CSV file (UTF-8, comma separated, header row)
 	// (GET /lists/{listId}/csv)
 	ExportList(ctx context.Context, request ExportListRequestObject) (ExportListResponseObject, error)
+	// EmptyList Delete all rows of a list (owner only). The list stays, and so do the helpers that use it
+	// (DELETE /lists/{listId}/rows)
+	EmptyList(ctx context.Context, request EmptyListRequestObject) (EmptyListResponseObject, error)
 	// AddListRows Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
 	// (POST /lists/{listId}/rows)
 	AddListRows(ctx context.Context, request AddListRowsRequestObject) (AddListRowsResponseObject, error)
@@ -13169,6 +13404,32 @@ func (sh *strictHandler) ExportList(w http.ResponseWriter, r *http.Request, list
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ExportListResponseObject); ok {
 		if err := validResponse.VisitExportListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EmptyList operation middleware
+func (sh *strictHandler) EmptyList(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request EmptyListRequestObject
+
+	request.ListId = listId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EmptyList(ctx, request.(EmptyListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EmptyList")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EmptyListResponseObject); ok {
+		if err := validResponse.VisitEmptyListResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

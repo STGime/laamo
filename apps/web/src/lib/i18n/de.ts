@@ -76,6 +76,13 @@ export const de: Record<Key, string> = {
 	'lists.copied': 'Kopiert',
 	'lists.unshare': 'Nicht mehr teilen',
 	'lists.delete': 'Liste löschen',
+	'lists.empty.button': 'Liste leeren',
+	'lists.empty.title': '„{name}“ leeren?',
+	'lists.empty.body':
+		'Alle {n} Zeilen werden gelöscht. Die Liste bleibt, und Helfer, die sie nutzen, laufen weiter: Sie finden und speichern wieder von vorn.',
+	'lists.empty.body.one':
+		'Die 1 Zeile wird gelöscht. Die Liste bleibt, und Helfer, die sie nutzen, laufen weiter.',
+	'lists.empty.yes': 'Leeren',
 	'lists.deleteTitle': '„{name}“ löschen?',
 	'lists.deleteBody':
 		'Ihre {n} Zeilen werden mit gelöscht. Helfer, die hier speichern, halten an und bitten dich, eine andere Liste zu wählen.',
@@ -284,7 +291,7 @@ export const de: Record<Key, string> = {
 	'tpl.feedOnly': 'Nur in meinem Feed',
 	'tpl.test': 'Jetzt ausprobieren',
 	'tpl.testHint':
-		'Ein Testlauf nimmt höchstens 3 Ergebnisse. Dein Chat bekommt sie als Test markiert; an andere geht nichts raus.',
+		'Ein Testlauf nimmt höchstens 3 Ergebnisse. Dein Chat bekommt sie als Test markiert; an andere geht nichts raus, und deine Listen bleiben, wie sie sind.',
 	'tpl.failed': 'Das hat nicht geklappt: {error}',
 	'helpers.runNow': 'Jetzt ausführen',
 	'helpers.started': 'Läuft. Die Ergebnisse landen in deinem Feed.',

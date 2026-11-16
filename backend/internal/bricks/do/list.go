@@ -77,6 +77,12 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 			fresh[c.ID] = own // this run's own row (a retry) still counts as new
 			continue
 		}
+		// A test run checks for duplicates like a real one, but saves
+		// nothing: testing mustn't use up a lead list.
+		if rc.TestMode {
+			fresh[c.ID] = true
+			continue
+		}
 		if count >= MaxListRows {
 			return nil, queue.Permanent(fmt.Errorf("the list “%s” is full (%d rows); delete some rows or use another list", list.Name, MaxListRows))
 		}
@@ -99,6 +105,9 @@ func (l List) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card, 
 		fresh[c.ID] = true
 		c.Set("list_row_id", row.ID, engine.TrustUser)
 		saved = append(saved, data)
+	}
+	if rc.TestMode {
+		rc.Log.Info("test run: nothing saved to the list", "list", list.ID, "would_add", len(fresh))
 	}
 	if err := AddColumns(ctx, l.Store, list, saved...); err != nil {
 		return nil, err

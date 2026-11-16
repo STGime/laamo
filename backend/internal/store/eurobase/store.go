@@ -364,6 +364,10 @@ func (s *Store) CountListRows(ctx context.Context, listID string) (int, error) {
 	return n, mapErr(err)
 }
 
+func (s *Store) EmptyList(ctx context.Context, listID string) error {
+	return mapErr(s.c.RPC(ctx, "empty_list", map[string]any{"p_list": listID}, nil))
+}
+
 func (s *Store) DeleteListRow(ctx context.Context, id string) error {
 	return mapErr(s.c.Delete(ctx, "list_rows", id))
 }
