@@ -1082,6 +1082,17 @@ func (s *Store) CreateTrigger(_ context.Context, t *store.Trigger) error {
 	return nil
 }
 
+func (s *Store) TriggerByAddress(_ context.Context, address string) (store.Trigger, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, t := range s.triggers {
+		if t.InboundAddress != nil && *t.InboundAddress == address {
+			return clone(t), nil
+		}
+	}
+	return store.Trigger{}, store.ErrNotFound
+}
+
 func (s *Store) UpdateTrigger(_ context.Context, id string, p store.TriggerPatch) (store.Trigger, error) {
 	return update(s, s.triggers, id, p)
 }

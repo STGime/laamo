@@ -322,6 +322,27 @@
       }
     },
     {
+      "key": "from_name",
+      "label": {
+        "en": "Sender name",
+        "de": "Name des Absenders"
+      }
+    },
+    {
+      "key": "attachments",
+      "label": {
+        "en": "Attachments",
+        "de": "Anhänge"
+      }
+    },
+    {
+      "key": "mail",
+      "label": {
+        "en": "Original email",
+        "de": "Original-E-Mail"
+      }
+    },
+    {
       "key": "subject",
       "label": {
         "en": "Subject",
@@ -723,8 +744,12 @@
       "card_kind": "email",
       "adds": [
         "from",
+        "from_name",
         "subject",
-        "text"
+        "text",
+        "date",
+        "attachments",
+        "mail"
       ],
       "provides": [
         "trigger.from",

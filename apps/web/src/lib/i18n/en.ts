@@ -307,6 +307,13 @@ export const en = {
 	'helper.on': 'On',
 	'helper.off': 'Off',
 	'helper.next': 'Next run: {when}',
+	'mail.address': 'This helper’s email address',
+	'mail.copy': 'Copy',
+	'mail.copied': 'Copied',
+	'mail.hint':
+		'Forward emails to it, or set up an automatic forwarding rule in your mailbox. Each email starts a run.',
+	'mail.afterSave': 'The helper gets its own address when you save it.',
+	'helper.onEmail': 'Runs when an email arrives',
 	'helper.noSchedule': 'Runs when you tap Run now',
 	'helper.paused': 'Switched off. It won’t run on its schedule.',
 	'helper.bricks': 'Its bricks',

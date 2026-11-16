@@ -13,6 +13,7 @@ import (
 
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/mail"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/schedule"
 	"github.com/STGime/laamo/backend/internal/shelf"
@@ -191,9 +192,7 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 	if err := s.store.CreateHelper(ctx, &h, &v); err != nil {
 		return nil, err
 	}
-	if err := schedule.Sync(ctx, s.store, cat, h, w, stack, time.Now()); err != nil {
-		s.log.Warn("helper schedule", "helper", h.ID, "err", err)
-	}
+	s.syncTriggers(ctx, h, w, stack)
 	s.log.Info("helper created", "helper", h.ID, "template", t.Slug, "workspace", w.ID)
 
 	out := CreateHelper201JSONResponse{Helper: helperOut(h)}
@@ -354,6 +353,26 @@ func (s *Server) helper(ctx context.Context, id string) (store.Helper, bool, err
 
 var helperNotFound = apiErr(ErrorCodeNotFound, "helper not found")
 
+// syncTriggers makes a saved helper's schedule and email address match its
+// stack. A failure is logged: the helper is saved either way.
+func (s *Server) syncTriggers(ctx context.Context, h store.Helper, w store.Workspace, stack catalog.Stack) {
+	if err := schedule.Sync(ctx, s.store, catalog.Default(), h, w, stack, time.Now()); err != nil {
+		s.log.Warn("helper schedule", "helper", h.ID, "err", err)
+	}
+	if err := mail.SyncAddress(ctx, s.store, h, stack, s.cfg.InboundDomain); err != nil {
+		s.log.Warn("helper email address", "helper", h.ID, "err", err)
+	}
+}
+
+// emailAddress is the helper's own address, if it has one.
+func (s *Server) emailAddress(ctx context.Context, helperID string) *string {
+	a, err := mail.HelperAddress(ctx, s.store, helperID)
+	if err != nil || a == "" {
+		return nil
+	}
+	return &a
+}
+
 func (s *Server) nextRun(ctx context.Context, h store.Helper) *time.Time {
 	if h.Status != "active" {
 		return nil
@@ -385,6 +404,7 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 	}
 	out := HelperDetail{Helper: helperOut(h), Bricks: []BrickPreview{}, Runs: []RunSummary{}}
 	out.Helper.NextRunAt = s.nextRun(ctx, h)
+	out.Helper.EmailAddress = s.emailAddress(ctx, h.ID)
 	var latest *store.Run
 	out.Helper.Run, latest = s.activeRun(ctx, h)
 	if latest != nil {

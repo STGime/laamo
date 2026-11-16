@@ -116,7 +116,13 @@ func (s *Server) Handler() http.Handler {
 		// A shared list: the link's token is the key.
 		return r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, BaseURL+"/shared/lists/")
 	}
-	return http.MaxBytesHandler(withClientIP(auth.Middleware(s.auth, public, WriteError)(mux), s.cfg.TrustProxy), maxBody)
+	api := http.MaxBytesHandler(withClientIP(auth.Middleware(s.auth, public, WriteError)(mux), s.cfg.TrustProxy), maxBody)
+	// Incoming email: signed by our Email Worker instead of a user, and up
+	// to mail.MaxInbound big (see inbound.go).
+	top := http.NewServeMux()
+	top.HandleFunc("POST "+inboundPath, s.serveInbound)
+	top.Handle("/", api)
+	return top
 }
 
 // serveSpec serves the contract as written (embedded at build time).

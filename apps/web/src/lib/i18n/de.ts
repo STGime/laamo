@@ -315,6 +315,13 @@ export const de: Record<Key, string> = {
 	'helper.on': 'An',
 	'helper.off': 'Aus',
 	'helper.next': 'Nächster Lauf: {when}',
+	'mail.address': 'E-Mail-Adresse dieses Helfers',
+	'mail.copy': 'Kopieren',
+	'mail.copied': 'Kopiert',
+	'mail.hint':
+		'Leite E-Mails dorthin weiter oder richte in deinem Postfach eine automatische Weiterleitung ein. Jede E-Mail startet einen Lauf.',
+	'mail.afterSave': 'Der Helfer bekommt seine eigene Adresse, sobald du ihn speicherst.',
+	'helper.onEmail': 'Läuft, wenn eine E-Mail ankommt',
 	'helper.noSchedule': 'Läuft, wenn du auf „Jetzt ausführen“ tippst',
 	'helper.paused': 'Ausgeschaltet. Er läuft nicht nach Plan.',
 	'helper.bricks': 'Seine Steine',

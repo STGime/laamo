@@ -21,6 +21,7 @@
 	} from '@laamo/catalog';
 	import type { Schemas } from '#lib/api/client.ts';
 	import BottomSheet from './BottomSheet.svelte';
+	import HelperAddress from './HelperAddress.svelte';
 	import TimePicker from './TimePicker.svelte';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { api, session } from '#lib/session.svelte.ts';
@@ -36,7 +37,8 @@
 		onfact,
 		onleave,
 		back,
-		onremove
+		onremove,
+		emailAddress
 	}: {
 		open?: boolean;
 		sb: StackBrick;
@@ -54,6 +56,8 @@
 		/** Where "Connect a chat" comes back to. */
 		back: string;
 		onremove: () => void;
+		/** Email this helper: the helper's address, once it's saved. */
+		emailAddress?: string | null;
 	} = $props();
 
 	const lang = $derived(i18n.lang);
@@ -350,6 +354,7 @@
 	{#if lastOut !== undefined}
 		<p class="preview">{t('builder.lastTime', { n: lastOut })}</p>
 	{/if}
+	{#if sb.type === 'when.email'}<HelperAddress address={emailAddress} />{/if}
 	{#each main as s (s.key)}{@render field(s)}{/each}
 	{#if more.length}
 		<button

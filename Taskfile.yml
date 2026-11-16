@@ -89,6 +89,12 @@ tasks:
     cmds:
       - go run ./cmd/runstack {{.CLI_ARGS}}
 
+  mail:send:
+    desc: "Send a test email to a helper's address, as the Cloudflare Worker would, e.g. task mail:send -- termine.x7k2qa@in.laamo.app [mail.eml]"
+    dir: '{{.BACKEND}}'
+    cmds:
+      - go run ./cmd/sendmail {{.CLI_ARGS}}
+
   briefing:
     desc: Morning Briefing end to end with live search and AI (messages are printed, not posted)
     dir: '{{.BACKEND}}'

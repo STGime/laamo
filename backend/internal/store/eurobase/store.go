@@ -427,6 +427,17 @@ func (s *Store) CreateTrigger(ctx context.Context, t *store.Trigger) error {
 	return insertRow(ctx, s, "triggers", &t.ID, t)
 }
 
+func (s *Store) TriggerByAddress(ctx context.Context, address string) (store.Trigger, error) {
+	rows, err := listRows[store.Trigger](ctx, s, "triggers", eb.NewQuery().Eq("inbound_address", address), 1)
+	if err != nil {
+		return store.Trigger{}, err
+	}
+	if len(rows) == 0 {
+		return store.Trigger{}, store.ErrNotFound
+	}
+	return rows[0], nil
+}
+
 func (s *Store) UpdateTrigger(ctx context.Context, id string, p store.TriggerPatch) (store.Trigger, error) {
 	return updateRow[store.Trigger](ctx, s, "triggers", id, p)
 }

@@ -6,6 +6,8 @@ require (
 	codeberg.org/readeck/go-readability/v2 v2.1.3
 	github.com/STGime/laamo/packages/catalog v0.0.0
 	github.com/coder/websocket v1.8.14
+	github.com/emersion/go-message v0.18.2
+	github.com/emersion/go-msgauth v0.7.0
 	github.com/temoto/robotstxt v1.1.2
 	golang.org/x/net v0.57.0
 )
@@ -16,6 +18,7 @@ require (
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/itlightning/dateparse v0.2.1 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
 )
 
 require (
@@ -36,7 +39,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.40.0
 	golang.org/x/tools v0.48.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

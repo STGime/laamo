@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/STGime/laamo/backend/internal/catalog"
-	"github.com/STGime/laamo/backend/internal/schedule"
 	"github.com/STGime/laamo/backend/internal/store"
 )
 
@@ -73,9 +71,7 @@ func (s *Server) SaveHelperStack(ctx context.Context, req SaveHelperStackRequest
 			return nil, err
 		}
 	}
-	if err := schedule.Sync(ctx, s.store, catalog.Default(), h, w, stack, time.Now()); err != nil {
-		s.log.Warn("helper schedule", "helper", h.ID, "err", err)
-	}
+	s.syncTriggers(ctx, h, w, stack)
 	s.log.Info("helper saved", "helper", h.ID, "version", v.Version)
 	out, err := s.stackOut(ctx, h, v)
 	if err != nil {
@@ -184,7 +180,7 @@ func (s *Server) foreignRefs(ctx context.Context, cat *catalog.Catalog, st catal
 }
 
 func (s *Server) stackOut(ctx context.Context, h store.Helper, v store.HelperVersion) (HelperStack, error) {
-	out := HelperStack{Version: v.Version, LastOut: map[string]int{}}
+	out := HelperStack{Version: v.Version, LastOut: map[string]int{}, EmailAddress: s.emailAddress(ctx, h.ID)}
 	if err := json.Unmarshal(v.Stack, &out.Stack); err != nil {
 		return out, err
 	}
