@@ -125,6 +125,8 @@ export const de: Record<Key, string> = {
 	'feed.dismiss': 'Ausblenden',
 	'feed.openHelper': 'Helfer öffnen',
 	'feed.showAll': 'Alle {n} zeigen',
+	'feed.saved': 'In „{name}“ gespeichert.',
+	'feed.savedTest': 'In einem echten Lauf kommen sie in „{name}“. Testläufe speichern nichts.',
 	'feed.check.title': 'Prüfe {n}, bevor es rausgeht',
 	'feed.check.draftsTitle': '{n} E-Mail-Entwürfe prüfen',
 	'feed.check.draftsTitle.one': '1 E-Mail-Entwurf prüfen',

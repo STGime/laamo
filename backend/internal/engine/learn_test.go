@@ -2,8 +2,10 @@ package engine_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
+	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/store"
 )
@@ -100,4 +102,36 @@ func TestLearnNeedsKeep(t *testing.T) {
 	if n, _ := e.store.CountPickExamples(context.Background(), e.helper.ID); n != 0 {
 		t.Fatalf("remembered %d swipes nothing uses", n)
 	}
+}
+
+// A run that saved its cards to a list says which on its result card, so
+// the Feed doesn't offer "Add to list" too.
+func TestResultSavedTo(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t, []sb{{ID: "b1", Type: "when.tap"}})
+	l := store.List{WorkspaceID: e.ws.ID, UserID: e.ws.UserID, Name: "Weekender"}
+	if err := e.store.CreateList(ctx, &l); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(catalog.Stack{Schema: 1, Bricks: []catalog.StackBrick{
+		{ID: "b1", Type: "when.tap"}, {ID: "b2", Type: "look.search", Config: map[string]any{"query": "events"}},
+		{ID: "b3", Type: "do.list", Config: map[string]any{"list": l.ID, "dedupe": "url"}},
+	}})
+	v := e.store.PutHelperVersion(store.HelperVersion{WorkspaceID: e.ws.ID, UserID: e.ws.UserID, HelperID: e.helper.ID, Version: 2, Stack: raw})
+	e.helper.CurrentVersionID = &v.ID
+	e.helper = e.store.PutHelper(e.helper)
+	e.eng.Bricks["do.list"] = engine.BrickFunc(func(_ context.Context, _ *engine.RunContext, in []engine.Card, _ engine.Config) ([]engine.Card, error) {
+		return in, nil
+	})
+	r := e.run(e.start("manual", false))
+	for _, f := range e.feed(r.ID) {
+		if f.Type == "result" {
+			saved, _ := f.Payload["saved_to"].(map[string]any)
+			if saved["name"] != "Weekender" || saved["id"] != l.ID {
+				t.Fatalf("result payload %+v", f.Payload)
+			}
+			return
+		}
+	}
+	t.Fatal("no result card")
 }

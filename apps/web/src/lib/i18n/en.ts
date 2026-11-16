@@ -123,6 +123,8 @@ export const en = {
 	'feed.dismiss': 'Hide',
 	'feed.openHelper': 'Open helper',
 	'feed.showAll': 'Show all {n}',
+	'feed.saved': 'Saved to “{name}”.',
+	'feed.savedTest': 'In a real run, these go to “{name}”. Test runs don’t save.',
 	'feed.check.title': 'Check {n} before they go out',
 	'feed.check.draftsTitle': '{n} email drafts to check',
 	'feed.check.draftsTitle.one': '1 email draft to check',

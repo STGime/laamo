@@ -702,6 +702,11 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 			if len(res.links) > 0 {
 				card.Payload["links"] = res.links
 			}
+			// The helper saved its cards to a list itself: say which, so the
+			// Feed doesn't offer "Add to list" on top.
+			if l, ok := e.savedTo(ctx, r); ok {
+				card.Payload["saved_to"] = map[string]any{"id": l.ID, "name": l.Name}
+			}
 		}
 	default:
 		card.Type, card.Title = "problem", pick(de, "Something went wrong", "Etwas ist schiefgelaufen")
@@ -715,6 +720,44 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 		e.log().Error("feed card", "run", r.ID, "err", err)
 	}
 	e.log().Info("run finished", "run", r.ID, "status", o.status, "err", o.err)
+}
+
+// savedTo finds the list a run's Save to a list brick saves to (the last
+// one that ran), if any.
+func (e *Engine) savedTo(ctx context.Context, r *store.Run) (store.List, bool) {
+	ls, ok := e.Store.(store.ListStore)
+	if !ok {
+		return store.List{}, false
+	}
+	steps, err := e.Store.ListSteps(ctx, r.ID)
+	if err != nil {
+		return store.List{}, false
+	}
+	ran := map[string]bool{}
+	for _, s := range steps {
+		if s.BrickType == "do.list" && s.Status == "done" {
+			ran[s.BrickID] = true
+		}
+	}
+	if len(ran) == 0 {
+		return store.List{}, false
+	}
+	v, err := e.Store.GetHelperVersion(ctx, r.VersionID)
+	if err != nil {
+		return store.List{}, false
+	}
+	var stack catalog.Stack
+	if json.Unmarshal(v.Stack, &stack) != nil {
+		return store.List{}, false
+	}
+	for _, sb := range slices.Backward(stack.Bricks) {
+		if id, _ := sb.Config["list"].(string); ran[sb.ID] && id != "" {
+			if l, err := ls.GetList(ctx, id); err == nil && l.WorkspaceID == r.WorkspaceID {
+				return l, true
+			}
+		}
+	}
+	return store.List{}, false
 }
 
 type result struct {
