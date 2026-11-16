@@ -157,7 +157,12 @@
 	}
 	function issueText(i: Issue | Schemas['StackIssue']): string {
 		switch (i.code) {
-			case 'missing_setting':
+			case 'missing_setting': {
+				// Name what's missing ("Tap to set: Which list").
+				const sbType = bricks.find((x) => x.id === i.brick)?.type;
+				const label = brick(sbType ?? '')?.settings.find((x) => x.key === i.setting)?.label[lang];
+				return label ? t('builder.issue.missing', { what: label }) : t('builder.issue.setting');
+			}
 			case 'bad_value':
 			case 'bad_pill':
 				return t('builder.issue.setting');
