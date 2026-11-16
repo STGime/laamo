@@ -360,6 +360,11 @@ export const de: Record<Key, string> = {
 	'builder.missing': 'Diesen Helfer gibt es nicht mehr.',
 	'builder.tray': 'Stein hinzufügen',
 	'builder.save': 'Speichern',
+	'builder.testNotSaved':
+		'Dieser Test hat deine Änderungen genutzt, aber sie sind nicht gespeichert: geplante Läufe nutzen noch die alten Bausteine.',
+	'helper.unsaved':
+		'Du hast Änderungen im Baukasten, die nicht gespeichert sind. Laufen tun diese Bausteine hier.',
+	'helper.unsavedOpen': 'Öffnen und speichern',
 	'builder.saving': 'Speichert…',
 	'builder.empty': 'Noch keine Steine. Wähl unten eine Farbe.',
 	'builder.problems': 'Einigen Steinen fehlt noch etwas; siehe die roten Hinweise.',

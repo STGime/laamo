@@ -352,6 +352,11 @@ export const en = {
 	'builder.missing': 'This helper isn’t here anymore.',
 	'builder.tray': 'Add a brick',
 	'builder.save': 'Save',
+	'builder.testNotSaved':
+		'This test used your changes, but they aren’t saved: scheduled runs still use the old bricks.',
+	'helper.unsaved':
+		'You have changes in the builder that aren’t saved. These bricks are the ones that run.',
+	'helper.unsavedOpen': 'Open and save',
 	'builder.saving': 'Saving…',
 	'builder.empty': 'No bricks yet. Pick a color below to add one.',
 	'builder.problems': 'Some bricks still need something; see the red notes.',
