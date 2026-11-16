@@ -290,6 +290,11 @@ func (e *Engine) pause(ctx context.Context, rc *RunContext, r *store.Run, steps 
 	if n := cfg.Int("max_show"); sb.Type == "ask.pick" && n > 0 && len(pile) > n {
 		pile = pile[:n]
 	}
+	// A test run uses at most 3 cards, from the first question on (nobody
+	// wants to swipe through 8 to try a helper).
+	if rc.TestMode && len(pile) > TestModeMaxCards {
+		pile = pile[:TestModeMaxCards]
+	}
 	if existing, err := e.Store.ListCards(ctx, step.ID); err != nil {
 		return err
 	} else if len(existing) == 0 && len(pile) > 0 {
@@ -309,6 +314,7 @@ func (e *Engine) pause(ctx context.Context, rc *RunContext, r *store.Run, steps 
 	if sb.Type == "ask.check" {
 		e.describeCheck(fc.Payload, pile, rest)
 	}
+	fc.Payload["test"] = r.TestMode // the Feed marks it "Test run"
 	if h := cfg.Int("timeout_h"); sb.Type == "ask.check" && h > 0 {
 		fc.ExpiresAt = new(e.now().Add(time.Duration(h) * time.Hour))
 	} else if sb.Type != "ask.check" {

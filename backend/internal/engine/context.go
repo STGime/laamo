@@ -55,8 +55,9 @@ var DefaultLimits = Limits{MaxCards: 50, MaxExternalEmails: 10, MaxCostEUR: 0.5}
 // MaxRunTokens caps the AI tokens one run may use, on top of the cost limit.
 const MaxRunTokens = 200_000
 
-// TestModeMaxCards: in a test run, at most this many cards reach a Do brick
-// and the run's result. Look and Think bricks still see the whole pile.
+// TestModeMaxCards: in a test run, at most this many cards reach an Ask me
+// brick, a Do brick and the run's result. Look and Think bricks before them
+// still see the whole pile.
 const TestModeMaxCards = 3
 
 // ErrLimit is wrapped by errors that stop a run because a limit was hit.
