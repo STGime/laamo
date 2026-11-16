@@ -13,7 +13,7 @@
 	import Brick, { type BrickState } from '#lib/components/Brick.svelte';
 	import { listen } from '#lib/feed.svelte.ts';
 	import { brickProgress, retrying } from '#lib/progress.ts';
-	import { settingFix } from '#lib/builder.ts';
+	import { settingFix, starved } from '#lib/builder.ts';
 	import RunTicker from '#lib/components/RunTicker.svelte';
 	import BrickSheet, { type Pill } from '#lib/components/BrickSheet.svelte';
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
@@ -166,11 +166,20 @@
 				}))
 		)
 	);
+	// A brick that works on cards with nothing before it to make any.
+	const noCards = $derived(
+		bricks.flatMap((b, index): Issue[] =>
+			starved(bricks, index)
+				? [{ brick: b.id, index, level: 'hint', code: 'no_cards', message: '' }]
+				: []
+		)
+	);
 	const errors = $derived([...issues.filter((i) => i.level === 'error'), ...unset]);
 	function issueFor(b: StackBrick): Issue | Schemas['StackIssue'] | undefined {
 		return (
 			issues.find((i) => i.brick === b.id && i.level === 'error') ??
 			unset.find((i) => i.brick === b.id) ??
+			noCards.find((i) => i.brick === b.id) ??
 			serverIssues.find((i) => i.brick === b.id) ??
 			issues.find((i) => i.brick === b.id) ??
 			(ready.has(b.type)
@@ -206,6 +215,8 @@
 				return t('builder.issue.checkMaybe');
 			case 'not_available':
 				return t('builder.issue.later');
+			case 'no_cards':
+				return t('builder.issue.noCards');
 		}
 		return i.message;
 	}

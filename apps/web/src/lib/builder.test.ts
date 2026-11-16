@@ -8,6 +8,7 @@ import {
 	nextId,
 	ready,
 	settingFix,
+	starved,
 	startOnTop,
 	tray
 } from './builder.ts';
@@ -86,5 +87,20 @@ describe('settingFix', () => {
 		const st = [{ id: 'b1', type: 'when.tap', config: {} }, search];
 		const r = add(st, 'do.list');
 		expect(r.bricks.find((x) => x.id === r.id)?.config.dedupe).toBe('url');
+	});
+});
+
+describe('cards before', () => {
+	const tap = { id: 'b1', type: 'when.tap', config: {} };
+	it('draws one picture in total right after When', () => {
+		const r = add([tap], 'think.draw');
+		expect(r.bricks[1].config.mode).toBe('all');
+		expect(starved(r.bricks, 1)).toBe(false);
+	});
+	it('notices a brick that gets no cards', () => {
+		const st = [tap, { id: 'b2', type: 'think.draw', config: { mode: 'each' } }];
+		expect(starved(st, 1)).toBe(true);
+		const withSearch = [tap, { id: 'b3', type: 'look.search', config: { query: 'x' } }, st[1]];
+		expect(starved(withSearch, 2)).toBe(false);
 	});
 });

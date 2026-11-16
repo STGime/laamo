@@ -64,6 +64,9 @@ export function add(bricks: StackBrick[], type: string): { bricks: StackBrick[];
 	if (!b) return { bricks, id: '' };
 	const sb: StackBrick = { id: nextId(bricks), type, config: withDefaults(b, {}) };
 	if (b.shape === 'start') return { bricks: [sb, ...bricks.filter((x) => !isStart(x))], id: sb.id };
+	// Draw a picture with no cards before it: one picture in total.
+	if (type === 'think.draw' && !cardsBefore(bricks, bricks.length))
+		sb.config = { ...sb.config, mode: 'all' };
 	return { bricks: fitSettings([...bricks, sb], sb.id), id: sb.id };
 }
 
@@ -167,4 +170,28 @@ export function fitSettings(bricks: StackBrick[], id: string): StackBrick[] {
 			out = out.map((x) => (x.id === id ? { ...x, config: { ...x.config, [f.key]: f.value } } : x));
 	}
 	return out;
+}
+
+/**
+ * Whether any brick before index makes cards: a Look brick, or a brick
+ * that makes one on its own (Draw a picture, one in total). Without that, a
+ * brick that works on cards gets none (e.g. When I tap → Draw a picture).
+ */
+export function cardsBefore(bricks: StackBrick[], index: number): boolean {
+	return bricks.slice(0, index).some((b) => {
+		const def = brick(b.type);
+		return (
+			def?.group === 'look' ||
+			(b.type === 'think.draw' && withDefaults(def!, b.config).mode === 'all')
+		);
+	});
+}
+
+/** A brick that needs cards but nothing before it makes any. */
+export function starved(bricks: StackBrick[], index: number): boolean {
+	const b = bricks[index];
+	const def = b && brick(b.type);
+	if (!def || def.group === 'when' || def.group === 'look') return false;
+	if (b.type === 'think.draw' && withDefaults(def, b.config).mode === 'all') return false;
+	return !cardsBefore(bricks, index);
 }
