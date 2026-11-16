@@ -381,7 +381,9 @@ export const de: Record<Key, string> = {
 	'builder.issue.missing': 'Antippen und festlegen: {what}',
 	'builder.issue.profile': 'Nutzt etwas, das „Über mich“ nicht kennt',
 	'builder.issue.start': 'Ein Helfer beginnt mit einem gelben Wann-Stein',
-	'builder.issue.field': 'Davor liefert nichts {field}',
+	'builder.issue.field':
+		'Braucht von jeder Karte: {field}, aber die Bausteine davor liefern das nicht',
+	'builder.useOption': '„{option}“ nehmen',
 	'builder.issue.check': 'Das geht an andere, also braucht es „Erst prüfen“ davor',
 	'builder.issue.checkMaybe': 'Das geht an andere; mit „Erst prüfen“ siehst du es vorher.',
 	'builder.issue.later': 'Dieser Stein kann noch nicht laufen; er kommt bald',

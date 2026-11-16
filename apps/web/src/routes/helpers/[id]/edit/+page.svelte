@@ -13,6 +13,7 @@
 	import Brick, { type BrickState } from '#lib/components/Brick.svelte';
 	import { listen } from '#lib/feed.svelte.ts';
 	import { brickProgress, retrying } from '#lib/progress.ts';
+	import { settingFix } from '#lib/builder.ts';
 	import RunTicker from '#lib/components/RunTicker.svelte';
 	import BrickSheet, { type Pill } from '#lib/components/BrickSheet.svelte';
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
@@ -448,6 +449,19 @@
 								>
 							{:else}
 								<span>{issueText(issue)}</span>
+							{/if}
+							{#if issue.code === 'missing_field' && issue.field}
+								{@const sf = settingFix(bricks, b.id, issue.field)}
+								{#if sf}
+									<button
+										type="button"
+										class="fix"
+										onclick={() =>
+											(bricks = bricks.map((x) =>
+												x.id === b.id ? { ...x, config: { ...x.config, [sf.key]: sf.value } } : x
+											))}>{t('builder.useOption', { option: sf.label[lang] })}</button
+									>
+								{/if}
 							{/if}
 							{#if f}
 								<button type="button" class="fix" onclick={() => fix(issue as Issue)}
