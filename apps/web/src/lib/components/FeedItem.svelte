@@ -134,6 +134,9 @@
 
 	const stateKey = $derived(`feed.state.${card.state}` as Key);
 
+	// The helper saved these to a list itself: no "Add to list" on top.
+	const savedTo = $derived(card.payload.saved_to as { id: string; name: string } | undefined);
+
 	// Check first: what's waiting. Drafts nothing will send are "drafts to
 	// check"; the first few show right here.
 	const drafts = $derived(card.payload.drafts === true);
@@ -152,6 +155,15 @@
 		).filter((p) => p.title)
 	);
 </script>
+
+{#snippet savedNote()}
+	{#if card.payload.test}
+		{t('feed.savedTest', { name: savedTo?.name ?? '' })}
+	{:else}
+		{t('feed.saved', { name: savedTo?.name ?? '' })}
+		<a href="/lists/{savedTo?.id}">{t('lists.open')} →</a>
+	{/if}
+{/snippet}
 
 <article
 	class="item {group}"
@@ -271,21 +283,24 @@
 						<span class="ltitle">{l.title || hostOf(l.url)}</span>
 						<span class="lhost">{hostOf(l.url)} ↗</span>
 					</a>
-					<button
-						class="pick-link"
-						aria-pressed={chosenLinks.includes(l.url)}
-						aria-label={t('lists.choose')}
-						onclick={() => toggleLink(l.url)}>{chosenLinks.includes(l.url) ? '✓' : '+'}</button
-					>
+					{#if !savedTo}<button
+							class="pick-link"
+							aria-pressed={chosenLinks.includes(l.url)}
+							aria-label={t('lists.choose')}
+							onclick={() => toggleLink(l.url)}>{chosenLinks.includes(l.url) ? '✓' : '+'}</button
+						>{/if}
 				</li>
 			{/each}
 		</ul>
-		<AddToList
-			feedCardId={card.id}
-			links={{ chosen: chosenLinks, all: links.map((l) => l.url) }}
-			quiet
-			ondone={() => (chosenLinks = [])}
-		/>
+		{#if !savedTo}<AddToList
+				feedCardId={card.id}
+				links={{ chosen: chosenLinks, all: links.map((l) => l.url) }}
+				quiet
+				ondone={() => (chosenLinks = [])}
+			/>{/if}
+	{/if}
+	{#if card.type === 'result' && savedTo}
+		<p class="saved">{@render savedNote()}</p>
 	{/if}
 	{#if card.type === 'result' && count > 1}
 		<button class="link" type="button" onclick={openPile}
@@ -348,20 +363,22 @@
 			{#each pile as c (c.id)}
 				<li class="pick-row">
 					<div class="grow"><CardView card={c} /></div>
-					<button
-						class="pick-link"
-						aria-pressed={chosen.includes(c.id)}
-						aria-label={t('lists.choose')}
-						onclick={() =>
-							(chosen = chosen.includes(c.id)
-								? chosen.filter((x) => x !== c.id)
-								: [...chosen, c.id])}>{chosen.includes(c.id) ? '✓' : '+'}</button
-					>
+					{#if !savedTo}<button
+							class="pick-link"
+							aria-pressed={chosen.includes(c.id)}
+							aria-label={t('lists.choose')}
+							onclick={() =>
+								(chosen = chosen.includes(c.id)
+									? chosen.filter((x) => x !== c.id)
+									: [...chosen, c.id])}>{chosen.includes(c.id) ? '✓' : '+'}</button
+						>{/if}
 				</li>
 			{/each}
 		</ul>
 		{#snippet footer()}
-			{#if pile.length}
+			{#if savedTo}
+				<p class="saved">{@render savedNote()}</p>
+			{:else if pile.length}
 				<AddToList feedCardId={card.id} cardIds={chosen} ondone={() => (chosen = [])} />
 			{/if}
 		{/snippet}
@@ -585,6 +602,11 @@
 		color: var(--muted);
 	}
 	.note {
+		margin: var(--space-2) 0 0;
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.saved {
 		margin: var(--space-2) 0 0;
 		color: var(--muted);
 		font-size: var(--text-sm);
