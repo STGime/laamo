@@ -119,6 +119,37 @@ func (b *Brain) meter(ctx context.Context, m Meter, res Response) error {
 	return errors.Join(tokErr, recErr)
 }
 
+// CanSpend reports ErrAllowance when the workspace's included allowance is
+// used up (check before paid work that isn't a chat call, e.g. an image).
+func (b *Brain) CanSpend(ctx context.Context, m Meter) error {
+	if b == nil || b.Store == nil {
+		return fmt.Errorf("%w: no AI configured", ErrNotConfigured)
+	}
+	brain, err := b.Store.GetBrain(ctx, m.WorkspaceID())
+	if err != nil {
+		return fmt.Errorf("llm: load brain: %w", err)
+	}
+	if brain.Mode == "included" && brain.CreditsLeft(b.now()) <= 0 {
+		return ErrAllowance
+	}
+	return nil
+}
+
+// Spend counts paid work that isn't a chat call (an image) against the
+// brain allowance and the run, like a model call.
+func (b *Brain) Spend(ctx context.Context, m Meter, kind, model string, units, usd float64) error {
+	rate := b.USDToEUR
+	if rate == 0 {
+		rate = 0.92
+	}
+	eur := math.Round(usd*rate*1e6) / 1e6
+	credits := math.Round(eur/CreditEUR*1000) / 1000
+	err := m.Record(ctx, store.UsageEntry{Kind: kind, BrainMode: new("included"), Model: &model,
+		Units: store.Num(units), BrainCredits: store.Num(credits), EstCostEUR: store.Num(eur)})
+	_, _ = b.Store.AddBrainUsage(ctx, m.WorkspaceID(), credits)
+	return err
+}
+
 // AskJSON asks for a JSON object and decodes it into out. check (optional)
 // validates the decoded value. An unusable answer gets one repair attempt
 // (the model sees its answer and what's wrong); then ErrBadOutput.

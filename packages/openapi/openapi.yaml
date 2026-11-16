@@ -321,6 +321,34 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /images:
+    get:
+      operationId: getImage
+      summary: A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+      tags: [lists]
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: The card's image field, e.g. images/<workspace>/<run>/<card>.jpg
+          schema:
+            type: string
+            maxLength: 200
+            pattern: '^images/[0-9a-f-]{36}/[0-9a-zA-Z-]{1,40}/[0-9a-zA-Z-]{1,40}\.jpg$'
+      responses:
+        '200':
+          description: The picture
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
   /map:
     get:
       operationId: getMap

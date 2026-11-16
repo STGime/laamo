@@ -12,6 +12,7 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/STGime/laamo/backend/internal/api"
+	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/store/memory"
 )
@@ -314,5 +315,29 @@ func TestCustomerFinderInstall(t *testing.T) {
 	}
 	if got, _ := st.GetWorkspace(ctx, ws.ID); got.Profile["offer"] != "frische Kuchen für Cafés" {
 		t.Fatalf("offer not remembered: %v", got.Profile)
+	}
+}
+
+// Pictures from Draw a picture: members of their workspace only.
+func TestImage(t *testing.T) {
+	st := memory.New()
+	blobs := &engine.MemoryBlobs{}
+	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna, "ben": ben}, Blobs: blobs}).Handler())
+	t.Cleanup(srv.Close)
+	e := env{url: srv.URL, store: st}
+	ctx := context.Background()
+	ws := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Bäckerei", Locale: "en", Timezone: "Europe/Berlin"})
+	st.PutMember(store.Member{WorkspaceID: ws.ID, UserID: anna.ID, Role: store.RoleOwner})
+	path := "images/" + ws.ID + "/" + store.NewID() + "/c1.jpg"
+	_ = blobs.Put(ctx, path, []byte("JPEG"))
+	r := must(e.client(t, "anna").GetImageWithResponse(ctx, &api.GetImageParams{Path: path}))
+	if r.StatusCode() != 200 || string(r.Body) != "JPEG" || r.HTTPResponse.Header.Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("anna: %d %q", r.StatusCode(), r.Body)
+	}
+	if r := must(e.client(t, "ben").GetImageWithResponse(ctx, &api.GetImageParams{Path: path})); r.StatusCode() != 404 {
+		t.Fatalf("ben: %d", r.StatusCode())
+	}
+	if r := must(e.client(t, "anna").GetImageWithResponse(ctx, &api.GetImageParams{Path: "images/../../etc/passwd"})); r.StatusCode() == 200 {
+		t.Fatal("odd path served")
 	}
 }

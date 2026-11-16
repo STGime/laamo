@@ -11,6 +11,7 @@
 	import { hostOf, safeURL } from '#lib/links.ts';
 	import { ago, when } from '#lib/time.ts';
 	import AddToList from './AddToList.svelte';
+	import Picture from './Picture.svelte';
 	import BottomSheet from './BottomSheet.svelte';
 	import CardView from './CardView.svelte';
 	import SwipeStack from './SwipeStack.svelte';
@@ -216,6 +217,9 @@
 		<h3 class="display">{t('feed.pick.title')}</h3>
 	{:else}
 		<h3 class="display">{card.type === 'question' ? (card.body ?? card.title) : card.title}</h3>
+	{/if}
+	{#if card.type === 'result' && typeof card.payload.image === 'string'}
+		<Picture path={card.payload.image} alt={card.body ?? ''} />
 	{/if}
 	{#if card.body && card.type !== 'question' && card.type !== 'approval' && card.type !== 'pick'}
 		<p class="body">{card.body}</p>

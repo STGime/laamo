@@ -25,6 +25,8 @@ type Deps struct {
 	Pages look.PageReader
 	// Find businesses (osm.Client in production).
 	Businesses look.BusinessFinder
+	// Draw a picture (images.Client in production).
+	Images think.Drawer
 }
 
 // All returns the executors by catalog brick type.
@@ -43,6 +45,9 @@ func All(d Deps) map[string]engine.Brick {
 	if ls, ok := d.Store.(store.ListStore); ok {
 		m["do.list"] = do.List{Store: ls}
 		m["look.my_stuff"] = look.MyStuff{Lists: ls}
+	}
+	if d.Images != nil {
+		m["think.draw"] = think.Draw{Drawer: d.Images}
 	}
 	if d.Businesses != nil {
 		fb := look.FindBusinesses{Finder: d.Businesses}

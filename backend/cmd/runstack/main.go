@@ -43,6 +43,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/engine/tmpl"
+	"github.com/STGime/laamo/backend/internal/images"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/osm"
 	"github.com/STGime/laamo/backend/internal/search"
@@ -405,6 +406,9 @@ func services(o options, w io.Writer, st store.Store, keys *crypto.Keyring) (bri
 	deps.Search, deps.SearchCostEUR = p, cfg.SearchCostEUR
 	deps.Pages = &web.Fetcher{}
 	deps.Businesses = &osm.Client{NominatimURL: cfg.OSMNominatimURL, OverpassURL: cfg.OSMOverpassURL}
+	if cfg.FalKey != "" {
+		deps.Images = &images.Client{APIKey: cfg.FalKey, Model: cfg.ImageModel}
+	}
 	if cfg.GeoapifyAPIKey != "" {
 		deps.Businesses = &osm.Geoapify{APIKey: cfg.GeoapifyAPIKey}
 	}
