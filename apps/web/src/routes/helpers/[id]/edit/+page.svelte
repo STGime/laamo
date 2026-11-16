@@ -57,6 +57,10 @@
 	let sheetOpen = $state(false);
 	let trayGroup = $state<GroupId | null>(null);
 	let trayOpen = $state(false);
+	function openTray(g: GroupId) {
+		trayGroup = g;
+		trayOpen = true;
+	}
 
 	// An unsaved edit survives a trip to "Connect a chat".
 	const draftKey = $derived(`laamo.edit.${id}`);
@@ -333,6 +337,23 @@
 		if (run) return i < live.current ? 'done' : i === live.current ? 'running' : 'idle';
 		return step?.status === 'failed' ? 'failed' : step ? 'done' : 'idle';
 	}
+	// Where the result ends up: always the Feed; a last Do brick also says
+	// what it does with it ("Posted to “Team”").
+	const ending = $derived.by(() => {
+		const last = bricks[bricks.length - 1];
+		if (!last || brick(last.type)?.group === 'when') return '';
+		const place = places.find((p) => p.id === last.config.place)?.label;
+		const list = lists.find((l) => l.id === last.config.list)?.name;
+		if (last.type === 'do.chat' && place) return t('builder.endsChat', { name: place });
+		if (last.type === 'do.list' && list) return t('builder.endsList', { name: list });
+		return t('builder.endsFeed');
+	});
+	// Only When and Look bricks: it fetches things and does nothing with them.
+	const onlyReads = $derived(
+		bricks.some((b) => brick(b.type)?.group === 'look') &&
+			bricks.every((b) => ['when', 'look'].includes(brick(b.type)?.group ?? ''))
+	);
+
 	// A step that failed and waits for its retry (so it doesn't look stuck).
 	const retryingNow = $derived(
 		retrying(
@@ -502,6 +523,20 @@
 				</li>
 			{/each}
 		</ol>
+		{#if ending}<p class="ending">{ending}</p>{/if}
+		{#if onlyReads}
+			<div class="hint-next">
+				<p>{t('builder.onlyReads')}</p>
+				<div class="two">
+					<button type="button" class="swatch think" onclick={() => openTray('think')}
+						>+ {t('group.think')}</button
+					>
+					<button type="button" class="swatch do" onclick={() => openTray('do')}
+						>+ {t('group.do')}</button
+					>
+				</div>
+			</div>
+		{/if}
 		{#if !bricks.length}<p class="empty">{t('builder.empty')}</p>{/if}
 	{:else}
 		<p class="empty">{t('loading')}</p>
@@ -832,5 +867,25 @@
 		border-radius: var(--radius-control);
 		font: inherit;
 		font-weight: 700;
+	}
+	.ending {
+		margin: var(--space-2) var(--gutter) 0;
+		color: var(--muted);
+		font-weight: 600;
+	}
+	.hint-next {
+		margin: var(--space-3) var(--gutter) 0;
+		padding: var(--space-3);
+		border: 2px dashed var(--muted);
+		border-radius: var(--radius-control);
+	}
+	.hint-next p {
+		margin: 0 0 var(--space-2);
+		font-size: var(--text-sm);
+	}
+	.hint-next .two {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-2);
 	}
 </style>
