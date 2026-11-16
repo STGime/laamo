@@ -38,6 +38,9 @@
 	// A draft (just made from "Use in a helper" or "Build your own"): Save
 	// makes it a helper, Cancel deletes it.
 	let isDraft = $state(false);
+	// The helper's name, editable here (a new one is named after its list).
+	let newName = $state('');
+	const renamed = $derived(!!newName.trim() && newName.trim() !== name);
 	let version = $state(0);
 	let base = $state<Stack | null>(null); // as loaded, for "anything changed?"
 	let bricks = $state<StackBrick[]>([]);
@@ -62,7 +65,7 @@
 		if (!id) return;
 		api.GET('/helpers/{helperId}', { params: { path: { helperId: id } } }).then(({ data }) => {
 			if (data) {
-				name = data.helper.name;
+				name = newName = data.helper.name;
 				isDraft = data.helper.status === 'draft';
 			}
 		});
@@ -388,6 +391,12 @@
 			params: { path: { helperId: id } },
 			body: { stack: stack as Schemas['Stack'], version }
 		});
+		if (data && renamed) {
+			await api.PATCH('/helpers/{helperId}', {
+				params: { path: { helperId: id } },
+				body: { name: newName.trim() }
+			});
+		}
 		saving = false;
 		if (data) {
 			dropDraft();
@@ -405,20 +414,25 @@
 {#if missing}
 	<p class="empty">{t('builder.missing')}</p>
 {:else}
-	<PageHeader title={t('builder.title')}>
+	<PageHeader title={isDraft ? t('builder.newTitle') : t('builder.title')}>
 		{#snippet right()}
 			<div class="head-actions">
 				<a class="cancel" href="/helpers/{id}" onclick={cancel}>{t('helper.cancel')}</a>
 				<button
 					type="button"
 					class="btn primary"
-					disabled={(!dirty && !isDraft) || errors.length > 0 || saving}
+					disabled={(!dirty && !isDraft && !renamed) || errors.length > 0 || saving}
 					onclick={save}>{saving ? t('builder.saving') : t('builder.save')}</button
 				>
 			</div>
 		{/snippet}
 	</PageHeader>
-	{#if name}<p class="lead">{name}</p>{/if}
+	{#if name}
+		<label class="name-field">
+			<span>{t('builder.name')}</span>
+			<input bind:value={newName} maxlength="80" />
+		</label>
+	{/if}
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
 	{#if restored && dirty}
 		<p class="restored">
@@ -799,5 +813,24 @@
 		margin: 0;
 		font-size: var(--text-sm);
 		font-weight: 600;
+	}
+	.name-field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		padding: 0 var(--gutter) var(--space-3);
+	}
+	.name-field span {
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+	.name-field input {
+		min-height: var(--tap-min);
+		padding: 0 var(--space-3);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font: inherit;
+		font-weight: 700;
 	}
 </style>

@@ -365,6 +365,8 @@ export const de: Record<Key, string> = {
 	'builder.testFailed': 'Der Test ist nicht durchgelaufen; im Feed steht, warum.',
 	'builder.busy': 'Der Helfer läuft gerade. Versuch es, wenn er fertig ist.',
 	'builder.title': 'Steine ändern',
+	'builder.newTitle': 'Neuer Helfer',
+	'builder.name': 'Name',
 	'builder.edit': 'Steine ändern',
 	'builder.missing': 'Diesen Helfer gibt es nicht mehr.',
 	'builder.tray': 'Stein hinzufügen',

@@ -356,6 +356,8 @@ export const en = {
 	'builder.testFailed': 'The test didn’t get through; the Feed says why.',
 	'builder.busy': 'This helper is running right now. Try again when it’s done.',
 	'builder.title': 'Change bricks',
+	'builder.newTitle': 'New helper',
+	'builder.name': 'Name',
 	'builder.edit': 'Change bricks',
 	'builder.missing': 'This helper isn’t here anymore.',
 	'builder.tray': 'Add a brick',
