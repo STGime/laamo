@@ -60,6 +60,16 @@
 	const b = $derived(brick(sb.type));
 	const cfg = $derived(b ? withDefaults(b, sb.config) : sb.config);
 	const shown = $derived((b?.settings ?? []).filter((s) => matches(s.show_if, cfg)));
+	// Required settings still empty: Done waits for them and says which.
+	const blank = (v: unknown) =>
+		v == null || (typeof v === 'string' && !v.trim()) || (Array.isArray(v) && v.length === 0);
+	const missing = $derived(shown.filter((s) => s.required && blank(cfg[s.key])));
+	async function done() {
+		// A new list typed but not created: that's the one they meant.
+		const listSetting = missing.find((s) => s.type === 'list');
+		if (listSetting && newList.trim()) await createList(listSetting.key);
+		if (missing.length === 0) open = false;
+	}
 	// Max 3 visible settings per brick; everything else lives behind More.
 	const main = $derived(shown.filter((s) => !s.advanced).slice(0, 3));
 	const more = $derived(shown.filter((s) => !main.includes(s)));
@@ -352,10 +362,19 @@
 		{#if showMore}{#each more as s (s.key)}{@render field(s)}{/each}{/if}
 	{/if}
 	{#snippet footer()}
+		{#if missing.length}
+			<p class="needed" role="status">
+				{t('builder.needed', { what: missing.map((m) => m.label[lang]).join(', ') })}
+			</p>
+		{/if}
 		<div class="actions">
 			<button type="button" class="btn" onclick={onremove}>{t('builder.remove')}</button>
-			<button type="button" class="btn primary" onclick={() => (open = false)}
-				>{t('builder.done')}</button
+			<button
+				type="button"
+				class="btn primary"
+				disabled={missing.length > 0 &&
+					!(missing.every((m) => m.type === 'list') && newList.trim())}
+				onclick={done}>{t('builder.done')}</button
 			>
 		</div>
 	{/snippet}
@@ -502,5 +521,11 @@
 	}
 	.actions .btn {
 		flex: 1;
+	}
+	.needed {
+		margin: 0 0 var(--space-2);
+		color: var(--danger);
+		font-size: var(--text-sm);
+		font-weight: 600;
 	}
 </style>
