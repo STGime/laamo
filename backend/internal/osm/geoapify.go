@@ -37,8 +37,9 @@ type Geoapify struct {
 	now   func() time.Time
 }
 
-// broad: the categories a name search looks in when the kind is unknown.
-var broad = []string{"commercial", "catering", "service", "office", "healthcare", "accommodation", "education", "pet", "childcare"}
+// Broad: the categories to look through when the kind has no category of
+// its own (the caller then filters by words in the name).
+var Broad = []string{"commercial", "catering", "service", "office", "healthcare", "accommodation", "education", "pet", "childcare"}
 
 // ErrNotConfigured: no API key.
 var ErrNotConfigured = errors.New("osm: no Geoapify API key")
@@ -219,7 +220,7 @@ func (g *Geoapify) Find(ctx context.Context, q Query) ([]Business, error) {
 		if name == "" {
 			return nil, errors.New("osm: nothing to look for")
 		}
-		params.Set("categories", strings.Join(broad, ","))
+		params.Set("categories", strings.Join(Broad, ","))
 		params.Set("name", name)
 	}
 	var res struct {

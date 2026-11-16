@@ -21,6 +21,12 @@ func TestCategories(t *testing.T) {
 	if got := Categories("Werbeagenturen"); len(got) != 1 || got[0] != "office.advertising_agency" {
 		t.Fatalf("Werbeagenturen: %v", got)
 	}
+	if got := Categories("Solarteure"); strings.Join(got, ",") != "service.electrician,office.energy_supplier,commercial.energy" {
+		t.Fatalf("Solarteure: %v", got)
+	}
+	if got := Categories("solar panel installers in Brandenburg"); len(got) != 3 {
+		t.Fatalf("by a word: %v", got)
+	}
 	if got := Categories("Klempner"); got != nil {
 		t.Fatalf("plumbers have no category: %v", got)
 	}
@@ -132,5 +138,22 @@ func TestLiveGeoapify(t *testing.T) {
 	}
 	for _, b := range bs {
 		t.Logf("%4.0f m  %s | %s | %s | %s | %s", b.DistanceM, b.Name, b.Address, b.Website, b.Phone, b.OSMURL)
+	}
+}
+
+func TestKeywords(t *testing.T) {
+	for what, want := range map[string]string{
+		"installers and sellers of solar panels": "solar panel",
+		"Photovoltaik-Firmen":                    "photovoltaik",
+		"Solaranlagen Händler":                   "solaranlag",
+		"companies":                              "",
+	} {
+		if got := strings.Join(Keywords(what), " "); got != want {
+			t.Errorf("%q: %q, want %q", what, got, want)
+		}
+	}
+	if !Mentions(Business{Name: "Elysium Solar GmbH"}, []string{"solar"}) || Mentions(Business{Name: "Bäckerei"}, []string{"solar"}) ||
+		!Mentions(Business{Name: "X", Website: "https://solar-x.de"}, []string{"solar"}) {
+		t.Fatal("mentions")
 	}
 }

@@ -84,7 +84,7 @@ func TestFindBusinesses(t *testing.T) {
 	if _, err := b.Run(context.Background(), rc, nil, engine.Config{"what": "Kuchenzeit", "where": "Leipzig", "radius_km": float64(10)}); err != nil {
 		t.Fatal(err)
 	}
-	if q := m.got[2]; len(q.Tags) != 0 || q.Name != "Kuchenzeit" {
+	if q := m.got[2]; len(q.Tags) != 0 || q.Name != "kuchenzeit" || len(q.Categories) == 0 {
 		t.Fatalf("name query %+v", q)
 	}
 
@@ -197,5 +197,40 @@ func TestFindBusinessesAreas(t *testing.T) {
 	// A place the map doesn't know, among known ones: the known ones still run.
 	if out, err := b.Run(ctx, rc, nil, engine.Config{"what": "Cafés", "where": "Atlantis; Leipzig", "radius_km": float64(5)}); err != nil || len(out) == 0 {
 		t.Fatalf("partly unknown: %v %d", err, len(out))
+	}
+}
+
+// solarMap has a region where only some businesses say "solar".
+type solarMap struct{}
+
+func (solarMap) Geocode(context.Context, string, string) (osm.Place, error) {
+	return osm.Place{Name: "Berlin", ID: "bbbbbbbbbbbbbbbbbbbb01", Type: "city", Lat: 52.5, Lon: 13.4}, nil
+}
+
+func (solarMap) Find(_ context.Context, q osm.Query) ([]osm.Business, error) {
+	if q.Offset > 0 {
+		return nil, nil
+	}
+	return []osm.Business{
+		{Name: "Vattenfall"}, {Name: "Imkerei Sommer GmbH"}, {Name: "Bäckerei Ost"},
+		{Name: "Bienenhof Berlin", Website: "https://www.honig-bienenhof.de"}, {Name: "Waben & Co"},
+	}, nil
+}
+
+// A kind the map has no category for: businesses whose name or website
+// mention it ("Imkereien und Honig" → imkerei, honig).
+func TestFindByKeywords(t *testing.T) {
+	rc := brickstest.RunContext("look.find_businesses")
+	out, err := look.FindBusinesses{Finder: solarMap{}}.Run(context.Background(), rc, nil,
+		engine.Config{"what": "Imkereien und Honig", "where": "Berlin", "radius_km": "whole"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, c := range out {
+		names = append(names, c.Text("name"))
+	}
+	if strings.Join(names, ", ") != "Imkerei Sommer GmbH, Bienenhof Berlin" {
+		t.Fatalf("found %v", names)
 	}
 }
