@@ -330,6 +330,24 @@ func (s *Server) AddListRows(ctx context.Context, req AddListRowsRequestObject) 
 	return AddListRows200JSONResponse{Added: added, Duplicates: dups, List: lo}, nil
 }
 
+func (s *Server) EmptyList(ctx context.Context, req EmptyListRequestObject) (EmptyListResponseObject, error) {
+	l, m, ok, err := s.list(ctx, req.ListId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return EmptyList404JSONResponse{NotFoundJSONResponse(listNotFound)}, nil
+	}
+	if m.Role != store.RoleOwner {
+		return EmptyList403JSONResponse{ForbiddenJSONResponse(apiErr(ErrorCodeForbidden, "only the owner can empty lists"))}, nil
+	}
+	if err := s.store.EmptyList(ctx, l.ID); err != nil {
+		return nil, err
+	}
+	s.log.Info("list emptied", "list", l.ID, "workspace", l.WorkspaceID)
+	return EmptyList204Response{}, nil
+}
+
 func (s *Server) DeleteListRow(ctx context.Context, req DeleteListRowRequestObject) (DeleteListRowResponseObject, error) {
 	l, _, ok, err := s.list(ctx, req.ListId.String())
 	if err != nil {

@@ -103,6 +103,27 @@ func TestLists(t *testing.T) {
 		t.Fatalf("after unshare: %d", code)
 	}
 
+	// Empty it: rows go, the list stays. Not for someone else.
+	if r := must(e.client(t, "ben").EmptyListWithResponse(ctx, l.Id)); r.StatusCode() != 404 {
+		t.Fatalf("ben empties: %d", r.StatusCode())
+	}
+	extra := store.ListRow{WorkspaceID: ws.ID, UserID: anna.ID, ListID: l.Id.String(), Data: map[string]any{"name": "Extra"}}
+	_ = st.AddListRow(ctx, &extra)
+	if n, _ := st.CountListRows(ctx, l.Id.String()); n != 4 {
+		t.Fatalf("before emptying: %d", n)
+	}
+	if r := must(c.EmptyListWithResponse(ctx, l.Id)); r.StatusCode() != 204 {
+		t.Fatalf("empty: %d", r.StatusCode())
+	}
+	if got := must(c.GetListWithResponse(ctx, l.Id, nil)).JSON200; got.List.Rows != 0 || got.List.Name != "Leads" {
+		t.Fatalf("after emptying %+v", got.List)
+	}
+	for _, d := range []map[string]any{{"name": "Café Kuchenzeit"}, {"name": "eiscafé Venezia"}, {"name": "Bäckerei Ost"}} {
+		r := store.ListRow{WorkspaceID: ws.ID, UserID: anna.ID, ListID: l.Id.String(), Data: d}
+		_ = st.AddListRow(ctx, &r)
+	}
+	got = must(c.GetListWithResponse(ctx, l.Id, nil)).JSON200
+
 	// Delete a row, rename, delete the list.
 	if r := must(c.DeleteListRowWithResponse(ctx, l.Id, got.Rows[0].Id)); r.StatusCode() != 204 {
 		t.Fatalf("delete row %d", r.StatusCode())

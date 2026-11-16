@@ -770,6 +770,13 @@ func (s *Store) CountListRows(_ context.Context, listID string) (int, error) {
 	return n, nil
 }
 
+func (s *Store) EmptyList(_ context.Context, listID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	maps.DeleteFunc(s.listRows, func(_ string, r store.ListRow) bool { return r.ListID == listID })
+	return nil
+}
+
 func (s *Store) DeleteListRow(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

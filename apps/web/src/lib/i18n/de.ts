@@ -76,6 +76,13 @@ export const de: Record<Key, string> = {
 	'lists.copied': 'Kopiert',
 	'lists.unshare': 'Nicht mehr teilen',
 	'lists.delete': 'Liste löschen',
+	'lists.empty.button': 'Liste leeren',
+	'lists.empty.title': '„{name}“ leeren?',
+	'lists.empty.body':
+		'Alle {n} Zeilen werden gelöscht. Die Liste bleibt, und Helfer, die sie nutzen, laufen weiter: Sie finden und speichern wieder von vorn.',
+	'lists.empty.body.one':
+		'Die 1 Zeile wird gelöscht. Die Liste bleibt, und Helfer, die sie nutzen, laufen weiter.',
+	'lists.empty.yes': 'Leeren',
 	'lists.deleteTitle': '„{name}“ löschen?',
 	'lists.deleteBody':
 		'Ihre {n} Zeilen werden mit gelöscht. Helfer, die hier speichern, halten an und bitten dich, eine andere Liste zu wählen.',

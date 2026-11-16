@@ -226,6 +226,17 @@ paths:
   /lists/{listId}/rows:
     parameters:
       - $ref: '#/components/parameters/ListId'
+    delete:
+      operationId: emptyList
+      summary: Delete all rows of a list (owner only). The list stays, and so do the helpers that use it
+      tags: [lists]
+      responses:
+        '204':
+          description: Emptied
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     post:
       operationId: addListRows
       summary: Add cards from a Feed card to a list ("Add to list"). Duplicates (same website, email or name) are skipped
