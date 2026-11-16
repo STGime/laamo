@@ -67,6 +67,12 @@ func (s *Server) SaveHelperStack(ctx context.Context, req SaveHelperStackRequest
 		return nil, err
 	}
 	h.CurrentVersionID = &v.ID
+	// Saved for the first time: the draft becomes a helper that runs.
+	if h.Status == "draft" {
+		if h, err = s.store.UpdateHelper(ctx, h.ID, store.HelperPatch{Status: new("active")}); err != nil {
+			return nil, err
+		}
+	}
 	if err := schedule.Sync(ctx, s.store, catalog.Default(), h, w, stack, time.Now()); err != nil {
 		s.log.Warn("helper schedule", "helper", h.ID, "err", err)
 	}

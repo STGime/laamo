@@ -273,7 +273,8 @@ func (s *Server) createBlank(ctx context.Context, w store.Workspace, listID stri
 		return nil, err
 	}
 	u, _ := user(ctx)
-	h := store.Helper{WorkspaceID: w.ID, UserID: w.UserID, Name: uniqueName(name, existing), Status: "active", CreatedVia: "scratch"}
+	// A draft until it's saved in the builder: Cancel there deletes it.
+	h := store.Helper{WorkspaceID: w.ID, UserID: w.UserID, Name: uniqueName(name, existing), Status: "draft", CreatedVia: "scratch"}
 	v := store.HelperVersion{Stack: raw, CreatedBy: &u.ID}
 	if err := s.store.CreateHelper(ctx, &h, &v); err != nil {
 		return nil, err

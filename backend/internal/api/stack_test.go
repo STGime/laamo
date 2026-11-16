@@ -124,8 +124,16 @@ func TestCreateBlank(t *testing.T) {
 			t.Fatalf("blank: %d %s", r.StatusCode(), r.Body)
 		}
 		got := must(c.GetHelperStackWithResponse(ctx, r.JSON201.Helper.Id))
-		if len(got.JSON200.Stack.Bricks) != 1 || got.JSON200.Stack.Bricks[0].Type != "when.tap" {
-			t.Fatalf("stack %+v", got.JSON200.Stack)
+		if len(got.JSON200.Stack.Bricks) != 1 || got.JSON200.Stack.Bricks[0].Type != "when.tap" || r.JSON201.Helper.Status != api.HelperStatusDraft {
+			t.Fatalf("stack %+v, status %s", got.JSON200.Stack, r.JSON201.Helper.Status)
+		}
+		// Saved in the builder: no longer a draft.
+		saved := must(c.SaveHelperStackWithResponse(ctx, r.JSON201.Helper.Id, api.SaveStack{Stack: got.JSON200.Stack, Version: 1}))
+		if saved.StatusCode() != 200 {
+			t.Fatalf("save: %d %s", saved.StatusCode(), saved.Body)
+		}
+		if h := must(c.GetHelperWithResponse(ctx, r.JSON201.Helper.Id)); h.JSON200.Helper.Status != api.HelperStatusActive {
+			t.Fatalf("after save: %s", h.JSON200.Helper.Status)
 		}
 	}
 }
