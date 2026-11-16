@@ -297,7 +297,7 @@ func (e *Engine) Execute(ctx context.Context, runID string) error {
 		}
 
 		if Pauses(sb.Type) {
-			err := e.pause(ctx, rc, &r, steps, i, sb, b, pile)
+			err := e.pause(ctx, rc, &r, steps, i, sb, b, pile, stack.Bricks[i+1:])
 			if errors.Is(err, errPaused) {
 				return nil // the job ends; a decision brings the run back
 			}
@@ -764,6 +764,19 @@ func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
 		return res
 	}
 	res.title = fmt.Sprintf(pick(de, "%d new cards", "%d neue Karten"), len(cards))
+	// Email drafts (a body and someone to write to): say so, and how they go out.
+	drafts := true
+	for _, c := range cards {
+		if text(c, "body") == "" || text(c, "email") == "" {
+			drafts = false
+		}
+	}
+	if drafts {
+		res.title = fmt.Sprintf(pick(de, "%d drafts ready to send", "%d Entwürfe bereit zum Senden"), len(cards))
+		if len(cards) == 1 {
+			res.title = pick(de, "1 draft ready to send", "1 Entwurf bereit zum Senden")
+		}
+	}
 	var lines []string
 	for _, c := range cards[:min(3, len(cards))] {
 		if t := text(c, "title", "name", "subject", "summary"); t != "" {
@@ -772,6 +785,9 @@ func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
 	}
 	if len(cards) > 3 {
 		lines = append(lines, fmt.Sprintf(pick(de, "and %d more", "und %d weitere"), len(cards)-3))
+	}
+	if drafts {
+		lines = append(lines, pick(de, "Open each one in your email to send it.", "Öffne jeden in deinem E-Mail-Programm, um ihn zu senden."))
 	}
 	res.body = strings.Join(lines, "\n")
 	return res
