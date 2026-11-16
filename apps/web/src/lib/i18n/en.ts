@@ -356,6 +356,13 @@ export const en = {
 	'builder.testFailed': 'The test didn’t get through; the Feed says why.',
 	'builder.busy': 'This helper is running right now. Try again when it’s done.',
 	'builder.title': 'Change bricks',
+	'builder.endsFeed': '→ The result goes to your Feed',
+	'builder.endsChat': '→ Posted to “{name}”, and the result goes to your Feed',
+	'builder.endsList': '→ Saved to “{name}”, and the result goes to your Feed',
+	'builder.onlyReads':
+		'This only fetches things: they just show up in your Feed. Add a Think brick (sum up, keep the good ones) or a Do brick (post, save) to do something with them.',
+	'builder.newTitle': 'New helper',
+	'builder.name': 'Name',
 	'builder.edit': 'Change bricks',
 	'builder.missing': 'This helper isn’t here anymore.',
 	'builder.tray': 'Add a brick',

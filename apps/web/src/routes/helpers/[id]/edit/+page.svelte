@@ -38,6 +38,9 @@
 	// A draft (just made from "Use in a helper" or "Build your own"): Save
 	// makes it a helper, Cancel deletes it.
 	let isDraft = $state(false);
+	// The helper's name, editable here (a new one is named after its list).
+	let newName = $state('');
+	const renamed = $derived(!!newName.trim() && newName.trim() !== name);
 	let version = $state(0);
 	let base = $state<Stack | null>(null); // as loaded, for "anything changed?"
 	let bricks = $state<StackBrick[]>([]);
@@ -54,6 +57,10 @@
 	let sheetOpen = $state(false);
 	let trayGroup = $state<GroupId | null>(null);
 	let trayOpen = $state(false);
+	function openTray(g: GroupId) {
+		trayGroup = g;
+		trayOpen = true;
+	}
 
 	// An unsaved edit survives a trip to "Connect a chat".
 	const draftKey = $derived(`laamo.edit.${id}`);
@@ -62,7 +69,7 @@
 		if (!id) return;
 		api.GET('/helpers/{helperId}', { params: { path: { helperId: id } } }).then(({ data }) => {
 			if (data) {
-				name = data.helper.name;
+				name = newName = data.helper.name;
 				isDraft = data.helper.status === 'draft';
 			}
 		});
@@ -330,6 +337,23 @@
 		if (run) return i < live.current ? 'done' : i === live.current ? 'running' : 'idle';
 		return step?.status === 'failed' ? 'failed' : step ? 'done' : 'idle';
 	}
+	// Where the result ends up: always the Feed; a last Do brick also says
+	// what it does with it ("Posted to “Team”").
+	const ending = $derived.by(() => {
+		const last = bricks[bricks.length - 1];
+		if (!last || brick(last.type)?.group === 'when') return '';
+		const place = places.find((p) => p.id === last.config.place)?.label;
+		const list = lists.find((l) => l.id === last.config.list)?.name;
+		if (last.type === 'do.chat' && place) return t('builder.endsChat', { name: place });
+		if (last.type === 'do.list' && list) return t('builder.endsList', { name: list });
+		return t('builder.endsFeed');
+	});
+	// Only When and Look bricks: it fetches things and does nothing with them.
+	const onlyReads = $derived(
+		bricks.some((b) => brick(b.type)?.group === 'look') &&
+			bricks.every((b) => ['when', 'look'].includes(brick(b.type)?.group ?? ''))
+	);
+
 	// A step that failed and waits for its retry (so it doesn't look stuck).
 	const retryingNow = $derived(
 		retrying(
@@ -388,6 +412,12 @@
 			params: { path: { helperId: id } },
 			body: { stack: stack as Schemas['Stack'], version }
 		});
+		if (data && renamed) {
+			await api.PATCH('/helpers/{helperId}', {
+				params: { path: { helperId: id } },
+				body: { name: newName.trim() }
+			});
+		}
 		saving = false;
 		if (data) {
 			dropDraft();
@@ -405,20 +435,25 @@
 {#if missing}
 	<p class="empty">{t('builder.missing')}</p>
 {:else}
-	<PageHeader title={t('builder.title')}>
+	<PageHeader title={isDraft ? t('builder.newTitle') : t('builder.title')}>
 		{#snippet right()}
 			<div class="head-actions">
 				<a class="cancel" href="/helpers/{id}" onclick={cancel}>{t('helper.cancel')}</a>
 				<button
 					type="button"
 					class="btn primary"
-					disabled={(!dirty && !isDraft) || errors.length > 0 || saving}
+					disabled={(!dirty && !isDraft && !renamed) || errors.length > 0 || saving}
 					onclick={save}>{saving ? t('builder.saving') : t('builder.save')}</button
 				>
 			</div>
 		{/snippet}
 	</PageHeader>
-	{#if name}<p class="lead">{name}</p>{/if}
+	{#if name}
+		<label class="name-field">
+			<span>{t('builder.name')}</span>
+			<input bind:value={newName} maxlength="80" />
+		</label>
+	{/if}
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
 	{#if restored && dirty}
 		<p class="restored">
@@ -488,6 +523,20 @@
 				</li>
 			{/each}
 		</ol>
+		{#if ending}<p class="ending">{ending}</p>{/if}
+		{#if onlyReads}
+			<div class="hint-next">
+				<p>{t('builder.onlyReads')}</p>
+				<div class="two">
+					<button type="button" class="swatch think" onclick={() => openTray('think')}
+						>+ {t('group.think')}</button
+					>
+					<button type="button" class="swatch do" onclick={() => openTray('do')}
+						>+ {t('group.do')}</button
+					>
+				</div>
+			</div>
+		{/if}
 		{#if !bricks.length}<p class="empty">{t('builder.empty')}</p>{/if}
 	{:else}
 		<p class="empty">{t('loading')}</p>
@@ -799,5 +848,44 @@
 		margin: 0;
 		font-size: var(--text-sm);
 		font-weight: 600;
+	}
+	.name-field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		padding: 0 var(--gutter) var(--space-3);
+	}
+	.name-field span {
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+	.name-field input {
+		min-height: var(--tap-min);
+		padding: 0 var(--space-3);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font: inherit;
+		font-weight: 700;
+	}
+	.ending {
+		margin: var(--space-2) var(--gutter) 0;
+		color: var(--muted);
+		font-weight: 600;
+	}
+	.hint-next {
+		margin: var(--space-3) var(--gutter) 0;
+		padding: var(--space-3);
+		border: 2px dashed var(--muted);
+		border-radius: var(--radius-control);
+	}
+	.hint-next p {
+		margin: 0 0 var(--space-2);
+		font-size: var(--text-sm);
+	}
+	.hint-next .two {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-2);
 	}
 </style>

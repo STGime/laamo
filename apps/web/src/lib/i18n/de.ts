@@ -365,6 +365,13 @@ export const de: Record<Key, string> = {
 	'builder.testFailed': 'Der Test ist nicht durchgelaufen; im Feed steht, warum.',
 	'builder.busy': 'Der Helfer läuft gerade. Versuch es, wenn er fertig ist.',
 	'builder.title': 'Steine ändern',
+	'builder.endsFeed': '→ Das Ergebnis kommt in deinen Feed',
+	'builder.endsChat': '→ In „{name}“ gepostet, und das Ergebnis kommt in deinen Feed',
+	'builder.endsList': '→ In „{name}“ gespeichert, und das Ergebnis kommt in deinen Feed',
+	'builder.onlyReads':
+		'Das holt nur Dinge: Sie erscheinen einfach in deinem Feed. Füge einen Denk-Baustein (zusammenfassen, die Guten behalten) oder einen Mach-Baustein (posten, speichern) hinzu, um etwas damit zu tun.',
+	'builder.newTitle': 'Neuer Helfer',
+	'builder.name': 'Name',
 	'builder.edit': 'Steine ändern',
 	'builder.missing': 'Diesen Helfer gibt es nicht mehr.',
 	'builder.tray': 'Stein hinzufügen',
