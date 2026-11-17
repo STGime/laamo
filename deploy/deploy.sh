@@ -55,7 +55,8 @@ REGION=fr-par
 NS_NAME=laamo-$ENV_NAME
 REGISTRY=rg.$REGION.scw.cloud/$SCW_REGISTRY_NAMESPACE
 TAG=${TAG:-$(git rev-parse --short HEAD)}
-if [[ -n $(git status --porcelain) ]]; then
+# Only a build takes the working tree; SKIP_BUILD reuses pushed images as tagged.
+if [[ ${SKIP_BUILD:-} != 1 && -n $(git status --porcelain) ]]; then
 	[[ ${ALLOW_DIRTY:-} == 1 ]] || {
 		echo "uncommitted changes: commit first (or ALLOW_DIRTY=1)" >&2
 		exit 1
@@ -116,7 +117,10 @@ upsert() {
 	# Scaleway pairs CPU with memory: 70 mvCPU per 128 MB.
 	local args=(registry-image="$image" memory-limit="$mem" cpu-limit=$((mem * 70 / 128))
 		min-scale="$min" max-scale="$max" port=8080 privacy=public http-option=redirected
-		health-check.http.path="$health" region=$REGION "$@")
+		health-check.http.path="$health" region=$REGION "$@"
+		# Setting only the path makes the API reject the health check; these are
+		# Scaleway's defaults (30 failures in a row, checked every 10s).
+		health-check.failure-threshold=30 health-check.interval=10s)
 	local id out
 	id=$(scw container container list namespace-id="$NS_ID" name="$name" region=$REGION -o json | jq -r '.[0].id // empty')
 	if [[ -z $id ]]; then
