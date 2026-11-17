@@ -627,6 +627,51 @@ func (e TimeFormat) Valid() bool {
 	}
 }
 
+// Defines values for WaitlistJoinInterests.
+const (
+	Competitors WaitlistJoinInterests = "competitors"
+	Customers   WaitlistJoinInterests = "customers"
+	Emails      WaitlistJoinInterests = "emails"
+	Events      WaitlistJoinInterests = "events"
+	News        WaitlistJoinInterests = "news"
+	Social      WaitlistJoinInterests = "social"
+)
+
+// Valid indicates whether the value is a known member of the WaitlistJoinInterests enum.
+func (e WaitlistJoinInterests) Valid() bool {
+	switch e {
+	case Competitors:
+		return true
+	case Customers:
+		return true
+	case Emails:
+		return true
+	case Events:
+		return true
+	case News:
+		return true
+	case Social:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WaitlistJoinedStatus.
+const (
+	CheckInbox WaitlistJoinedStatus = "check_inbox"
+)
+
+// Valid indicates whether the value is a known member of the WaitlistJoinedStatus enum.
+func (e WaitlistJoinedStatus) Valid() bool {
+	switch e {
+	case CheckInbox:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UpdateHelperJSONBodyStatus.
 const (
 	UpdateHelperJSONBodyStatusActive UpdateHelperJSONBodyStatus = "active"
@@ -1262,6 +1307,43 @@ type User struct {
 	Id    openapi_types.UUID `json:"id"`
 }
 
+// WaitlistConfirmed defines model for WaitlistConfirmed.
+type WaitlistConfirmed struct {
+	Lang Locale `json:"lang"`
+
+	// RefCode The person's share code (?ref= on the site)
+	RefCode string `json:"ref_code"`
+}
+
+// WaitlistJoin defines model for WaitlistJoin.
+type WaitlistJoin struct {
+	Email     string                   `json:"email"`
+	Interests *[]WaitlistJoinInterests `json:"interests,omitempty"`
+	Lang      *Locale                  `json:"lang,omitempty"`
+	Nonce     string                   `json:"nonce"`
+
+	// Ref Share code of the person who sent them
+	Ref *string `json:"ref,omitempty"`
+
+	// Source The page or campaign the sign-up came from
+	Source *string `json:"source,omitempty"`
+	Token  string  `json:"token"`
+
+	// Website Left empty by people; a filled-in value marks a bot (honeypot)
+	Website *string `json:"website,omitempty"`
+}
+
+// WaitlistJoinInterests defines model for WaitlistJoin.Interests.
+type WaitlistJoinInterests string
+
+// WaitlistJoined defines model for WaitlistJoined.
+type WaitlistJoined struct {
+	Status WaitlistJoinedStatus `json:"status"`
+}
+
+// WaitlistJoinedStatus defines model for WaitlistJoined.Status.
+type WaitlistJoinedStatus string
+
 // Workspace defines model for Workspace.
 type Workspace struct {
 	CreatedAt time.Time          `json:"created_at"`
@@ -1396,6 +1478,11 @@ type GetMapParams struct {
 	Lon float32 `form:"lon" json:"lon"`
 }
 
+// ConfirmWaitlistJSONBody defines parameters for ConfirmWaitlist.
+type ConfirmWaitlistJSONBody struct {
+	Token string `json:"token"`
+}
+
 // ListFeedParams defines parameters for ListFeed.
 type ListFeedParams struct {
 	Filter *ListFeedParamsFilter `form:"filter,omitempty" json:"filter,omitempty"`
@@ -1431,6 +1518,12 @@ type UpdateListJSONRequestBody = NewList
 
 // AddListRowsJSONRequestBody defines body for AddListRows for application/json ContentType.
 type AddListRowsJSONRequestBody = AddListRows
+
+// JoinWaitlistJSONRequestBody defines body for JoinWaitlist for application/json ContentType.
+type JoinWaitlistJSONRequestBody = WaitlistJoin
+
+// ConfirmWaitlistJSONRequestBody defines body for ConfirmWaitlist for application/json ContentType.
+type ConfirmWaitlistJSONRequestBody ConfirmWaitlistJSONBody
 
 // CreateWorkspaceJSONRequestBody defines body for CreateWorkspace for application/json ContentType.
 type CreateWorkspaceJSONRequestBody = NewWorkspace
@@ -1856,6 +1949,45 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /shared/lists/{token} (the `GetSharedList` operationId).
 	GetSharedList(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// JoinWaitlistWithBody Join the waiting list. Sends one confirmation email (double opt-in)
+	//
+	// The answer is the same whether the address is new, waiting for its
+	// confirmation or already on the list.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /waitlist (the `JoinWaitlist` operationId).
+	JoinWaitlistWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// JoinWaitlist Join the waiting list. Sends one confirmation email (double opt-in)
+	//
+	// The answer is the same whether the address is new, waiting for its
+	// confirmation or already on the list.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /waitlist (the `JoinWaitlist` operationId).
+	JoinWaitlist(ctx context.Context, body JoinWaitlistJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWaitlistChallenge A proof-of-work challenge for one waiting-list sign-up (no account needed)
+	//
+	// Corresponds with GET /waitlist/challenge (the `GetWaitlistChallenge` operationId).
+	GetWaitlistChallenge(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmWaitlistWithBody Use the link from the confirmation email
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /waitlist/confirm (the `ConfirmWaitlist` operationId).
+	ConfirmWaitlistWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmWaitlist Use the link from the confirmation email
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /waitlist/confirm (the `ConfirmWaitlist` operationId).
+	ConfirmWaitlist(ctx context.Context, body ConfirmWaitlistJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateWorkspaceWithBody Create a workspace (you become its owner)
 	//
@@ -2558,6 +2690,95 @@ func (c *Client) TestPlace(ctx context.Context, placeId PlaceId, reqEditors ...R
 // Corresponds with GET /shared/lists/{token} (the `GetSharedList` operationId).
 func (c *Client) GetSharedList(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetSharedListRequest(c.Server, token)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// JoinWaitlistWithBody Join the waiting list. Sends one confirmation email (double opt-in)
+//
+// The answer is the same whether the address is new, waiting for its
+// confirmation or already on the list.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /waitlist (the `JoinWaitlist` operationId).
+func (c *Client) JoinWaitlistWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewJoinWaitlistRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// JoinWaitlist Join the waiting list. Sends one confirmation email (double opt-in)
+//
+// The answer is the same whether the address is new, waiting for its
+// confirmation or already on the list.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /waitlist (the `JoinWaitlist` operationId).
+func (c *Client) JoinWaitlist(ctx context.Context, body JoinWaitlistJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewJoinWaitlistRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetWaitlistChallenge A proof-of-work challenge for one waiting-list sign-up (no account needed)
+//
+// Corresponds with GET /waitlist/challenge (the `GetWaitlistChallenge` operationId).
+func (c *Client) GetWaitlistChallenge(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWaitlistChallengeRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmWaitlistWithBody Use the link from the confirmation email
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /waitlist/confirm (the `ConfirmWaitlist` operationId).
+func (c *Client) ConfirmWaitlistWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmWaitlistRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmWaitlist Use the link from the confirmation email
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /waitlist/confirm (the `ConfirmWaitlist` operationId).
+func (c *Client) ConfirmWaitlist(ctx context.Context, body ConfirmWaitlistJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmWaitlistRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4003,6 +4224,113 @@ func NewGetSharedListRequest(server string, token string) (*http.Request, error)
 	return req, nil
 }
 
+// NewJoinWaitlistRequest calls the generic JoinWaitlist builder with application/json body
+func NewJoinWaitlistRequest(server string, body JoinWaitlistJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewJoinWaitlistRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewJoinWaitlistRequestWithBody constructs an http.Request for the JoinWaitlist method, with any body, and a specified content type
+func NewJoinWaitlistRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/waitlist")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetWaitlistChallengeRequest constructs an http.Request for the GetWaitlistChallenge method
+func NewGetWaitlistChallengeRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/waitlist/challenge")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfirmWaitlistRequest calls the generic ConfirmWaitlist builder with application/json body
+func NewConfirmWaitlistRequest(server string, body ConfirmWaitlistJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfirmWaitlistRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewConfirmWaitlistRequestWithBody constructs an http.Request for the ConfirmWaitlist method, with any body, and a specified content type
+func NewConfirmWaitlistRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/waitlist/confirm")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewCreateWorkspaceRequest calls the generic CreateWorkspace builder with application/json body
 func NewCreateWorkspaceRequest(server string, body CreateWorkspaceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -4796,6 +5124,47 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /shared/lists/{token} (the `GetSharedList` operationId).
 	GetSharedListWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetSharedListResponse, error)
+
+	// JoinWaitlistWithBodyWithResponse Join the waiting list. Sends one confirmation email (double opt-in)
+	//
+	// The answer is the same whether the address is new, waiting for its
+	// confirmation or already on the list.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /waitlist (the `JoinWaitlist` operationId).
+	JoinWaitlistWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*JoinWaitlistResponse, error)
+
+	// JoinWaitlistWithResponse Join the waiting list. Sends one confirmation email (double opt-in)
+	//
+	// The answer is the same whether the address is new, waiting for its
+	// confirmation or already on the list.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /waitlist (the `JoinWaitlist` operationId).
+	JoinWaitlistWithResponse(ctx context.Context, body JoinWaitlistJSONRequestBody, reqEditors ...RequestEditorFn) (*JoinWaitlistResponse, error)
+
+	// GetWaitlistChallengeWithResponse A proof-of-work challenge for one waiting-list sign-up (no account needed)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /waitlist/challenge (the `GetWaitlistChallenge` operationId).
+	GetWaitlistChallengeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWaitlistChallengeResponse, error)
+
+	// ConfirmWaitlistWithBodyWithResponse Use the link from the confirmation email
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /waitlist/confirm (the `ConfirmWaitlist` operationId).
+	ConfirmWaitlistWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmWaitlistResponse, error)
+
+	// ConfirmWaitlistWithResponse Use the link from the confirmation email
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /waitlist/confirm (the `ConfirmWaitlist` operationId).
+	ConfirmWaitlistWithResponse(ctx context.Context, body ConfirmWaitlistJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmWaitlistResponse, error)
 
 	// CreateWorkspaceWithBodyWithResponse Create a workspace (you become its owner)
 	//
@@ -6492,6 +6861,164 @@ func (r GetSharedListResponse) ContentType() string {
 	return ""
 }
 
+type JoinWaitlistResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *WaitlistJoined
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *TooManyRequests
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r JoinWaitlistResponse) GetJSON202() *WaitlistJoined {
+	return r.JSON202
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r JoinWaitlistResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r JoinWaitlistResponse) GetJSON429() *TooManyRequests {
+	return r.JSON429
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r JoinWaitlistResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r JoinWaitlistResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r JoinWaitlistResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r JoinWaitlistResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r JoinWaitlistResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetWaitlistChallengeResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DemoChallenge
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetWaitlistChallengeResponse) GetJSON200() *DemoChallenge {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r GetWaitlistChallengeResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWaitlistChallengeResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWaitlistChallengeResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetWaitlistChallengeResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfirmWaitlistResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WaitlistConfirmed
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *TooManyRequests
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfirmWaitlistResponse) GetJSON200() *WaitlistConfirmed {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r ConfirmWaitlistResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r ConfirmWaitlistResponse) GetJSON429() *TooManyRequests {
+	return r.JSON429
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfirmWaitlistResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmWaitlistResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmWaitlistResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfirmWaitlistResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateWorkspaceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -7620,6 +8147,77 @@ func (c *ClientWithResponses) GetSharedListWithResponse(ctx context.Context, tok
 		return nil, err
 	}
 	return ParseGetSharedListResponse(rsp)
+}
+
+// JoinWaitlistWithBodyWithResponse Join the waiting list. Sends one confirmation email (double opt-in)
+//
+// The answer is the same whether the address is new, waiting for its
+// confirmation or already on the list.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /waitlist (the `JoinWaitlist` operationId).
+func (c *ClientWithResponses) JoinWaitlistWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*JoinWaitlistResponse, error) {
+	rsp, err := c.JoinWaitlistWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseJoinWaitlistResponse(rsp)
+}
+
+// JoinWaitlistWithResponse Join the waiting list. Sends one confirmation email (double opt-in)
+//
+// The answer is the same whether the address is new, waiting for its
+// confirmation or already on the list.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /waitlist (the `JoinWaitlist` operationId).
+func (c *ClientWithResponses) JoinWaitlistWithResponse(ctx context.Context, body JoinWaitlistJSONRequestBody, reqEditors ...RequestEditorFn) (*JoinWaitlistResponse, error) {
+	rsp, err := c.JoinWaitlist(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseJoinWaitlistResponse(rsp)
+}
+
+// GetWaitlistChallengeWithResponse A proof-of-work challenge for one waiting-list sign-up (no account needed)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /waitlist/challenge (the `GetWaitlistChallenge` operationId).
+func (c *ClientWithResponses) GetWaitlistChallengeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetWaitlistChallengeResponse, error) {
+	rsp, err := c.GetWaitlistChallenge(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWaitlistChallengeResponse(rsp)
+}
+
+// ConfirmWaitlistWithBodyWithResponse Use the link from the confirmation email
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /waitlist/confirm (the `ConfirmWaitlist` operationId).
+func (c *ClientWithResponses) ConfirmWaitlistWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmWaitlistResponse, error) {
+	rsp, err := c.ConfirmWaitlistWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmWaitlistResponse(rsp)
+}
+
+// ConfirmWaitlistWithResponse Use the link from the confirmation email
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /waitlist/confirm (the `ConfirmWaitlist` operationId).
+func (c *ClientWithResponses) ConfirmWaitlistWithResponse(ctx context.Context, body ConfirmWaitlistJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmWaitlistResponse, error) {
+	rsp, err := c.ConfirmWaitlist(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmWaitlistResponse(rsp)
 }
 
 // CreateWorkspaceWithBodyWithResponse Create a workspace (you become its owner)
@@ -9010,6 +9608,119 @@ func ParseGetSharedListResponse(rsp *http.Response) (*GetSharedListResponse, err
 	return response, nil
 }
 
+// ParseJoinWaitlistResponse parses an HTTP response from a JoinWaitlistWithResponse call
+func ParseJoinWaitlistResponse(rsp *http.Response) (*JoinWaitlistResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &JoinWaitlistResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest WaitlistJoined
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest TooManyRequests
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetWaitlistChallengeResponse parses an HTTP response from a GetWaitlistChallengeWithResponse call
+func ParseGetWaitlistChallengeResponse(rsp *http.Response) (*GetWaitlistChallengeResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWaitlistChallengeResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DemoChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfirmWaitlistResponse parses an HTTP response from a ConfirmWaitlistWithResponse call
+func ParseConfirmWaitlistResponse(rsp *http.Response) (*ConfirmWaitlistResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmWaitlistResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WaitlistConfirmed
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest TooManyRequests
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCreateWorkspaceResponse parses an HTTP response from a CreateWorkspaceWithResponse call
 func ParseCreateWorkspaceResponse(rsp *http.Response) (*CreateWorkspaceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -9571,6 +10282,15 @@ type ServerInterface interface {
 	// GetSharedList A list someone shared, read-only. No sign-in needed
 	// (GET /shared/lists/{token})
 	GetSharedList(w http.ResponseWriter, r *http.Request, token string)
+	// JoinWaitlist Join the waiting list. Sends one confirmation email (double opt-in)
+	// (POST /waitlist)
+	JoinWaitlist(w http.ResponseWriter, r *http.Request)
+	// GetWaitlistChallenge A proof-of-work challenge for one waiting-list sign-up (no account needed)
+	// (GET /waitlist/challenge)
+	GetWaitlistChallenge(w http.ResponseWriter, r *http.Request)
+	// ConfirmWaitlist Use the link from the confirmation email
+	// (POST /waitlist/confirm)
+	ConfirmWaitlist(w http.ResponseWriter, r *http.Request)
 	// CreateWorkspace Create a workspace (you become its owner)
 	// (POST /workspaces)
 	CreateWorkspace(w http.ResponseWriter, r *http.Request)
@@ -10399,6 +11119,48 @@ func (siw *ServerInterfaceWrapper) GetSharedList(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// JoinWaitlist operation middleware
+func (siw *ServerInterfaceWrapper) JoinWaitlist(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.JoinWaitlist(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetWaitlistChallenge operation middleware
+func (siw *ServerInterfaceWrapper) GetWaitlistChallenge(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetWaitlistChallenge(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmWaitlist operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmWaitlist(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmWaitlist(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateWorkspace operation middleware
 func (siw *ServerInterfaceWrapper) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 
@@ -10838,6 +11600,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealth)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/demo/challenge", wrapper.GetDemoChallenge)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/demo/runs", wrapper.RunDemo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/waitlist/challenge", wrapper.GetWaitlistChallenge)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/waitlist", wrapper.JoinWaitlist)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/waitlist/confirm", wrapper.ConfirmWaitlist)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.ListPlaces)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.CreatePlace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/lists", wrapper.ListLists)
@@ -12397,6 +13162,141 @@ func (response GetSharedList404JSONResponse) VisitGetSharedListResponse(w http.R
 	return err
 }
 
+type JoinWaitlistRequestObject struct {
+	Body *JoinWaitlistJSONRequestBody
+}
+
+type JoinWaitlistResponseObject interface {
+	VisitJoinWaitlistResponse(w http.ResponseWriter) error
+}
+
+type JoinWaitlist202JSONResponse WaitlistJoined
+
+func (response JoinWaitlist202JSONResponse) VisitJoinWaitlistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinWaitlist400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response JoinWaitlist400JSONResponse) VisitJoinWaitlistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinWaitlist429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response JoinWaitlist429JSONResponse) VisitJoinWaitlistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type JoinWaitlist503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response JoinWaitlist503JSONResponse) VisitJoinWaitlistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetWaitlistChallengeRequestObject struct {
+}
+
+type GetWaitlistChallengeResponseObject interface {
+	VisitGetWaitlistChallengeResponse(w http.ResponseWriter) error
+}
+
+type GetWaitlistChallenge200JSONResponse DemoChallenge
+
+func (response GetWaitlistChallenge200JSONResponse) VisitGetWaitlistChallengeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmWaitlistRequestObject struct {
+	Body *ConfirmWaitlistJSONRequestBody
+}
+
+type ConfirmWaitlistResponseObject interface {
+	VisitConfirmWaitlistResponse(w http.ResponseWriter) error
+}
+
+type ConfirmWaitlist200JSONResponse WaitlistConfirmed
+
+func (response ConfirmWaitlist200JSONResponse) VisitConfirmWaitlistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmWaitlist400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ConfirmWaitlist400JSONResponse) VisitConfirmWaitlistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmWaitlist429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response ConfirmWaitlist429JSONResponse) VisitConfirmWaitlistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateWorkspaceRequestObject struct {
 	Body *CreateWorkspaceJSONRequestBody
 }
@@ -13101,6 +14001,15 @@ type StrictServerInterface interface {
 	// GetSharedList A list someone shared, read-only. No sign-in needed
 	// (GET /shared/lists/{token})
 	GetSharedList(ctx context.Context, request GetSharedListRequestObject) (GetSharedListResponseObject, error)
+	// JoinWaitlist Join the waiting list. Sends one confirmation email (double opt-in)
+	// (POST /waitlist)
+	JoinWaitlist(ctx context.Context, request JoinWaitlistRequestObject) (JoinWaitlistResponseObject, error)
+	// GetWaitlistChallenge A proof-of-work challenge for one waiting-list sign-up (no account needed)
+	// (GET /waitlist/challenge)
+	GetWaitlistChallenge(ctx context.Context, request GetWaitlistChallengeRequestObject) (GetWaitlistChallengeResponseObject, error)
+	// ConfirmWaitlist Use the link from the confirmation email
+	// (POST /waitlist/confirm)
+	ConfirmWaitlist(ctx context.Context, request ConfirmWaitlistRequestObject) (ConfirmWaitlistResponseObject, error)
 	// CreateWorkspace Create a workspace (you become its owner)
 	// (POST /workspaces)
 	CreateWorkspace(ctx context.Context, request CreateWorkspaceRequestObject) (CreateWorkspaceResponseObject, error)
@@ -13975,6 +14884,92 @@ func (sh *strictHandler) GetSharedList(w http.ResponseWriter, r *http.Request, t
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetSharedListResponseObject); ok {
 		if err := validResponse.VisitGetSharedListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// JoinWaitlist operation middleware
+func (sh *strictHandler) JoinWaitlist(w http.ResponseWriter, r *http.Request) {
+	var request JoinWaitlistRequestObject
+
+	var body JoinWaitlistJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.JoinWaitlist(ctx, request.(JoinWaitlistRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "JoinWaitlist")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(JoinWaitlistResponseObject); ok {
+		if err := validResponse.VisitJoinWaitlistResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetWaitlistChallenge operation middleware
+func (sh *strictHandler) GetWaitlistChallenge(w http.ResponseWriter, r *http.Request) {
+	var request GetWaitlistChallengeRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetWaitlistChallenge(ctx, request.(GetWaitlistChallengeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetWaitlistChallenge")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetWaitlistChallengeResponseObject); ok {
+		if err := validResponse.VisitGetWaitlistChallengeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConfirmWaitlist operation middleware
+func (sh *strictHandler) ConfirmWaitlist(w http.ResponseWriter, r *http.Request) {
+	var request ConfirmWaitlistRequestObject
+
+	var body ConfirmWaitlistJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmWaitlist(ctx, request.(ConfirmWaitlistRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmWaitlist")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConfirmWaitlistResponseObject); ok {
+		if err := validResponse.VisitConfirmWaitlistResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

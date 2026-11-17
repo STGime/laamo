@@ -37,6 +37,7 @@ Eurobase cron jobs are platform config, not SQL, so they live in `cron.json` and
 created or updated by `scripts/sync-cron.sh` (part of `task migrate`). Removing a job from `cron.json` does not delete it on Eurobase; set `"enabled": false` instead. Current jobs:
 
 - `enqueue-due-triggers`: every minute, calls `enqueue_due_triggers()` as the service role.
+- `purge-waitlist`: daily at 03:17 UTC, deletes waiting-list entries never confirmed within 7 days.
 
 ## Queue functions (0005, fixes in 0006, worker side in 0007)
 

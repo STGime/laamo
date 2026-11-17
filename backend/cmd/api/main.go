@@ -23,12 +23,14 @@ import (
 	"github.com/STGime/laamo/backend/internal/demo"
 	eb "github.com/STGime/laamo/backend/internal/eurobase"
 	"github.com/STGime/laamo/backend/internal/llm"
+	"github.com/STGime/laamo/backend/internal/mail"
 	"github.com/STGime/laamo/backend/internal/osm"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	"github.com/STGime/laamo/backend/internal/realtime"
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
 	sebs "github.com/STGime/laamo/backend/internal/store/eurobase"
+	"github.com/STGime/laamo/backend/internal/waitlist"
 	"github.com/STGime/laamo/backend/internal/web"
 )
 
@@ -55,21 +57,23 @@ func main() {
 	}
 	// One realtime connection for all browsers' live updates.
 	events := api.NewHub(realtime.Subscribe(ctx, cfg.EurobaseURL, cfg.EurobaseSecretKey, []string{"feed_cards", "runs", "run_steps"}, log))
+	st := sebs.New(client)
 	server := api.NewServer(api.Deps{
 		Config: cfg,
-		Store:  sebs.New(client),
+		Store:  st,
 		Auth:   auth.NewVerifier(cfg.EurobaseURL, cfg.EurobaseProjectID),
 		Log:    log,
 		Resume: func(ctx context.Context, runID string) error {
 			return client.RPC(ctx, "resume_waiting_runs", map[string]any{"p_run": runID}, nil)
 		},
-		Events: events,
-		Queue:  qeb.New(client),
-		Demo:   demoService(cfg, log),
-		Keys:   keys,
-		Chat:   &chat.Sender{},
-		Maps:   mapMaker(cfg),
-		Blobs:  eb.Blobs{Client: client, Prefix: "laamo/"},
+		Events:   events,
+		Queue:    qeb.New(client),
+		Demo:     demoService(cfg, log),
+		Keys:     keys,
+		Chat:     &chat.Sender{},
+		Maps:     mapMaker(cfg),
+		Blobs:    eb.Blobs{Client: client, Prefix: "laamo/"},
+		Waitlist: &waitlist.Service{Store: st, Mail: mailSender(cfg, log), SiteURL: cfg.SiteURL, Log: log},
 	})
 
 	srv := &http.Server{
@@ -92,6 +96,17 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
+}
+
+// mailSender sends through Resend, or into the log when there's no key (dev).
+func mailSender(cfg config.Config, log *slog.Logger) mail.Sender {
+	if cfg.ResendAPIKey == "" {
+		if cfg.Env != "dev" {
+			log.Warn("no RESEND_API_KEY: emails are only logged, nobody gets them")
+		}
+		return mail.LogSender{Log: log}
+	}
+	return &mail.Resend{APIKey: cfg.ResendAPIKey, From: cfg.MailFrom}
 }
 
 // demoService runs sample helpers for visitors (#75). It needs the AI and

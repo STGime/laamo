@@ -385,3 +385,30 @@ type PickExample struct {
 	Text        string    `json:"text"`
 	CreatedAt   time.Time `json:"created_at,omitzero"`
 }
+
+// WaitlistEntry is one person on the waiting list. It counts once confirmed
+// (double opt-in); TokenHash is the sha256 of the link we emailed them.
+type WaitlistEntry struct {
+	ID          string     `json:"id"`
+	Email       string     `json:"email"`
+	Locale      string     `json:"locale"`
+	Interests   []string   `json:"interests"`
+	Source      *string    `json:"source,omitempty"`
+	RefCode     string     `json:"ref_code"`
+	ReferredBy  *string    `json:"referred_by,omitempty"`
+	Consent     string     `json:"consent"`
+	TokenHash   *string    `json:"token_hash,omitempty"`
+	TokenSentAt *time.Time `json:"token_sent_at,omitempty"`
+	ConfirmedAt *time.Time `json:"confirmed_at,omitempty"`
+	InvitedAt   *time.Time `json:"invited_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at,omitzero"`
+}
+
+type WaitlistPatch struct {
+	Locale      *string              `json:"locale,omitempty"`
+	Interests   []string             `json:"interests,omitempty"`
+	TokenHash   *Nullable[string]    `json:"token_hash,omitempty"`
+	TokenSentAt *Nullable[time.Time] `json:"token_sent_at,omitempty"`
+	ConfirmedAt *Nullable[time.Time] `json:"confirmed_at,omitempty"`
+	InvitedAt   *Nullable[time.Time] `json:"invited_at,omitempty"`
+}

@@ -16,6 +16,7 @@ security:
 tags:
   - name: system
   - name: demo
+  - name: waitlist
   - name: me
   - name: places
   - name: lists
@@ -72,6 +73,75 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /waitlist/challenge:
+    get:
+      operationId: getWaitlistChallenge
+      summary: A proof-of-work challenge for one waiting-list sign-up (no account needed)
+      tags: [waitlist]
+      security: []
+      responses:
+        '200':
+          description: Find a nonce so that sha256(token + ":" + nonce) starts with `bits` zero bits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoChallenge'
+  /waitlist:
+    post:
+      operationId: joinWaitlist
+      summary: Join the waiting list. Sends one confirmation email (double opt-in)
+      description: |
+        The answer is the same whether the address is new, waiting for its
+        confirmation or already on the list.
+      tags: [waitlist]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WaitlistJoin'
+      responses:
+        '202':
+          description: Check your inbox
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistJoined'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /waitlist/confirm:
+    post:
+      operationId: confirmWaitlist
+      summary: Use the link from the confirmation email
+      tags: [waitlist]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  maxLength: 100
+      responses:
+        '200':
+          description: On the list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistConfirmed'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   /workspaces/{workspaceId}/places:
     parameters:
       - $ref: '#/components/parameters/WorkspaceId'
@@ -1010,6 +1080,52 @@ components:
           type: string
         bits:
           type: integer
+    WaitlistJoin:
+      type: object
+      required: [email, token, nonce]
+      properties:
+        email:
+          type: string
+          maxLength: 254
+        lang:
+          $ref: '#/components/schemas/Locale'
+        interests:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            enum: [customers, competitors, social, news, emails, events]
+        source:
+          type: string
+          maxLength: 200
+          description: The page or campaign the sign-up came from
+        ref:
+          type: string
+          maxLength: 12
+          description: Share code of the person who sent them
+        website:
+          type: string
+          description: Left empty by people; a filled-in value marks a bot (honeypot)
+        token:
+          type: string
+        nonce:
+          type: string
+    WaitlistJoined:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [check_inbox]
+    WaitlistConfirmed:
+      type: object
+      required: [ref_code, lang]
+      properties:
+        ref_code:
+          type: string
+          description: The person's share code (?ref= on the site)
+        lang:
+          $ref: '#/components/schemas/Locale'
     DemoRequest:
       type: object
       required: [template, city, token, nonce]

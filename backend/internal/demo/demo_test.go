@@ -14,6 +14,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/bricks"
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/llm"
+	"github.com/STGime/laamo/backend/internal/proof"
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
 )
@@ -72,7 +73,7 @@ func solve(c Challenge) string {
 	for n := 0; ; n++ {
 		nonce := strconv.Itoa(n)
 		sum := sha256.Sum256([]byte(c.Token + ":" + nonce))
-		if leadingZeros(sum[:]) >= c.Bits {
+		if proof.LeadingZeros(sum[:]) >= c.Bits {
 			return nonce
 		}
 	}
@@ -122,7 +123,7 @@ func TestDemoProof(t *testing.T) {
 	bad := in
 	for n := 0; ; n++ { // a nonce without the zero bits
 		sum := sha256.Sum256([]byte(in.Token + ":x" + strconv.Itoa(n)))
-		if leadingZeros(sum[:]) < 4 {
+		if proof.LeadingZeros(sum[:]) < 4 {
 			bad.Nonce = "x" + strconv.Itoa(n)
 			break
 		}
