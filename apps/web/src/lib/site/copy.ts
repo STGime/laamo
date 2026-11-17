@@ -14,6 +14,8 @@ export interface Copy {
 		placeholder: string;
 		interests: string;
 		interest: Record<string, string>;
+		wish: string;
+		wishPlaceholder: string;
 		button: string;
 		working: string;
 		consent: string;
@@ -85,8 +87,11 @@ const en: Copy = {
 			social: 'Write social posts',
 			news: 'Sum up the news',
 			emails: 'Sort my emails',
-			events: 'Plan events'
+			events: 'Plan events',
+			other: 'Something else'
 		},
+		wish: 'What should it do?',
+		wishPlaceholder: 'e.g. check my supplier prices every week',
 		button: 'Join the waiting list',
 		working: 'One moment…',
 		consent:
@@ -282,8 +287,11 @@ const de: Copy = {
 			social: 'Social-Beiträge schreiben',
 			news: 'Neuigkeiten zusammenfassen',
 			emails: 'E-Mails sortieren',
-			events: 'Events planen'
+			events: 'Events planen',
+			other: 'Etwas anderes'
 		},
+		wish: 'Was soll er tun?',
+		wishPlaceholder: 'z. B. jede Woche die Preise meiner Lieferanten prüfen',
 		button: 'Auf die Warteliste',
 		working: 'Einen Moment…',
 		consent:

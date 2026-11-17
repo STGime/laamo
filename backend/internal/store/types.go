@@ -393,6 +393,7 @@ type WaitlistEntry struct {
 	Email       string     `json:"email"`
 	Locale      string     `json:"locale"`
 	Interests   []string   `json:"interests"`
+	Wish        *string    `json:"wish,omitempty"`
 	Source      *string    `json:"source,omitempty"`
 	RefCode     string     `json:"ref_code"`
 	ReferredBy  *string    `json:"referred_by,omitempty"`
@@ -407,6 +408,7 @@ type WaitlistEntry struct {
 type WaitlistPatch struct {
 	Locale      *string              `json:"locale,omitempty"`
 	Interests   []string             `json:"interests,omitempty"`
+	Wish        *string              `json:"wish,omitempty"`
 	TokenHash   *Nullable[string]    `json:"token_hash,omitempty"`
 	TokenSentAt *Nullable[time.Time] `json:"token_sent_at,omitempty"`
 	ConfirmedAt *Nullable[time.Time] `json:"confirmed_at,omitempty"`

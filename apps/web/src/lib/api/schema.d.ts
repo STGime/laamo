@@ -645,7 +645,11 @@ export interface components {
 		WaitlistJoin: {
 			email: string;
 			lang?: components['schemas']['Locale'];
-			interests?: ('customers' | 'competitors' | 'social' | 'news' | 'emails' | 'events')[];
+			interests?: (
+				'customers' | 'competitors' | 'social' | 'news' | 'emails' | 'events' | 'other'
+			)[];
+			/** @description With "other", what they would like a helper to do */
+			wish?: string;
 			/** @description The page or campaign the sign-up came from */
 			source?: string;
 			/** @description Share code of the person who sent them */

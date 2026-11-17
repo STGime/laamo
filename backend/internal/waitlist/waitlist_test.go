@@ -104,6 +104,24 @@ func TestJoinAndConfirm(t *testing.T) {
 	}
 }
 
+func TestWish(t *testing.T) {
+	s, _, _ := newService(t)
+	ctx := context.Background()
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(s.Join(ctx, Join{Email: "dora@example.com", Interests: []string{"other"}, Wish: "  Check my supplier prices every week "}))
+	must(s.Join(ctx, Join{Email: "emil@example.com", Interests: []string{"news"}, Wish: "ignored without other"}))
+	d, _ := s.Store.WaitlistByEmail(ctx, "dora@example.com")
+	e, _ := s.Store.WaitlistByEmail(ctx, "emil@example.com")
+	if d.Wish == nil || *d.Wish != "Check my supplier prices every week" || e.Wish != nil {
+		t.Fatalf("wish: %v / %v", d.Wish, e.Wish)
+	}
+}
+
 func TestExpiredLink(t *testing.T) {
 	s, box, now := newService(t)
 	ctx := context.Background()

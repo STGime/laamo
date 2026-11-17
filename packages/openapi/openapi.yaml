@@ -1094,7 +1094,11 @@ components:
           maxItems: 10
           items:
             type: string
-            enum: [customers, competitors, social, news, emails, events]
+            enum: [customers, competitors, social, news, emails, events, other]
+        wish:
+          type: string
+          maxLength: 300
+          description: With "other", what they would like a helper to do
         source:
           type: string
           maxLength: 200
