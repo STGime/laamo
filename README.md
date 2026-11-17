@@ -9,7 +9,6 @@ apps/web/            SvelteKit SPA (one centered column on every screen size)
 backend/             one Go module
   cmd/api            HTTP API
   cmd/worker         run engine + outbound (job queue on Eurobase)
-  cmd/mailin         SMTP receiver for helper addresses
   cmd/runstack       run a stack JSON locally
   cmd/overpassmock   local Overpass stand-in (dev only)
   internal/          catalog, engine, bricks/{when,look,think,do,ask}, llm, search, fetch,
@@ -17,7 +16,7 @@ backend/             one Go module
 packages/catalog/    bricks.json + templates (single source of truth for bricks)
 packages/openapi/    API contract
 migrations/          SQL migrations for Eurobase (+ local RLS tests)
-deploy/              Dockerfiles, Kapsule manifests, DNS notes
+deploy/              Dockerfiles, deploy script (Scaleway Serverless Containers)
 assets/generated/    dev-only generated media (tracked in its README)
 ```
 

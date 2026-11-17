@@ -7,8 +7,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -87,7 +89,27 @@ func run(log *slog.Logger) error {
 			}
 		},
 	}
+	if addr := os.Getenv("HEALTH_ADDR"); addr != "" {
+		go serveHealth(ctx, addr, log)
+	}
 	return w.Run(ctx)
+}
+
+// serveHealth answers GET /healthz: Serverless Containers need a port to
+// check, though the worker takes no requests (HEALTH_ADDR, e.g. ":8080").
+func serveHealth(ctx context.Context, addr string, log *slog.Logger) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	})
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		<-ctx.Done()
+		_ = srv.Close()
+	}()
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Error("health listener", "err", err)
+	}
 }
 
 func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps {

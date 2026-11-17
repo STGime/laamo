@@ -100,7 +100,7 @@ tasks:
     dir: '{{.BACKEND}}'
     cmds:
       - |
-        {{if .ENV}}set -a; . ../deploy/{{.ENV}}.env; set +a; export LAAMO_ENV={{.ENV}}{{end}}
+        {{if .ENV}}set -a; . ../deploy/{{.ENV}}.env; set +a; export LAAMO_ENV={{.ENV}} SITE_URL="https://${WEB_DOMAIN:-laamo.app}"{{end}}
         go run ./cmd/invite {{.CLI_ARGS}}
 
   briefing:
@@ -134,3 +134,14 @@ tasks:
     desc: Apply migrations to a throwaway Postgres and run the RLS tests (Docker)
     cmds:
       - scripts/test-migrations.sh
+
+  deploy:staging:
+    desc: Build, push and deploy to Scaleway Serverless Containers (staging, Paris). Needs deploy/staging.env
+    cmds:
+      - deploy/deploy.sh staging
+
+  deploy:prod:
+    desc: Same for prod. Needs deploy/prod.env
+    prompt: Deploy to PROD?
+    cmds:
+      - deploy/deploy.sh prod

@@ -1,4 +1,4 @@
-# Builds one Go service. Usage: --build-arg CMD=api|worker|mailin
+# Builds one Go service. Usage: --build-arg CMD=api|worker
 # Build context: the repo root (the backend embeds packages/catalog and packages/openapi).
 FROM golang:1.26-alpine AS build
 ARG CMD

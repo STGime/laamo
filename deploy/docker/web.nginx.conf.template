@@ -1,0 +1,40 @@
+# The web app and its API on one domain: /api goes to the api container
+# (API_UPSTREAM, e.g. https://laamo-api-xxxx.functions.fnc.fr-par.scw.cloud),
+# so the browser needs no CORS. Filled in by envsubst when nginx starts.
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+
+    location /api/ {
+        proxy_pass ${API_UPSTREAM};
+        proxy_ssl_server_name on;            # https upstream: send its name (SNI)
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Live updates (Server-Sent Events) stream through unbuffered.
+        proxy_buffering off;
+        proxy_read_timeout 1h;
+        # Forwarded emails may be up to 15 MB (mail.MaxInbound).
+        client_max_body_size 16m;
+    }
+
+    # Hashed build assets can be cached forever.
+    location /_app/immutable/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Site pages are prerendered (/ → index.html, /de → de.html); every
+    # other path is the app (app.html, rendered in the browser).
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri.html $uri/index.html /app.html;
+    }
+
+    # The app is not for search engines.
+    location = /app.html {
+        add_header Cache-Control "no-cache";
+        add_header X-Robots-Tag "noindex";
+    }
+}
