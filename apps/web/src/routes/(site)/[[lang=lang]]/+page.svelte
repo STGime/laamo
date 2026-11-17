@@ -29,7 +29,7 @@
 					'@type': 'Organization',
 					name: 'Laamo',
 					url: SITE_URL,
-					logo: `${SITE_URL}/icon-512.png`,
+					logo: `${SITE_URL}/logo.png`,
 					parentOrganization: { '@type': 'Organization', name: 'Eurobase OÜ' }
 				}
 			]

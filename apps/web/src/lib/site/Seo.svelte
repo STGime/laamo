@@ -9,7 +9,7 @@
 		description,
 		lang,
 		path,
-		image = '/icon-512.png',
+		image = '/og.png',
 		noindex = false
 	}: {
 		title: string;
@@ -41,6 +41,11 @@
 	<meta property="og:description" content={description} />
 	<meta property="og:url" content={url} />
 	<meta property="og:image" content={imageURL} />
+	{#if image === '/og.png'}
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Laamo: little helpers that do your busywork" />
+	{/if}
 	<meta property="og:locale" content={lang === 'de' ? 'de_DE' : 'en_US'} />
-	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:card" content="summary_large_image" />
 </svelte:head>

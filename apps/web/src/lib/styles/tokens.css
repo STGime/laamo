@@ -34,6 +34,8 @@
 	--brick-purple: #8b4dff; /* Think */
 	--brick-green: #00b36b; /* Do    */
 	--brick-red: #ff3b5c; /* Ask me, and the brand accent */
+	/* Brand: the logo is red Archivo ExtraBold on this deep teal (static/logo.svg) */
+	--brand-teal: #0a2b29;
 	/* Text on each brick color (WCAG AA) */
 	--on-yellow: #111111;
 	--on-blue: #ffffff;
