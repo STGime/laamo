@@ -9,8 +9,17 @@
 		description,
 		lang,
 		path,
-		image = '/icon-512.png'
-	}: { title: string; description: string; lang: Lang; path: string; image?: string } = $props();
+		image = '/icon-512.png',
+		noindex = false
+	}: {
+		title: string;
+		description: string;
+		lang: Lang;
+		path: string;
+		image?: string;
+		/** Pages that aren't for search results (e.g. the confirm page). */
+		noindex?: boolean;
+	} = $props();
 
 	const url = $derived(pageURL(path, lang));
 	const imageURL = $derived(image.startsWith('http') ? image : pageURL(image, 'en'));
@@ -19,7 +28,7 @@
 <svelte:head>
 	<title>{title}</title>
 	<meta name="description" content={description} />
-	{#if !INDEXABLE}<meta name="robots" content="noindex" />{/if}
+	{#if !INDEXABLE || noindex}<meta name="robots" content="noindex" />{/if}
 	<link rel="canonical" href={url} />
 	{#each LANGS as l (l)}
 		<link rel="alternate" hreflang={l} href={pageURL(path, l)} />
