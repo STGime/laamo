@@ -52,7 +52,7 @@ func TestInviteNextInOrder(t *testing.T) {
 	}
 	m := box.sent[sent]
 	if m.To != "first@example.com" || !strings.Contains(m.Subject, "Einladung") ||
-		!strings.Contains(m.Text, "https://laamo.app/start?email=first%40example.com") || m.IdempotencyKey != "invite-"+e.ID {
+		!strings.Contains(m.Text, "https://laamo.app/start?invite&email=first%40example.com") || m.IdempotencyKey != "invite-"+e.ID {
 		t.Fatalf("invite mail = %+v", m)
 	}
 	if ok, _ := s.Invited(ctx, " First@Example.com"); !ok {

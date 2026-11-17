@@ -83,9 +83,10 @@ func (s *Service) InviteEmail(ctx context.Context, email, lang string) (store.Wa
 	return s.Invite(ctx, e)
 }
 
-// startLink opens sign-in with the address filled in.
+// startLink opens sign-in with the address filled in; ?invite lets it make
+// the account.
 func (s *Service) startLink(email string) string {
-	return strings.TrimRight(s.SiteURL, "/") + "/start?email=" + url.QueryEscape(email)
+	return strings.TrimRight(s.SiteURL, "/") + "/start?invite&email=" + url.QueryEscape(email)
 }
 
 // inviteMail: you're in, one button.
