@@ -51,7 +51,7 @@ func (s *Server) JoinWaitlist(ctx context.Context, req JoinWaitlistRequestObject
 		s.log.Warn("waitlist: hourly email cap reached", "cap", waitlistMailsHour)
 		return JoinWaitlist503JSONResponse{UnavailableJSONResponse(apiErr(ErrorCodeUnavailable, "lots of sign-ups right now, try again in a bit"))}, nil
 	}
-	in := waitlist.Join{Email: b.Email, Lang: string(deref(b.Lang)), Source: deref(b.Source), Ref: deref(b.Ref)}
+	in := waitlist.Join{Email: b.Email, Lang: string(deref(b.Lang)), Wish: deref(b.Wish), Source: deref(b.Source), Ref: deref(b.Ref)}
 	if b.Interests != nil {
 		for _, i := range *b.Interests {
 			in.Interests = append(in.Interests, string(i))

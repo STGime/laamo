@@ -17,11 +17,20 @@
 	let email = $state('');
 	let website = $state(''); // honeypot: people never see it
 	let picked = $state<Interest[]>([]);
+	let wish = $state('');
 	let busy = $state(false);
 	let sent = $state('');
 	let error = $state('');
 
-	const interests: Interest[] = ['customers', 'competitors', 'social', 'news', 'emails', 'events'];
+	const interests: Interest[] = [
+		'customers',
+		'competitors',
+		'social',
+		'news',
+		'emails',
+		'events',
+		'other'
+	];
 
 	function toggle(i: Interest) {
 		picked = picked.includes(i) ? picked.filter((x) => x !== i) : [...picked, i];
@@ -52,6 +61,7 @@
 				email: email.trim(),
 				lang,
 				interests: picked,
+				wish: picked.includes('other') ? wish.trim() || undefined : undefined,
 				source,
 				ref: ref(),
 				website,
@@ -114,6 +124,16 @@
 					>
 				{/each}
 			</div>
+			{#if picked.includes('other')}
+				<label class="wish" for="{id}-wish">{c.wish}</label>
+				<input
+					id="{id}-wish"
+					placeholder={c.wishPlaceholder}
+					maxlength="300"
+					autocomplete="off"
+					bind:value={wish}
+				/>
+			{/if}
 		</fieldset>
 
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -184,6 +204,14 @@
 		background: var(--brick-yellow);
 		color: var(--on-yellow);
 		box-shadow: var(--brick-edge);
+	}
+	.wish {
+		display: block;
+		margin: var(--space-3) 0 var(--space-2);
+		font-size: var(--text-sm);
+	}
+	.wish + input {
+		width: 100%;
 	}
 	.consent {
 		margin: 0;

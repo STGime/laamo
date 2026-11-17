@@ -634,6 +634,7 @@ const (
 	Emails      WaitlistJoinInterests = "emails"
 	Events      WaitlistJoinInterests = "events"
 	News        WaitlistJoinInterests = "news"
+	Other       WaitlistJoinInterests = "other"
 	Social      WaitlistJoinInterests = "social"
 )
 
@@ -649,6 +650,8 @@ func (e WaitlistJoinInterests) Valid() bool {
 	case Events:
 		return true
 	case News:
+		return true
+	case Other:
 		return true
 	case Social:
 		return true
@@ -1331,6 +1334,9 @@ type WaitlistJoin struct {
 
 	// Website Left empty by people; a filled-in value marks a bot (honeypot)
 	Website *string `json:"website,omitempty"`
+
+	// Wish With "other", what they would like a helper to do
+	Wish *string `json:"wish,omitempty"`
 }
 
 // WaitlistJoinInterests defines model for WaitlistJoin.Interests.

@@ -37,7 +37,8 @@ const (
 )
 
 // Interests people can tick on the form ("What should a helper do for you?").
-var Interests = []string{"customers", "competitors", "social", "news", "emails", "events"}
+// "other" comes with a few words in Join.Wish.
+var Interests = []string{"customers", "competitors", "social", "news", "emails", "events", "other"}
 
 var (
 	ErrEmail = errors.New("that doesn't look like an email address")
@@ -60,6 +61,7 @@ type Join struct {
 	Email     string
 	Lang      string   // en, de
 	Interests []string // from Interests; others are dropped
+	Wish      string   // with "other": what they'd like a helper to do
 	Source    string   // page or campaign
 	Ref       string   // share code of the person who sent them
 }
@@ -111,10 +113,15 @@ func (s *Service) Join(ctx context.Context, in Join) error {
 		}
 	}
 
+	var wish *string
+	if w := strings.TrimSpace(in.Wish); w != "" && slices.Contains(interests, "other") {
+		wish = new(cut(w, 300))
+	}
+
 	e, err := s.Store.WaitlistByEmail(ctx, email)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		return s.add(ctx, email, lang, interests, in)
+		return s.add(ctx, email, lang, interests, wish, in)
 	case err != nil:
 		return err
 	case e.ConfirmedAt != nil:
@@ -124,7 +131,7 @@ func (s *Service) Join(ctx context.Context, in Join) error {
 	}
 	token, hash := newToken()
 	sent := s.now()
-	e, err = s.Store.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{Locale: &lang, Interests: interests,
+	e, err = s.Store.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{Locale: &lang, Interests: interests, Wish: wish,
 		TokenHash: store.Set(hash), TokenSentAt: store.Set(sent)})
 	if err != nil {
 		return err
@@ -132,10 +139,10 @@ func (s *Service) Join(ctx context.Context, in Join) error {
 	return s.send(ctx, e, token)
 }
 
-func (s *Service) add(ctx context.Context, email, lang string, interests []string, in Join) error {
+func (s *Service) add(ctx context.Context, email, lang string, interests []string, wish *string, in Join) error {
 	token, hash := newToken()
 	sent := s.now()
-	e := store.WaitlistEntry{Email: email, Locale: lang, Interests: interests, Consent: Consent,
+	e := store.WaitlistEntry{Email: email, Locale: lang, Interests: interests, Wish: wish, Consent: Consent,
 		TokenHash: &hash, TokenSentAt: &sent}
 	if src := strings.TrimSpace(in.Source); src != "" {
 		e.Source = new(cut(src, 200))
