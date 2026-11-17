@@ -1,10 +1,11 @@
 // Passwordless sign-in with Eurobase auth, straight from the browser (per-IP
 // limits then apply per user, not to our server).
 //
-// One flow for new and returning users, so the screen never reveals whether
-// an email has an account: sign up with a random password nobody ever sees
-// (an existing email just fails), then request a magic link. Clicking the
-// link proves the email and signs in.
+// Sign-in only: a magic link goes to emails that have an account (Eurobase
+// sends nothing otherwise, and says the same either way). While Laamo is
+// invite-only, accounts are made only from the link in an invite email:
+// sign up with a random password nobody ever sees (an existing email just
+// fails), then the magic link. Clicking the link proves the email.
 
 export interface Tokens {
 	access_token: string;
@@ -51,14 +52,19 @@ export function createAuth(opts: AuthOptions = {}) {
 	}
 
 	return {
-		/** Sends a sign-in link to email; the link opens redirectTo?token=… */
-		async sendLink(email: string, redirectTo: string): Promise<void> {
+		/**
+		 * Sends a sign-in link to email; the link opens redirectTo?token=….
+		 * create: make the account first (invited people only).
+		 */
+		async sendLink(email: string, redirectTo: string, create = false): Promise<void> {
 			email = email.trim().toLowerCase();
-			try {
-				await post('signup', { email, password: randomPassword() });
-			} catch (e) {
-				// Already registered (or sign-up closed): a link still signs them in.
-				if (!(e instanceof AuthError) || e.status >= 500 || e.status === 429) throw e;
+			if (create) {
+				try {
+					await post('signup', { email, password: randomPassword() });
+				} catch (e) {
+					// Already registered: the link still signs them in.
+					if (!(e instanceof AuthError) || e.status >= 500 || e.status === 429) throw e;
+				}
 			}
 			await post('request-magic-link', { email, email_redirect_to: redirectTo });
 		},

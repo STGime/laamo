@@ -47,6 +47,10 @@ for v in SCW_REGISTRY_NAMESPACE EUROBASE_URL EUROBASE_PROJECT_ID EUROBASE_PUBLIC
 	}
 done
 
+# The public site (links in emails point here): WEB_DOMAIN, else laamo.app.
+SITE_URL="https://${WEB_DOMAIN:-laamo.app}"
+[[ $ENV_NAME == prod || -n ${WEB_DOMAIN:-} ]] || echo "warning: no WEB_DOMAIN: $ENV_NAME's email links point to $SITE_URL" >&2
+
 REGION=fr-par
 NS_NAME=laamo-$ENV_NAME
 REGISTRY=rg.$REGION.scw.cloud/$SCW_REGISTRY_NAMESPACE
@@ -78,7 +82,7 @@ if [[ ${SKIP_BUILD:-} != 1 ]]; then
 	[[ $ENV_NAME == prod ]] && SITE_INDEX=1
 	docker buildx build --platform linux/amd64 --push -f deploy/docker/web.Dockerfile \
 		--build-arg EUROBASE_URL="$EUROBASE_URL" --build-arg EUROBASE_PUBLIC_KEY="$EUROBASE_PUBLIC_KEY" \
-		--build-arg SITE_URL="https://${WEB_DOMAIN:-laamo.app}" --build-arg SITE_INDEX="$SITE_INDEX" \
+		--build-arg SITE_URL="$SITE_URL" --build-arg SITE_INDEX="$SITE_INDEX" \
 		-t "$REGISTRY/web:$ENV_NAME-$TAG" .
 fi
 
@@ -130,11 +134,13 @@ upsert() {
 
 say "api"
 API_HOST=$(upsert api "$REGISTRY/api:$TAG" 512 "$MIN" "$MAX" /api/healthz timeout=900s \
-	environment-variables.LAAMO_ENV="$ENV_NAME" environment-variables.API_ADDR=:8080 "${SECRETS[@]}")
+	environment-variables.LAAMO_ENV="$ENV_NAME" environment-variables.API_ADDR=:8080 \
+	environment-variables.SITE_URL="$SITE_URL" "${SECRETS[@]}")
 
 say "worker"
 upsert worker "$REGISTRY/worker:$TAG" 1024 1 1 /healthz \
-	environment-variables.LAAMO_ENV="$ENV_NAME" environment-variables.HEALTH_ADDR=:8080 "${SECRETS[@]}" >/dev/null
+	environment-variables.LAAMO_ENV="$ENV_NAME" environment-variables.HEALTH_ADDR=:8080 \
+	environment-variables.SITE_URL="$SITE_URL" "${SECRETS[@]}" >/dev/null
 
 say "web"
 WEB_HOST=$(upsert web "$REGISTRY/web:$ENV_NAME-$TAG" 128 "$MIN" "$MAX" / timeout=900s \

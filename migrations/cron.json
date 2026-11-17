@@ -18,5 +18,15 @@
     "action": "resume_waiting_runs",
     "run_as": "service",
     "enabled": true
+  },
+  {
+    "name": "purge-waitlist",
+    "description": "Delete waiting-list entries never confirmed within 7 days (Laamo)",
+    "schedule": "17 3 * * *",
+    "timezone": "UTC",
+    "action_type": "rpc",
+    "action": "purge_waitlist",
+    "run_as": "service",
+    "enabled": true
   }
 ]

@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLoadDefaults(t *testing.T) {
 	t.Setenv("LAAMO_ENV", "")
@@ -85,5 +88,26 @@ func TestFindBusinessesSettings(t *testing.T) {
 	c, _ := Load()
 	if c.GeoapifyAPIKey != "geo-key" || c.OSMOverpassURL != "https://overpass.example/api/interpreter" {
 		t.Fatalf("got %q %q", c.GeoapifyAPIKey, c.OSMOverpassURL)
+	}
+}
+
+func TestInviteOnly(t *testing.T) {
+	for _, c := range []struct {
+		env, flag string
+		want      bool
+	}{{"dev", "", false}, {"staging", "", true}, {"prod", "", true}, {"staging", "0", false}, {"dev", "1", true}} {
+		t.Setenv("LAAMO_ENV", c.env)
+		t.Setenv("LAAMO_INVITE_ONLY", c.flag)
+		t.Setenv("EUROBASE_PROJECT_ID", "p1")
+		t.Setenv("EUROBASE_PRIVATE_KEY", "eb_sk_x")
+		t.Setenv("LAAMO_MASTER_KEYS", "v1:"+strings.Repeat("A", 44))
+		t.Setenv("LAAMO_MASTER_KEY_ACTIVE", "v1")
+		got, err := Load()
+		if err != nil {
+			t.Fatalf("%+v: %v", c, err)
+		}
+		if got.InviteOnly != c.want {
+			t.Fatalf("%+v: invite only = %v", c, got.InviteOnly)
+		}
 	}
 }

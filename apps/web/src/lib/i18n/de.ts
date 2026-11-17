@@ -165,6 +165,14 @@ export const de: Record<Key, string> = {
 	'field.body': 'Text',
 	'feed.loadFailed':
 		'Dein Feed konnte nicht geladen werden (Fehler {status}). Versuch es gleich noch mal.',
+	'site.title': 'Laamo: kleine Helfer, die dir Routinearbeit abnehmen',
+	'site.description':
+		'Such dir einen Helfer aus, beantworte drei Fragen, und er erledigt eine tägliche Aufgabe für dich: findet Kunden, fasst Neuigkeiten zusammen, schreibt Beiträge. Am Handy oder Computer eingerichtet.',
+	'site.signIn': 'Anmelden',
+	'site.openApp': 'Laamo öffnen',
+	'site.otherLang': 'English',
+	'site.home': 'Laamo Startseite',
+	'site.madeBy': 'Laamo wird von der Eurobase OÜ, Estland, betrieben.',
 	'landing.title': 'Kleine Helfer, die deinen Kleinkram erledigen.',
 	'landing.sub':
 		'Nimm einen Helfer, steck ein paar Steine zusammen, und die Ergebnisse landen in deinem Feed.',
@@ -191,9 +199,10 @@ export const de: Record<Key, string> = {
 	'try.working': 'Sucht und liest… {n} s',
 	'try.test': 'Testlauf · nichts gespeichert oder gesendet',
 	'try.keep': 'Diesen Helfer behalten',
-	'try.keepHint': 'Melde dich mit deiner E-Mail an, dann läuft er für dich weiter.',
+	'try.keepHint':
+		'Trag dich auf die Warteliste ein. Sobald deine Einladung kommt, läuft er für dich weiter.',
 	'try.again': 'Andere Wörter ausprobieren',
-	'try.skip': 'Überspringen, gleich anmelden',
+	'try.skip': 'Überspringen, auf die Warteliste',
 	'try.err.input': 'Bitte nur einfache Wörter für Geschäft und Stadt.',
 	'try.err.limit': 'Du hast es schon ein paar Mal probiert. Melde dich an, um weiterzumachen.',
 	'try.err.off':
@@ -248,8 +257,8 @@ export const de: Record<Key, string> = {
 	'places.err.off': 'Chats verbinden ist auf diesem Server aus.',
 	'me.places': 'Meine Chats',
 	'tpl.addChat': 'Chat verbinden',
-	'start.title': 'Deine E-Mail',
-	'start.body': 'Wir schicken dir einen Link. Kein Passwort nötig.',
+	'start.title': 'Anmelden',
+	'start.body': 'Wir schicken dir einen Anmeldelink. Kein Passwort nötig.',
 	'start.email': 'E-Mail',
 	'start.send': 'Link schicken',
 	'start.sent.title': 'Schau in dein Postfach',
@@ -259,9 +268,19 @@ export const de: Record<Key, string> = {
 	'start.sent.other': 'Andere E-Mail nehmen',
 	'start.error': 'Das hat nicht geklappt. Prüf die Adresse und versuch es noch mal.',
 	'start.slow': 'Zu viele Versuche. Warte ein paar Minuten und versuch es dann noch mal.',
+	'start.invited': 'Willkommen bei Laamo',
+	'start.sent.ifAccount':
+		'Wenn es für {email} ein Laamo-Konto gibt, ist ein Link unterwegs. Er gilt 15 Minuten.',
+	'start.new': 'Neu hier? Laamo gibt es gerade nur mit Einladung.',
+	'start.join': 'Auf die Warteliste',
 	'callback.working': 'Du wirst angemeldet…',
 	'callback.failed': 'Dieser Link hat nicht funktioniert. Links gelten einmal, 15 Minuten lang.',
 	'callback.again': 'Neuen Link schicken',
+	'invite.title': 'Du bist noch nicht dabei',
+	'invite.body':
+		'Laamo gibt es gerade nur mit Einladung. Trag dich mit dieser E-Mail-Adresse auf die Warteliste ein, wir schreiben dir, sobald du dran bist.',
+	'invite.join': 'Auf die Warteliste',
+	'invite.other': 'Andere E-Mail verwenden',
 	'welcome.name.title': 'Wie sollen wir dich nennen?',
 	'welcome.name': 'Dein Name',
 	'welcome.business': 'Name deines Geschäfts',

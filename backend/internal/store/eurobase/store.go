@@ -580,3 +580,42 @@ func mapErr(err error) error {
 	}
 	return err
 }
+
+// ---- waiting list ----
+
+func (s *Store) AddWaitlist(ctx context.Context, e *store.WaitlistEntry) error {
+	if e.Interests == nil {
+		e.Interests = []string{}
+	}
+	return insertRow(ctx, s, "waitlist", &e.ID, e)
+}
+
+func (s *Store) WaitlistByEmail(ctx context.Context, email string) (store.WaitlistEntry, error) {
+	return s.waitlistBy(ctx, "email", email)
+}
+
+func (s *Store) WaitlistByToken(ctx context.Context, tokenHash string) (store.WaitlistEntry, error) {
+	return s.waitlistBy(ctx, "token_hash", tokenHash)
+}
+
+func (s *Store) waitlistBy(ctx context.Context, col, val string) (store.WaitlistEntry, error) {
+	rows, err := listRows[store.WaitlistEntry](ctx, s, "waitlist", eb.NewQuery().Eq(col, val), 1)
+	if err != nil {
+		return store.WaitlistEntry{}, err
+	}
+	if len(rows) == 0 {
+		return store.WaitlistEntry{}, store.ErrNotFound
+	}
+	return rows[0], nil
+}
+
+func (s *Store) UpdateWaitlist(ctx context.Context, id string, p store.WaitlistPatch) (store.WaitlistEntry, error) {
+	return updateRow[store.WaitlistEntry](ctx, s, "waitlist", id, p)
+}
+
+func (s *Store) WaitlistToInvite(ctx context.Context, limit int) ([]store.WaitlistEntry, error) {
+	// gt on a timestamp never matches NULL: "confirmed".
+	q := eb.NewQuery().Gt("confirmed_at", "2000-01-01T00:00:00Z").IsNull("invited_at").
+		Order("confirmed_at", false).Order("id", false)
+	return listRows[store.WaitlistEntry](ctx, s, "waitlist", q, limit)
+}

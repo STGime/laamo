@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,6 +43,7 @@ func Run(t *testing.T, newStore New) {
 	t.Run("Brains", func(t *testing.T) { testBrains(t, newStore) })
 	t.Run("Triggers", func(t *testing.T) { testTriggers(t, newStore) })
 	t.Run("Places", func(t *testing.T) { testPlaces(t, newStore) })
+	t.Run("Waitlist", func(t *testing.T) { testWaitlist(t, newStore) })
 }
 
 func testReadSeeded(t *testing.T, newStore New) {
@@ -645,4 +647,66 @@ func runIDs(rs []store.Run) []string {
 		ids[i] = r.ID
 	}
 	return ids
+}
+
+func testWaitlist(t *testing.T, newStore New) {
+	s, _ := newStore(t)
+	ctx := context.Background()
+	tag := strings.ToLower(store.NewID()[:8])
+	email := "wl-" + tag + "@example.com"
+	hash := "hash-" + tag
+	e := store.WaitlistEntry{Email: email, Locale: "de", Interests: []string{"customers", "social"},
+		RefCode: "r" + tag[:7], Consent: "waitlist-v1", TokenHash: &hash, TokenSentAt: new(time.Now().UTC())}
+	must(t, s.AddWaitlist(ctx, &e))
+	if e.ID == "" || e.CreatedAt.IsZero() {
+		t.Fatalf("id and created_at not filled in: %+v", e)
+	}
+	t.Cleanup(func() {
+		// Leave nothing behind on a live project: drop the token, so the
+		// daily purge removes the unconfirmed entry.
+		_, _ = s.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{TokenHash: store.Null[string](),
+			ConfirmedAt: store.Null[time.Time](), InvitedAt: store.Null[time.Time]()})
+	})
+
+	got, err := s.WaitlistByEmail(ctx, email)
+	must(t, err)
+	eq(t, "locale", got.Locale, "de")
+	eq(t, "interests", strings.Join(got.Interests, ","), "customers,social")
+	got, err = s.WaitlistByToken(ctx, hash)
+	must(t, err)
+	eq(t, "by token", got.ID, e.ID)
+
+	dupe := store.WaitlistEntry{Email: email, RefCode: "s" + tag[:7], Consent: "waitlist-v1"}
+	isErr(t, "same email twice", s.AddWaitlist(ctx, &dupe), store.ErrConflict)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	got, err = s.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{ConfirmedAt: store.Set(now), TokenHash: store.Null[string]()})
+	must(t, err)
+	if got.ConfirmedAt == nil || !got.ConfirmedAt.Equal(now) || got.TokenHash != nil {
+		t.Fatalf("confirm: %+v", got)
+	}
+	isErr(t, "used token", get(s.WaitlistByToken(ctx, hash)), store.ErrNotFound)
+	isErr(t, "unknown email", get(s.WaitlistByEmail(ctx, "nobody-"+tag+"@example.com")), store.ErrNotFound)
+
+	// Confirmed and not invited: up for an invite, until invited.
+	waiting := func() bool {
+		rows, err := s.WaitlistToInvite(ctx, 1000)
+		must(t, err)
+		for _, r := range rows {
+			if r.ConfirmedAt == nil || r.InvitedAt != nil {
+				t.Fatalf("to invite: %+v", r)
+			}
+			if r.ID == e.ID {
+				return true
+			}
+		}
+		return false
+	}
+	if !waiting() {
+		t.Fatal("confirmed entry isn't up for an invite")
+	}
+	must(t, get(s.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{InvitedAt: store.Set(now)})))
+	if waiting() {
+		t.Fatal("invited entry is still up for an invite")
+	}
 }

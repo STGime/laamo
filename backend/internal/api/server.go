@@ -13,8 +13,10 @@ import (
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/demo"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/proof"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/store"
+	"github.com/STGime/laamo/backend/internal/waitlist"
 	"github.com/STGime/laamo/packages/openapi"
 )
 
@@ -37,6 +39,11 @@ type Server struct {
 	chat   ChatSender
 	maps   MapMaker
 	blobs  engine.Blobs
+	// The waiting list (marketing site), its spam check and limits.
+	waitlist *waitlist.Service
+	wlProof  *proof.Checker
+	wlLimit  limiter
+	invites  inviteGate
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -64,6 +71,8 @@ type Deps struct {
 	Maps MapMaker
 	// Blobs holds pictures from Draw a picture (served by GET /images). Optional.
 	Blobs engine.Blobs
+	// Waitlist runs the marketing site's waiting list. Optional: closed without it.
+	Waitlist *waitlist.Service
 }
 
 // MapMaker draws a small map with a pin.
@@ -76,7 +85,8 @@ func NewServer(d Deps) *Server {
 		d.Log = slog.Default()
 	}
 	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log,
-		resume: d.Resume, events: d.Events, queue: d.Queue, demo: d.Demo, keys: d.Keys, chat: d.Chat, maps: d.Maps, blobs: d.Blobs}
+		resume: d.Resume, events: d.Events, queue: d.Queue, demo: d.Demo, keys: d.Keys, chat: d.Chat, maps: d.Maps, blobs: d.Blobs,
+		waitlist: d.Waitlist, wlProof: &proof.Checker{Scope: "waitlist", Secret: []byte(d.Config.DemoSecret), Bits: waitlistBits}}
 }
 
 // maxBody caps request bodies.
@@ -110,13 +120,14 @@ func (s *Server) Handler() http.Handler {
 
 	public := func(r *http.Request) bool {
 		switch r.Method + " " + strings.TrimPrefix(r.URL.Path, BaseURL) {
-		case "GET /healthz", "GET /openapi.yaml", "GET /demo/challenge", "POST /demo/runs":
+		case "GET /healthz", "GET /openapi.yaml", "GET /demo/challenge", "POST /demo/runs",
+			"GET /waitlist/challenge", "POST /waitlist", "POST /waitlist/confirm":
 			return true
 		}
 		// A shared list: the link's token is the key.
 		return r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, BaseURL+"/shared/lists/")
 	}
-	api := http.MaxBytesHandler(withClientIP(auth.Middleware(s.auth, public, WriteError)(mux), s.cfg.TrustProxy), maxBody)
+	api := http.MaxBytesHandler(withClientIP(auth.Middleware(s.auth, public, WriteError)(s.inviteOnly(mux)), s.cfg.TrustProxy), maxBody)
 	// Incoming email: signed by our Email Worker instead of a user, and up
 	// to mail.MaxInbound big (see inbound.go).
 	top := http.NewServeMux()

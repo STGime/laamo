@@ -4,6 +4,7 @@
   Check first also swipes: right approves all, left skips all.
 -->
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import type { Schemas } from '#lib/api/client.ts';
 	import { feed, type FeedCard } from '#lib/feed.svelte.ts';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
@@ -176,7 +177,9 @@
 	onpointercancel={() => ((dragging = false), (dx = 0))}
 >
 	<p class="meta">
-		<span class="avatar" aria-hidden="true">{card.helper?.avatar ?? '🧱'}</span>
+		<span class="avatar" aria-hidden="true"
+			><HelperIcon avatar={card.helper?.avatar} size={20} /></span
+		>
 		<span class="who">{card.helper?.name ?? 'Laamo'}</span>
 		<span>· {ago(card.created_at)}</span>
 		{#if card.payload.test}<span class="tag">{t('feed.test')}</span>{/if}

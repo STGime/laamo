@@ -44,6 +44,7 @@ type Store interface {
 	PlaceStore
 	OutboundStore
 	LearnStore
+	WaitlistStore
 }
 
 // Create* methods fill in a missing ID and copy back server defaults
@@ -200,4 +201,19 @@ type LearnStore interface {
 	CountPickExamples(ctx context.Context, helperID string) (int, error)
 	// ForgetPickExamples deletes everything a helper learned from swipes.
 	ForgetPickExamples(ctx context.Context, helperID string) error
+}
+
+// WaitlistStore is the marketing site's waiting list (service only).
+type WaitlistStore interface {
+	// AddWaitlist adds a person. ErrConflict when the email, ref code or
+	// token hash is taken.
+	AddWaitlist(ctx context.Context, e *WaitlistEntry) error
+	// WaitlistByEmail finds an entry by its (lower-case) email, or ErrNotFound.
+	WaitlistByEmail(ctx context.Context, email string) (WaitlistEntry, error)
+	// WaitlistByToken finds an entry by its confirmation token hash, or ErrNotFound.
+	WaitlistByToken(ctx context.Context, tokenHash string) (WaitlistEntry, error)
+	UpdateWaitlist(ctx context.Context, id string, p WaitlistPatch) (WaitlistEntry, error)
+	// WaitlistToInvite returns up to limit confirmed, not yet invited
+	// entries, the ones who confirmed first first.
+	WaitlistToInvite(ctx context.Context, limit int) ([]WaitlistEntry, error)
 }

@@ -24,6 +24,10 @@ its `API_URL` is `https://<web domain>/api/inbound/email`.
    Use a separate Eurobase project for staging, with its migrations applied
    (`task migrate`).
 3. `task deploy:staging`
+4. Laamo is invite-only, and the app has no sign-up. Invite yourself first:
+   `ENV=staging task invite -- -send <your email>`, then use the email's link.
+   Add the web domain to the Eurobase project's redirect URLs
+   (`https://<domain>/auth/callback`) and CORS origins, or sign-in links fail.
 
 The script creates the registry namespace, the container namespace and the
 containers the first time, and updates them after that. It prints the web

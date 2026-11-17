@@ -55,6 +55,61 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/waitlist/challenge': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** A proof-of-work challenge for one waiting-list sign-up (no account needed) */
+		get: operations['getWaitlistChallenge'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/waitlist': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Join the waiting list. Sends one confirmation email (double opt-in)
+		 * @description The answer is the same whether the address is new, waiting for its
+		 *     confirmation or already on the list.
+		 */
+		post: operations['joinWaitlist'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/waitlist/confirm': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Use the link from the confirmation email */
+		post: operations['confirmWaitlist'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/workspaces/{workspaceId}/places': {
 		parameters: {
 			query?: never;
@@ -587,6 +642,32 @@ export interface components {
 			token: string;
 			bits: number;
 		};
+		WaitlistJoin: {
+			email: string;
+			lang?: components['schemas']['Locale'];
+			interests?: (
+				'customers' | 'competitors' | 'social' | 'news' | 'emails' | 'events' | 'other'
+			)[];
+			/** @description With "other", what they would like a helper to do */
+			wish?: string;
+			/** @description The page or campaign the sign-up came from */
+			source?: string;
+			/** @description Share code of the person who sent them */
+			ref?: string;
+			/** @description Left empty by people; a filled-in value marks a bot (honeypot) */
+			website?: string;
+			token: string;
+			nonce: string;
+		};
+		WaitlistJoined: {
+			/** @enum {string} */
+			status: 'check_inbox';
+		};
+		WaitlistConfirmed: {
+			/** @description The person's share code (?ref= on the site) */
+			ref_code: string;
+			lang: components['schemas']['Locale'];
+		};
 		DemoRequest: {
 			/** @enum {string} */
 			template: 'morning-briefing' | 'weekend-scout';
@@ -711,6 +792,7 @@ export interface components {
 				| 'bad_request'
 				| 'unauthorized'
 				| 'forbidden'
+				| 'not_invited'
 				| 'not_found'
 				| 'conflict'
 				| 'auth_unavailable'
@@ -1212,6 +1294,81 @@ export interface operations {
 			503: components['responses']['Unavailable'];
 		};
 	};
+	getWaitlistChallenge: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Find a nonce so that sha256(token + ":" + nonce) starts with `bits` zero bits */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['DemoChallenge'];
+				};
+			};
+		};
+	};
+	joinWaitlist: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['WaitlistJoin'];
+			};
+		};
+		responses: {
+			/** @description Check your inbox */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WaitlistJoined'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			429: components['responses']['TooManyRequests'];
+			503: components['responses']['Unavailable'];
+		};
+	};
+	confirmWaitlist: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': {
+					token: string;
+				};
+			};
+		};
+		responses: {
+			/** @description On the list */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WaitlistConfirmed'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			429: components['responses']['TooManyRequests'];
+		};
+	};
 	listPlaces: {
 		parameters: {
 			query?: never;
@@ -1678,6 +1835,15 @@ export interface operations {
 				};
 			};
 			401: components['responses']['Unauthorized'];
+			/** @description Not invited yet (code not_invited). While Laamo is invite-only, every signed-in endpoint answers this for people who haven't been invited from the waiting list. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Error'];
+				};
+			};
 		};
 	};
 	createWorkspace: {

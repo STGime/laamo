@@ -33,8 +33,14 @@ type Config struct {
 	// Incoming email (Cloudflare Email Worker → POST /api/inbound/email).
 	InboundDomain string // helpers' addresses: <name>.<random>@InboundDomain
 	InboundSecret string // shared with the Worker; signs each delivery (off when empty)
-	FalKey        string // Draw a picture (fal.ai); the LLM key when that is fal's
-	ImageModel    string
+	// Outgoing email (Resend): only to the person themselves, e.g. the
+	// waiting-list confirmation. Without a key, emails go to the log (dev).
+	ResendAPIKey string
+	MailFrom     string
+	// SiteURL: the public site; links in emails point here.
+	SiteURL    string
+	FalKey     string // Draw a picture (fal.ai); the LLM key when that is fal's
+	ImageModel string
 	// Master keys for secrets at rest ("v1:base64,v2:base64"), see
 	// internal/crypto and docs/security/secrets.md. Server side only.
 	MasterKeys      string
@@ -52,6 +58,9 @@ type Config struct {
 	// TrustProxy: take the client IP from X-Forwarded-For (set behind the
 	// load balancer, never when the api is reachable directly).
 	TrustProxy bool
+	// InviteOnly: only people invited from the waiting list may use the app
+	// (LAAMO_INVITE_ONLY=1/0; on by default outside dev).
+	InviteOnly bool
 }
 
 const (
@@ -77,6 +86,9 @@ func Load() (Config, error) {
 		GeoapifyAPIKey:    os.Getenv("GEOAPIFY_API_KEY"),
 		InboundDomain:     getenv("INBOUND_DOMAIN", "in.laamo.app"),
 		InboundSecret:     os.Getenv("INBOUND_SECRET"),
+		ResendAPIKey:      os.Getenv("RESEND_API_KEY"),
+		MailFrom:          getenv("MAIL_FROM", "Laamo <hello@notify.laamo.app>"),
+		SiteURL:           getenv("SITE_URL", "http://localhost:5173"),
 		FalKey:            firstNonEmpty(os.Getenv("FAL_KEY"), os.Getenv("FAL_AI_API_KEY")),
 		ImageModel:        getenv("IMAGE_MODEL", ""),
 		MasterKeys:        os.Getenv("LAAMO_MASTER_KEYS"),
@@ -87,6 +99,14 @@ func Load() (Config, error) {
 		LLMModel:          getenv("LLM_MODEL", DefaultLLMModel),
 		DemoSecret:        os.Getenv("LAAMO_DEMO_SECRET"),
 		TrustProxy:        os.Getenv("LAAMO_TRUST_PROXY") == "1",
+	}
+	switch os.Getenv("LAAMO_INVITE_ONLY") {
+	case "1":
+		c.InviteOnly = true
+	case "0":
+		c.InviteOnly = false
+	default:
+		c.InviteOnly = c.Env != "dev"
 	}
 	if c.FalKey == "" && c.LLMAuth == "Key" {
 		c.FalKey = c.LLMAPIKey // the brain goes through fal.ai: same key

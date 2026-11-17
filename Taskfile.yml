@@ -95,6 +95,14 @@ tasks:
     cmds:
       - go run ./cmd/sendmail {{.CLI_ARGS}}
 
+  invite:
+    desc: "Invite people from the waiting list: task invite -- 20 shows the next 20, -send invites them; also -send anna@example.com. ENV=staging|prod uses deploy/<env>.env"
+    dir: '{{.BACKEND}}'
+    cmds:
+      - |
+        {{if .ENV}}set -a; . ../deploy/{{.ENV}}.env; set +a; export LAAMO_ENV={{.ENV}} SITE_URL="https://${WEB_DOMAIN:-laamo.app}"{{end}}
+        go run ./cmd/invite {{.CLI_ARGS}}
+
   briefing:
     desc: Morning Briefing end to end with live search and AI (messages are printed, not posted)
     dir: '{{.BACKEND}}'

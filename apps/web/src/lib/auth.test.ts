@@ -22,7 +22,7 @@ describe('auth', () => {
 			key: 'eb_pk_test',
 			fetch: fakeFetch({ signup: [201, {}], 'request-magic-link': [200, {}] }, calls)
 		});
-		await auth.sendLink(' Anna@Example.com ', 'http://localhost:5173/auth/callback');
+		await auth.sendLink(' Anna@Example.com ', 'http://localhost:5173/auth/callback', true);
 		expect(calls.map((c) => c.path)).toEqual(['signup', 'request-magic-link']);
 		expect(calls[0].body.email).toBe('anna@example.com');
 		expect(calls[0].body.password.length).toBeGreaterThanOrEqual(40);
@@ -41,8 +41,18 @@ describe('auth', () => {
 				calls
 			)
 		});
-		await auth.sendLink('anna@example.com', 'x');
+		await auth.sendLink('anna@example.com', 'x', true);
 		expect(calls.map((c) => c.path)).toEqual(['signup', 'request-magic-link']);
+	});
+	it('only signs in without an invite (never makes an account)', async () => {
+		const calls: { path: string; body: any }[] = [];
+		const auth = createAuth({
+			url: 'https://eb.test',
+			key: 'eb_pk_test',
+			fetch: fakeFetch({ 'request-magic-link': [200, {}] }, calls)
+		});
+		await auth.sendLink('anna@example.com', 'x');
+		expect(calls.map((c) => c.path)).toEqual(['request-magic-link']);
 	});
 	it('stops on rate limits and server errors', async () => {
 		const auth = createAuth({
@@ -50,7 +60,7 @@ describe('auth', () => {
 			key: 'eb_pk_test',
 			fetch: fakeFetch({ signup: [429, { error: 'slow down' }] }, [])
 		});
-		await expect(auth.sendLink('a@b.c', 'x')).rejects.toBeInstanceOf(AuthError);
+		await expect(auth.sendLink('a@b.c', 'x', true)).rejects.toBeInstanceOf(AuthError);
 	});
 	it('exchanges the link token', async () => {
 		const auth = createAuth({

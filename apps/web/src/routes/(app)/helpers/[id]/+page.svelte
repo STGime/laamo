@@ -1,0 +1,414 @@
+<!-- S11 Helper page: on/off, rename, run now, its bricks, recent runs, delete. -->
+<script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import type { Schemas } from '#lib/api/client.ts';
+	import BottomSheet from '#lib/components/BottomSheet.svelte';
+	import BrickStack, { type StackItem } from '#lib/components/BrickStack.svelte';
+	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
+	import { listen } from '#lib/feed.svelte.ts';
+	import { brickProgress, busy as running, retrying } from '#lib/progress.ts';
+	import RunTicker from '#lib/components/RunTicker.svelte';
+	import HelperAddress from '#lib/components/HelperAddress.svelte';
+	import { api, session } from '#lib/session.svelte.ts';
+	import { ago, when } from '#lib/time.ts';
+
+	let detail = $state<Schemas['HelperDetail'] | null>(null);
+	let missing = $state(false);
+	let renaming = $state(false);
+	let name = $state('');
+	let confirmDelete = $state(false);
+	let busy = $state(false);
+	let started = $state(false);
+	let forgetting = $state(false);
+	let forgot = $state(false);
+
+	const id = $derived(page.params.id ?? '');
+	// Changes made in the builder but not saved (kept in this tab).
+	let unsaved = $state(false);
+	$effect(() => {
+		try {
+			unsaved = !!sessionStorage.getItem(`laamo.edit.${id}`);
+		} catch {
+			unsaved = false;
+		}
+	});
+
+	async function load() {
+		const { data, response } = await api.GET('/helpers/{helperId}', {
+			params: { path: { helperId: id } }
+		});
+		if (response.status === 404) missing = true;
+		if (data) detail = data;
+	}
+	// The run view is live: run and step changes reload the page's data.
+	$effect(() => {
+		if (!id) return;
+		load();
+		return listen(load, () => session.fresh(), ['run', 'step', 'reload']);
+	});
+
+	const helper = $derived(detail?.helper);
+	const on = $derived(helper?.status === 'active');
+	const run = $derived(helper?.run);
+	// While a run is going, bricks light up (see brickProgress).
+	const view = $derived(
+		brickProgress(
+			(detail?.bricks ?? []).map((b) => ({ id: b.id, group: b.group, title: b.sentence })),
+			run,
+			detail?.steps
+		)
+	);
+	const bricks = $derived(view.items as StackItem[]);
+	const current = $derived(view.current);
+
+	async function patch(body: { name?: string; status?: 'active' | 'paused' }) {
+		busy = true;
+		const { data } = await api.PATCH('/helpers/{helperId}', {
+			params: { path: { helperId: id } },
+			body
+		});
+		busy = false;
+		if (data && detail) detail = { ...detail, helper: data };
+	}
+
+	async function runNow() {
+		busy = true;
+		const { data } = await api.POST('/helpers/{helperId}/runs', {
+			params: { path: { helperId: id } },
+			body: {}
+		});
+		busy = false;
+		if (data) {
+			started = true;
+			load();
+		}
+	}
+
+	// Learning from swipes (#76): what Let me pick taught Keep the good ones.
+	async function forget() {
+		if (!forgetting) {
+			forgetting = true;
+			return;
+		}
+		busy = true;
+		const { response } = await api.DELETE('/helpers/{helperId}/learned', {
+			params: { path: { helperId: id } }
+		});
+		busy = false;
+		forgetting = false;
+		if (response.ok && detail) {
+			detail = { ...detail, learned: 0 };
+			forgot = true;
+		}
+	}
+
+	async function remove() {
+		busy = true;
+		const { response } = await api.DELETE('/helpers/{helperId}', {
+			params: { path: { helperId: id } }
+		});
+		busy = false;
+		if (response.ok) goto('/helpers', { replaceState: true });
+	}
+</script>
+
+{#if missing}
+	<p class="note">{t('feed.empty.title')}</p>
+{:else if helper}
+	<header>
+		<span class="avatar" aria-hidden="true"><HelperIcon avatar={helper.avatar} size={56} /></span>
+		{#if renaming}
+			<form
+				class="rename"
+				onsubmit={(e) => {
+					e.preventDefault();
+					if (name.trim()) patch({ name: name.trim() }).then(() => (renaming = false));
+				}}
+			>
+				<input bind:value={name} maxlength="80" aria-label={t('helper.rename')} />
+				<button class="btn primary" disabled={busy || !name.trim()}>{t('helper.save')}</button>
+			</form>
+		{:else}
+			<button
+				class="title"
+				onclick={() => ((name = helper.name), (renaming = true))}
+				aria-label={t('helper.rename')}
+			>
+				<h1>{helper.name}</h1>
+				<span class="pen" aria-hidden="true">✎</span>
+			</button>
+		{/if}
+
+		<div class="row">
+			<button
+				class="switch"
+				role="switch"
+				aria-checked={on}
+				disabled={busy || helper.status === 'draft'}
+				onclick={() => patch({ status: on ? 'paused' : 'active' })}
+			>
+				<span class="knob" aria-hidden="true"></span>
+				{on ? t('helper.on') : t('helper.off')}
+			</button>
+			<p class="next">
+				{#if !on}{t('helper.paused')}{:else if helper.next_run_at}{t('helper.next', {
+						when: when(helper.next_run_at, i18n.lang)
+					})}{:else if helper.email_address}{t('helper.onEmail')}{:else}{t(
+						'helper.noSchedule'
+					)}{/if}
+			</p>
+		</div>
+		{#if helper.email_address}<HelperAddress address={helper.email_address} />{/if}
+		<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
+			>{#if run}<RunTicker
+					{run}
+					retrying={retrying(
+						run,
+						detail?.steps,
+						(detail?.bricks ?? []).map((b) => b.id)
+					)}
+				/>{:else}{t('helpers.runNow')}{/if}</button
+		>
+		{#if started && !run}<p class="started">
+				{t('helpers.started')} <a href="/feed">{t('tab.feed')} →</a>
+			</p>{/if}
+	</header>
+
+	<section>
+		<h2>{t('helper.bricks')}</h2>
+		{#if unsaved}
+			<p class="unsaved">
+				{t('helper.unsaved')} <a href="/helpers/{id}/edit">{t('helper.unsavedOpen')} →</a>
+			</p>
+		{/if}
+		<BrickStack {bricks} {current} />
+		<a class="btn wide edit" href="/helpers/{id}/edit">{t('builder.edit')}</a>
+		{#if detail?.learned}
+			<p class="learned">
+				{t('helper.learned', { n: detail.learned })}
+				<button class="link" class:sure={forgetting} disabled={busy} onclick={forget}
+					>{forgetting ? t('helper.forgetSure') : t('helper.forget')}</button
+				>
+			</p>
+		{:else if forgot}
+			<p class="learned">{t('helper.forgotten')}</p>
+		{/if}
+	</section>
+
+	<section>
+		<h2>{t('helper.runs')}</h2>
+		{#if detail?.runs.length}
+			<ul class="runs">
+				{#each detail.runs as r (r.id)}
+					<li>
+						<span class="dot {r.status}" aria-hidden="true"></span>
+						<span class="what"
+							>{t(`run.status.${r.status}` as Key)}{r.test ? ` · ${t('run.test')}` : ''}</span
+						>
+						<span class="meta"
+							>{r.cards_out != null ? `${t('helper.cards', { n: r.cards_out })} · ` : ''}{ago(
+								r.created_at
+							)} · €{r.cost_eur.toFixed(4)}</span
+						>
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="hint">{t('helper.noRuns')}</p>
+		{/if}
+	</section>
+
+	<section>
+		<button class="btn wide danger" onclick={() => (confirmDelete = true)}
+			>{t('helper.delete')}</button
+		>
+	</section>
+
+	<BottomSheet bind:open={confirmDelete} title={t('helper.deleteTitle', { name: helper.name })}>
+		<p>{t('helper.deleteBody')}</p>
+		{#snippet footer()}
+			<div class="confirm">
+				<button class="btn" onclick={() => (confirmDelete = false)}>{t('helper.cancel')}</button>
+				<button class="btn danger-solid" disabled={busy} onclick={remove}
+					>{t('helper.deleteYes')}</button
+				>
+			</div>
+		{/snippet}
+	</BottomSheet>
+{:else}
+	<p class="note">{t('loading')}</p>
+{/if}
+
+<style>
+	header {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		padding: var(--space-6) var(--gutter) var(--space-4);
+	}
+	.avatar {
+		font-size: 44px;
+		line-height: 1;
+	}
+	.title {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: 0;
+		border: 0;
+		background: none;
+		text-align: left;
+		cursor: pointer;
+	}
+	.pen {
+		color: var(--muted);
+		font-size: var(--text-lg);
+	}
+	.rename {
+		display: flex;
+		gap: var(--space-2);
+	}
+	.rename input {
+		flex: 1;
+		min-width: 0;
+		min-height: var(--tap-min);
+		padding: 0 var(--space-3);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font: inherit;
+		font-size: var(--text-lg);
+	}
+	.row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+	.switch {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: var(--tap-min);
+		padding: 0 var(--space-3) 0 var(--space-1);
+		border: 2px solid var(--ink);
+		border-radius: 24px;
+		background: var(--white);
+		font-weight: 800;
+		cursor: pointer;
+	}
+	.knob {
+		width: 36px;
+		height: 36px;
+		border-radius: 18px;
+		background: var(--gray-200);
+		transition: background var(--motion-fast) var(--ease);
+	}
+	.switch[aria-checked='true'] .knob {
+		background: var(--brick-green);
+	}
+	.next {
+		margin: 0;
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+	.started {
+		margin: 0;
+		font-weight: 600;
+	}
+	section {
+		padding: var(--space-4) var(--gutter);
+		border-top: var(--border);
+	}
+	h2 {
+		margin-bottom: var(--space-3);
+		font-size: var(--text-lg);
+	}
+	.hint {
+		margin: var(--space-3) 0 0;
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.runs {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.runs li {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: 44px;
+		border-bottom: var(--border);
+	}
+	.dot {
+		width: 10px;
+		height: 10px;
+		border-radius: 2px;
+		background: var(--gray-200);
+	}
+	.dot.done {
+		background: var(--brick-green);
+	}
+	.dot.failed,
+	.dot.stopped {
+		background: var(--brick-red);
+	}
+	.dot.running,
+	.dot.queued {
+		background: var(--brick-blue);
+	}
+	.dot.waiting {
+		background: var(--brick-yellow);
+	}
+	.what {
+		flex: 1;
+		font-weight: 600;
+	}
+	.meta {
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.danger {
+		color: var(--danger);
+	}
+	.confirm {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-2);
+	}
+	.danger-solid {
+		background: var(--danger);
+		color: var(--white);
+	}
+	.learned {
+		margin-top: var(--space-2);
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.link {
+		background: none;
+		border: 0;
+		padding: 0;
+		color: var(--ink);
+		font: inherit;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.link.sure {
+		color: var(--danger);
+	}
+	.note {
+		padding: var(--space-6) var(--gutter);
+		color: var(--muted);
+	}
+	.unsaved {
+		margin: 0 0 var(--space-3);
+		padding: var(--space-3);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+</style>
