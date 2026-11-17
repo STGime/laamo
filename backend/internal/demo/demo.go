@@ -11,19 +11,12 @@ package demo
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/bits"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +27,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/engine/tmpl"
 	"github.com/STGime/laamo/backend/internal/llm"
+	"github.com/STGime/laamo/backend/internal/proof"
 	"github.com/STGime/laamo/backend/internal/shelf"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/store/memory"
@@ -44,7 +38,7 @@ var Templates = []string{"morning-briefing", "weekend-scout"}
 
 var (
 	ErrInput  = errors.New("bad demo input")
-	ErrProof  = errors.New("bad or used proof of work")
+	ErrProof  = proof.ErrProof
 	ErrLimit  = errors.New("too many demo runs, try again later")
 	ErrBudget = errors.New("the demo is resting for today")
 )
@@ -80,7 +74,7 @@ type Service struct {
 	once   sync.Once
 	mu     sync.Mutex
 	ips    map[string][]time.Time
-	used   map[string]time.Time // spent challenge tokens
+	proof  *proof.Checker
 	day    string
 	spent  float64
 	cache  map[string]cached
@@ -122,24 +116,18 @@ type Link struct{ Title, URL string }
 type Card struct{ Title, Summary, URL string }
 
 // Challenge is a signed token the browser must find a nonce for.
-type Challenge struct {
-	Token string
-	Bits  int
-}
+type Challenge = proof.Challenge
 
 func (s *Service) init() {
 	s.once.Do(func() {
 		if s.Limits == (Limits{}) {
 			s.Limits = DefaultLimits
 		}
-		if len(s.Secret) == 0 {
-			s.Secret = make([]byte, 32)
-			_, _ = rand.Read(s.Secret)
-		}
+		s.proof = &proof.Checker{Scope: "demo", Secret: s.Secret, Bits: s.Limits.Bits, Now: s.now}
 		if s.Log == nil {
 			s.Log = slog.New(slog.DiscardHandler)
 		}
-		s.ips, s.used, s.cache = map[string][]time.Time{}, map[string]time.Time{}, map[string]cached{}
+		s.ips, s.cache = map[string][]time.Time{}, map[string]cached{}
 		s.slots = make(chan struct{}, max(1, s.Limits.Parallel))
 		if s.runner == nil {
 			s.runner = s.run
@@ -157,56 +145,7 @@ func (s *Service) now() time.Time {
 // NewChallenge returns a token valid for 10 minutes and one run.
 func (s *Service) NewChallenge() Challenge {
 	s.init()
-	r := make([]byte, 12)
-	_, _ = rand.Read(r)
-	payload := strconv.FormatInt(s.now().Unix(), 10) + "." + hex.EncodeToString(r)
-	return Challenge{Token: payload + "." + s.sign(payload), Bits: s.Limits.Bits}
-}
-
-func (s *Service) sign(payload string) string {
-	m := hmac.New(sha256.New, s.Secret)
-	m.Write([]byte(payload))
-	return base64.RawURLEncoding.EncodeToString(m.Sum(nil))
-}
-
-// checkProof verifies the token and nonce and spends the token.
-func (s *Service) checkProof(token, nonce string) error {
-	i := strings.LastIndexByte(token, '.')
-	if i < 0 || len(nonce) == 0 || len(nonce) > 20 || !hmac.Equal([]byte(token[i+1:]), []byte(s.sign(token[:i]))) {
-		return ErrProof
-	}
-	ts, _, _ := strings.Cut(token, ".")
-	sec, err := strconv.ParseInt(ts, 10, 64)
-	if err != nil || s.now().Sub(time.Unix(sec, 0)) > 10*time.Minute {
-		return ErrProof
-	}
-	sum := sha256.Sum256([]byte(token + ":" + nonce))
-	if leadingZeros(sum[:]) < s.Limits.Bits {
-		return ErrProof
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for t, at := range s.used {
-		if s.now().Sub(at) > 11*time.Minute {
-			delete(s.used, t)
-		}
-	}
-	if _, spent := s.used[token]; spent {
-		return ErrProof
-	}
-	s.used[token] = s.now()
-	return nil
-}
-
-func leadingZeros(b []byte) int {
-	n := 0
-	for _, c := range b {
-		if c != 0 {
-			return n + bits.LeadingZeros8(c)
-		}
-		n += 8
-	}
-	return n
+	return s.proof.New()
 }
 
 // Plain words only: they end up in a search query, so no operators, links
@@ -254,8 +193,8 @@ func (s *Service) Run(ctx context.Context, ip string, in Input) (Result, error) 
 	if err := s.validate(&in); err != nil {
 		return Result{}, err
 	}
-	if err := s.checkProof(in.Token, in.Nonce); err != nil {
-		return Result{}, err
+	if err := s.proof.Check(in.Token, in.Nonce); err != nil {
+		return Result{}, ErrProof
 	}
 	if res, ok := s.cached(in.key()); ok {
 		return res, nil

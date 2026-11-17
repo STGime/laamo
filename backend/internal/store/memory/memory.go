@@ -28,6 +28,7 @@ type Store struct {
 	members    map[string]store.Member
 	brains     map[string]store.Brain // by workspace id
 	triggers   map[string]store.Trigger
+	waitlist   map[string]store.WaitlistEntry
 	places     map[string]store.Place
 	helpers    map[string]store.Helper
 	versions   map[string]store.HelperVersion
@@ -52,6 +53,7 @@ func New() *Store {
 		members:    map[string]store.Member{},
 		brains:     map[string]store.Brain{},
 		triggers:   map[string]store.Trigger{},
+		waitlist:   map[string]store.WaitlistEntry{},
 		places:     map[string]store.Place{},
 		helpers:    map[string]store.Helper{},
 		versions:   map[string]store.HelperVersion{},
@@ -1155,4 +1157,54 @@ func clone[T any](v T) T {
 		panic(fmt.Sprintf("memory: clone %T: %v", v, err))
 	}
 	return out
+}
+
+// ---- waiting list ----
+
+func (s *Store) AddWaitlist(_ context.Context, e *store.WaitlistEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if e.ID == "" {
+		e.ID = store.NewID()
+	}
+	same := func(a, b *string) bool { return a != nil && b != nil && *a == *b }
+	for _, o := range s.waitlist {
+		if o.ID == e.ID || o.Email == e.Email || o.RefCode == e.RefCode || same(o.TokenHash, e.TokenHash) {
+			return dup("waitlist", e.Email)
+		}
+	}
+	if e.Interests == nil {
+		e.Interests = []string{}
+	}
+	if e.Locale == "" {
+		e.Locale = "en"
+	}
+	if e.CreatedAt.IsZero() {
+		e.CreatedAt = s.now()
+	}
+	s.waitlist[e.ID] = clone(*e)
+	return nil
+}
+
+func (s *Store) WaitlistByEmail(_ context.Context, email string) (store.WaitlistEntry, error) {
+	return s.waitlistWhere(func(e store.WaitlistEntry) bool { return e.Email == email })
+}
+
+func (s *Store) WaitlistByToken(_ context.Context, tokenHash string) (store.WaitlistEntry, error) {
+	return s.waitlistWhere(func(e store.WaitlistEntry) bool { return e.TokenHash != nil && *e.TokenHash == tokenHash })
+}
+
+func (s *Store) waitlistWhere(ok func(store.WaitlistEntry) bool) (store.WaitlistEntry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, e := range s.waitlist {
+		if ok(e) {
+			return clone(e), nil
+		}
+	}
+	return store.WaitlistEntry{}, store.ErrNotFound
+}
+
+func (s *Store) UpdateWaitlist(_ context.Context, id string, p store.WaitlistPatch) (store.WaitlistEntry, error) {
+	return update(s, s.waitlist, id, p)
 }
