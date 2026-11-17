@@ -22,8 +22,8 @@
 
 <div class="site">
 	<header>
-		<a class="logo display" href={localPath('/', lang)} aria-label={t('site.home', {}, lang)}
-			>Laamo</a
+		<a class="logo" href={localPath('/', lang)} aria-label={t('site.home', {}, lang)}
+			><img src="/logo.svg" alt="" width="72" height="72" /></a
 		>
 		<nav>
 			<a href={localPath(data.path, other)} hreflang={other} lang={other}
@@ -68,10 +68,15 @@
 		gap: var(--space-3);
 		padding: var(--space-3) var(--gutter);
 	}
+	/* The square logo (static/logo.svg): red wordmark on the brand teal */
 	.logo {
-		font-size: var(--text-h2);
-		color: var(--accent);
-		text-decoration: none;
+		display: block;
+		flex-shrink: 0;
+	}
+	.logo img {
+		display: block;
+		width: 72px;
+		height: 72px;
 	}
 	nav {
 		display: flex;
