@@ -27,7 +27,10 @@ export const PAGES: SitePage[] = [
 		path: `/use-cases/${u.slug}`,
 		changefreq: 'monthly' as const,
 		priority: 0.7
-	}))
+	})),
+	{ path: '/imprint', changefreq: 'yearly', priority: 0.2 },
+	{ path: '/privacy', changefreq: 'yearly', priority: 0.2 },
+	{ path: '/terms', changefreq: 'yearly', priority: 0.2 }
 ];
 
 /** The path of a page in a language: ("/", "de") → "/de". */

@@ -8,6 +8,7 @@
 	import { solve } from '#lib/demo.ts';
 	import type { Lang } from '#lib/i18n/index.svelte.ts';
 	import { copy } from './copy.ts';
+	import { localPath } from './site.ts';
 
 	type Interest = NonNullable<Schemas['WaitlistJoin']['interests']>[number];
 
@@ -140,7 +141,9 @@
 		<button class="btn primary wide" disabled={busy || !email.trim()}
 			>{busy ? c.working : c.button}</button
 		>
-		<p class="consent">{c.consent}</p>
+		<p class="consent">
+			{c.consent} <a href={localPath('/privacy', lang)}>{c.privacy}</a>
+		</p>
 		<noscript><p class="error">{c.noScript}</p></noscript>
 	</form>
 {/if}
@@ -212,6 +215,9 @@
 	}
 	.wish + input {
 		width: 100%;
+	}
+	.consent a {
+		color: inherit;
 	}
 	.consent {
 		margin: 0;
