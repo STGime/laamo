@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { t } from '#lib/i18n/index.svelte.ts';
 	import { localPath } from '#lib/site/site.ts';
+	import { UI } from '#lib/site/usecases.ts';
 
 	let { data, children } = $props();
 	const lang = $derived(data.lang);
@@ -40,6 +41,7 @@
 	</main>
 
 	<footer>
+		<p><a href={localPath('/use-cases', lang)}>{UI[lang].all}</a></p>
 		<p>{t('site.madeBy', {}, lang)}</p>
 		<p><span aria-hidden="true">🇪🇺</span> {t('landing.eu', {}, lang)}</p>
 	</footer>
@@ -92,5 +94,9 @@
 	}
 	footer p {
 		margin: 0 0 var(--space-2);
+	}
+	footer a {
+		color: var(--ink);
+		font-weight: 700;
 	}
 </style>

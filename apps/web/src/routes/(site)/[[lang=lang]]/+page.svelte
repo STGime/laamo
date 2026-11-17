@@ -4,7 +4,8 @@
 	import Brick from '#lib/components/Brick.svelte';
 	import { copy, type Stack } from '#lib/site/copy.ts';
 	import Seo from '#lib/site/Seo.svelte';
-	import { SITE_URL } from '#lib/site/site.ts';
+	import { localPath, SITE_URL } from '#lib/site/site.ts';
+	import { UI, USE_CASES } from '#lib/site/usecases.ts';
 	import WaitlistForm from '#lib/site/WaitlistForm.svelte';
 
 	let { data } = $props();
@@ -123,6 +124,20 @@
 		{#each c.free.points as p (p.text)}
 			<li>
 				{p.text}{#if p.soon}<span class="soon">{c.soon}</span>{/if}
+			</li>
+		{/each}
+	</ul>
+</section>
+
+<section>
+	<h2>{UI[data.lang].listTitle}</h2>
+	<ul class="cases">
+		{#each USE_CASES as u (u.slug)}
+			<li>
+				<a href={localPath(`/use-cases/${u.slug}`, data.lang)}
+					><span aria-hidden="true">{u.avatar}</span>
+					{u.text[data.lang].name}{#if u.soon}<span class="soon">{c.soon}</span>{/if}</a
+				>
 			</li>
 		{/each}
 	</ul>
@@ -304,6 +319,21 @@
 	}
 	.points li {
 		margin-bottom: var(--space-3);
+	}
+	.cases {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.cases a {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: var(--tap-min);
+		border-bottom: var(--border);
+		color: var(--ink);
+		font-weight: 700;
+		text-decoration: none;
 	}
 	.try {
 		background: var(--gray-50);
