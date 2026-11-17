@@ -1,7 +1,12 @@
-<!-- S1 Landing: what Laamo does, three real helpers, one action. Signed-in users go straight to the Feed. -->
+<!-- The site's home page (prerendered). Placeholder content from the old landing
+     screen; the real copy and the waiting-list form follow (marketing plan, steps 2–3). -->
 <script lang="ts">
 	import type { Group } from '#lib/components/Brick.svelte';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
+	import Seo from '#lib/site/Seo.svelte';
+
+	let { data } = $props();
+	const tt = (key: Key) => t(key, {}, data.lang);
 
 	const examples: { avatar: string; name: Key; promise: Key; bricks: Group[] }[] = [
 		{
@@ -25,11 +30,12 @@
 	];
 </script>
 
+<Seo title={tt('site.title')} description={tt('site.description')} lang={data.lang} path="/" />
+
 <div class="page">
 	<header>
-		<p class="logo display">Laamo</p>
-		<h1>{t('landing.title')}</h1>
-		<p class="sub">{t('landing.sub')}</p>
+		<h1>{tt('landing.title')}</h1>
+		<p class="sub">{tt('landing.sub')}</p>
 	</header>
 
 	<ul class="examples">
@@ -37,9 +43,9 @@
 			<li>
 				<div class="head">
 					<span class="avatar" aria-hidden="true">{ex.avatar}</span>
-					<h2>{t(ex.name)}</h2>
+					<h2>{tt(ex.name)}</h2>
 				</div>
-				<p>{t(ex.promise)}</p>
+				<p>{tt(ex.promise)}</p>
 				<div class="mini" aria-hidden="true">
 					{#each ex.bricks as g, i (i)}<span class={g}></span>{/each}
 				</div>
@@ -47,11 +53,8 @@
 		{/each}
 	</ul>
 
-	<p class="eu"><span aria-hidden="true">🇪🇺</span> {t('landing.eu')}</p>
-
 	<div class="cta">
-		<a class="btn primary wide" href="/try">{t('landing.try')}</a>
-		<a class="signin" href="/start">{t('landing.signIn')}</a>
+		<a class="btn primary wide" href="/try">{tt('landing.try')}</a>
 	</div>
 </div>
 
@@ -60,12 +63,7 @@
 		padding-bottom: 160px;
 	}
 	header {
-		padding: var(--space-6) var(--gutter) var(--space-5);
-	}
-	.logo {
-		margin: 0 0 var(--space-6);
-		font-size: var(--text-h2);
-		color: var(--accent);
+		padding: var(--space-5) var(--gutter);
 	}
 	h1 {
 		font-size: 40px;
@@ -125,11 +123,6 @@
 	.mini .ask {
 		background: var(--brick-red);
 	}
-	.eu {
-		margin: 0;
-		padding: var(--space-5) var(--gutter);
-		font-weight: 700;
-	}
 	.cta {
 		position: fixed;
 		bottom: 0;
@@ -144,12 +137,5 @@
 		padding: var(--space-3) var(--gutter) calc(var(--space-3) + env(safe-area-inset-bottom));
 		background: var(--white);
 		border-top: var(--border);
-	}
-	.signin {
-		min-height: var(--tap-min);
-		display: inline-flex;
-		align-items: center;
-		color: var(--ink);
-		font-weight: 700;
 	}
 </style>

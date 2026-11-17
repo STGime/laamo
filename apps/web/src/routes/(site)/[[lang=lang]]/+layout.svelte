@@ -1,0 +1,96 @@
+<!-- The public site's frame: logo, language switch, sign-in; footer with who runs it. -->
+<script lang="ts">
+	import { t } from '#lib/i18n/index.svelte.ts';
+	import { localPath } from '#lib/site/site.ts';
+
+	let { data, children } = $props();
+	const lang = $derived(data.lang);
+	const other = $derived(lang === 'de' ? 'en' : 'de');
+
+	// Someone already signed in gets a way back into the app instead.
+	let signedIn = $state(false);
+	$effect(() => {
+		try {
+			signedIn = !!localStorage.getItem('laamo.session');
+		} catch {
+			/* storage blocked */
+		}
+	});
+</script>
+
+<div class="site">
+	<header>
+		<a class="logo display" href={localPath('/', lang)} aria-label={t('site.home', {}, lang)}
+			>Laamo</a
+		>
+		<nav>
+			<a href={localPath(data.path, other)} hreflang={other} lang={other}
+				>{t('site.otherLang', {}, lang)}</a
+			>
+			{#if signedIn}
+				<a class="app" href="/feed">{t('site.openApp', {}, lang)}</a>
+			{:else}
+				<a class="app" href="/start">{t('site.signIn', {}, lang)}</a>
+			{/if}
+		</nav>
+	</header>
+
+	<main>
+		{@render children()}
+	</main>
+
+	<footer>
+		<p>{t('site.madeBy', {}, lang)}</p>
+		<p><span aria-hidden="true">🇪🇺</span> {t('landing.eu', {}, lang)}</p>
+	</footer>
+</div>
+
+<style>
+	.site {
+		max-width: var(--column-max);
+		min-height: 100dvh;
+		margin: 0 auto;
+		background: var(--white);
+		display: flex;
+		flex-direction: column;
+	}
+	header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--gutter);
+	}
+	.logo {
+		font-size: var(--text-h2);
+		color: var(--accent);
+		text-decoration: none;
+	}
+	nav {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+	}
+	nav a {
+		min-height: var(--tap-min);
+		display: inline-flex;
+		align-items: center;
+		color: var(--ink);
+		font-weight: 600;
+	}
+	nav .app {
+		font-weight: 700;
+	}
+	main {
+		flex: 1;
+	}
+	footer {
+		padding: var(--space-5) var(--gutter) var(--space-7);
+		border-top: var(--border);
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	footer p {
+		margin: 0 0 var(--space-2);
+	}
+</style>

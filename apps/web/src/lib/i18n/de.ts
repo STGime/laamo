@@ -165,6 +165,14 @@ export const de: Record<Key, string> = {
 	'field.body': 'Text',
 	'feed.loadFailed':
 		'Dein Feed konnte nicht geladen werden (Fehler {status}). Versuch es gleich noch mal.',
+	'site.title': 'Laamo: kleine Helfer, die dir Routinearbeit abnehmen',
+	'site.description':
+		'Such dir einen Helfer aus, beantworte drei Fragen, und er erledigt eine tägliche Aufgabe für dich: findet Kunden, fasst Neuigkeiten zusammen, schreibt Beiträge. Am Handy oder Computer eingerichtet.',
+	'site.signIn': 'Anmelden',
+	'site.openApp': 'Laamo öffnen',
+	'site.otherLang': 'English',
+	'site.home': 'Laamo Startseite',
+	'site.madeBy': 'Laamo wird von der Eurobase OÜ, Estland, betrieben.',
 	'landing.title': 'Kleine Helfer, die deinen Kleinkram erledigen.',
 	'landing.sub':
 		'Nimm einen Helfer, steck ein paar Steine zusammen, und die Ergebnisse landen in deinem Feed.',
