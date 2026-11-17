@@ -664,7 +664,8 @@ func testWaitlist(t *testing.T, newStore New) {
 	t.Cleanup(func() {
 		// Leave nothing behind on a live project: drop the token, so the
 		// daily purge removes the unconfirmed entry.
-		_, _ = s.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{TokenHash: store.Null[string]()})
+		_, _ = s.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{TokenHash: store.Null[string](),
+			ConfirmedAt: store.Null[time.Time](), InvitedAt: store.Null[time.Time]()})
 	})
 
 	got, err := s.WaitlistByEmail(ctx, email)
@@ -686,4 +687,26 @@ func testWaitlist(t *testing.T, newStore New) {
 	}
 	isErr(t, "used token", get(s.WaitlistByToken(ctx, hash)), store.ErrNotFound)
 	isErr(t, "unknown email", get(s.WaitlistByEmail(ctx, "nobody-"+tag+"@example.com")), store.ErrNotFound)
+
+	// Confirmed and not invited: up for an invite, until invited.
+	waiting := func() bool {
+		rows, err := s.WaitlistToInvite(ctx, 1000)
+		must(t, err)
+		for _, r := range rows {
+			if r.ConfirmedAt == nil || r.InvitedAt != nil {
+				t.Fatalf("to invite: %+v", r)
+			}
+			if r.ID == e.ID {
+				return true
+			}
+		}
+		return false
+	}
+	if !waiting() {
+		t.Fatal("confirmed entry isn't up for an invite")
+	}
+	must(t, get(s.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{InvitedAt: store.Set(now)})))
+	if waiting() {
+		t.Fatal("invited entry is still up for an invite")
+	}
 }

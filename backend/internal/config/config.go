@@ -58,6 +58,9 @@ type Config struct {
 	// TrustProxy: take the client IP from X-Forwarded-For (set behind the
 	// load balancer, never when the api is reachable directly).
 	TrustProxy bool
+	// InviteOnly: only people invited from the waiting list may use the app
+	// (LAAMO_INVITE_ONLY=1/0; on by default outside dev).
+	InviteOnly bool
 }
 
 const (
@@ -96,6 +99,14 @@ func Load() (Config, error) {
 		LLMModel:          getenv("LLM_MODEL", DefaultLLMModel),
 		DemoSecret:        os.Getenv("LAAMO_DEMO_SECRET"),
 		TrustProxy:        os.Getenv("LAAMO_TRUST_PROXY") == "1",
+	}
+	switch os.Getenv("LAAMO_INVITE_ONLY") {
+	case "1":
+		c.InviteOnly = true
+	case "0":
+		c.InviteOnly = false
+	default:
+		c.InviteOnly = c.Env != "dev"
 	}
 	if c.FalKey == "" && c.LLMAuth == "Key" {
 		c.FalKey = c.LLMAPIKey // the brain goes through fal.ai: same key

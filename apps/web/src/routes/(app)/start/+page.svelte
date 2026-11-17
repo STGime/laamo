@@ -1,10 +1,15 @@
-<!-- S2 Sign up / sign in: one email field, then a magic link. Same screen for new and returning people. -->
+<!-- Sign in: one email field, then a magic link. Only the link in an invite email (?invite) makes an account. -->
 <script lang="ts">
 	import { AuthError, callbackURL } from '#lib/auth.ts';
 	import { t } from '#lib/i18n/index.svelte.ts';
+	import { page } from '$app/state';
+	import { i18n } from '#lib/i18n/index.svelte.ts';
 	import { auth } from '#lib/session.svelte.ts';
+	import { localPath } from '#lib/site/site.ts';
 
-	let email = $state('');
+	// The invite email links here with the address filled in.
+	let email = $state(page.url.searchParams.get('email')?.trim() ?? '');
+	const invited = page.url.searchParams.has('invite');
 	let sent = $state('');
 	let busy = $state(false);
 	let error = $state('');
@@ -19,7 +24,7 @@
 		busy = true;
 		error = '';
 		try {
-			await auth.sendLink(email, callbackURL());
+			await auth.sendLink(email, callbackURL(), invited);
 			sent = email.trim().toLowerCase();
 			wait = 30;
 			clearInterval(timer);
@@ -41,7 +46,9 @@
 	{#if sent}
 		<p class="big" aria-hidden="true">✉️</p>
 		<h1>{t('start.sent.title')}</h1>
-		<p class="body">{t('start.sent.body', { email: sent })}</p>
+		<p class="body">
+			{t(invited ? 'start.sent.body' : 'start.sent.ifAccount', { email: sent })}
+		</p>
 		<div class="actions">
 			<button class="btn wide" disabled={busy || wait > 0} onclick={() => send()}>
 				{wait > 0 ? t('start.sent.wait', { n: wait }) : t('start.sent.again')}
@@ -51,7 +58,7 @@
 		</div>
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
 	{:else}
-		<h1>{t('start.title')}</h1>
+		<h1>{t(invited ? 'start.invited' : 'start.title')}</h1>
 		<p class="body">{t('start.body')}</p>
 		<form onsubmit={send}>
 			<label for="email" class="visually-hidden">{t('start.email')}</label>
@@ -66,6 +73,11 @@
 			{#if error}<p class="error" role="alert">{error}</p>{/if}
 			<button class="btn primary wide" disabled={!valid || busy}>{t('start.send')}</button>
 		</form>
+		{#if !invited}
+			<p class="new">
+				{t('start.new')} <a href={localPath('/', i18n.lang)}>{t('start.join')}</a>
+			</p>
+		{/if}
 		{#if import.meta.env.DEV}<a class="dev" href="/signin">Dev: paste a token</a>{/if}
 	{/if}
 </div>
@@ -108,6 +120,14 @@
 		margin: 0;
 		color: var(--danger);
 		font-weight: 600;
+	}
+	.new {
+		margin: var(--space-6) 0 0;
+		color: var(--muted);
+	}
+	.new a {
+		color: var(--ink);
+		font-weight: 700;
 	}
 	.dev {
 		display: inline-block;

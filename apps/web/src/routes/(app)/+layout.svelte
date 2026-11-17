@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import NotInvited from '#lib/components/NotInvited.svelte';
 	import TabBar from '#lib/components/TabBar.svelte';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { takePending } from '#lib/demo.ts';
@@ -59,6 +60,8 @@
 	{/if}
 	{#if session.status === 'signedIn' || open}
 		{@render children()}
+	{:else if session.status === 'notInvited'}
+		<NotInvited />
 	{:else if session.status === 'loading'}
 		<p class="loading">{t('loading')}</p>
 	{/if}

@@ -526,6 +526,15 @@ paths:
                 $ref: '#/components/schemas/Me'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            Not invited yet (code not_invited). While Laamo is invite-only,
+            every signed-in endpoint answers this for people who haven't been
+            invited from the waiting list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /workspaces:
     post:
       operationId: createWorkspace
@@ -1371,7 +1380,7 @@ components:
         code:
           type: string
           description: Stable machine code
-          enum: [bad_request, unauthorized, forbidden, not_found, conflict, auth_unavailable, rate_limited, unavailable, webhook_invalid, webhook_gone, webhook_rejected, webhook_unreachable, internal]
+          enum: [bad_request, unauthorized, forbidden, not_invited, not_found, conflict, auth_unavailable, rate_limited, unavailable, webhook_invalid, webhook_gone, webhook_rejected, webhook_unreachable, internal]
     User:
       type: object
       required: [id, email]

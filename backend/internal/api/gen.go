@@ -116,6 +116,7 @@ const (
 	ErrorCodeForbidden          ErrorCode = "forbidden"
 	ErrorCodeInternal           ErrorCode = "internal"
 	ErrorCodeNotFound           ErrorCode = "not_found"
+	ErrorCodeNotInvited         ErrorCode = "not_invited"
 	ErrorCodeRateLimited        ErrorCode = "rate_limited"
 	ErrorCodeUnauthorized       ErrorCode = "unauthorized"
 	ErrorCodeUnavailable        ErrorCode = "unavailable"
@@ -139,6 +140,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeInternal:
 		return true
 	case ErrorCodeNotFound:
+		return true
+	case ErrorCodeNotInvited:
 		return true
 	case ErrorCodeRateLimited:
 		return true
@@ -6668,6 +6671,8 @@ type GetMeResponse struct {
 	JSON200 *Me
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Unauthorized
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -6678,6 +6683,11 @@ func (r GetMeResponse) GetJSON200() *Me {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r GetMeResponse) GetJSON401() *Unauthorized {
 	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetMeResponse) GetJSON403() *Error {
+	return r.JSON403
 }
 
 // GetBody returns the raw response body bytes
@@ -9492,6 +9502,13 @@ func ParseGetMeResponse(rsp *http.Response) (*GetMeResponse, error) {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	}
 
@@ -13020,6 +13037,20 @@ func (response GetMe401JSONResponse) VisitGetMeResponse(w http.ResponseWriter) e
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMe403JSONResponse Error
+
+func (response GetMe403JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
 	_, err := buf.WriteTo(w)
 	return err
 }

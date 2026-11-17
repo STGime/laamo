@@ -7,6 +7,7 @@
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { hostOf, safeURL } from '#lib/links.ts';
 	import { cities } from '#lib/cities.ts';
+	import { localPath } from '#lib/site/site.ts';
 
 	const choices: { slug: DemoTemplate; avatar: string; name: Key; what: Key }[] = [
 		{ slug: 'morning-briefing', avatar: '📰', name: 'landing.ex1.name', what: 'try.mb' },
@@ -73,7 +74,9 @@
 			city: city.trim(),
 			business: needsBusiness ? business.trim() : undefined
 		});
-		goto('/start');
+		// Invite-only: the waiting list. Signing in on this device later
+		// still makes the helper.
+		goto(localPath('/', i18n.lang));
 	}
 
 	const links = $derived(
@@ -183,7 +186,7 @@
 					})}{:else}{t('try.go')}{/if}
 			</button>
 		</form>
-		<a class="signup" href="/start">{t('try.skip')}</a>
+		<a class="signup" href={localPath('/', i18n.lang)}>{t('try.skip')}</a>
 		<datalist id="cities">
 			{#each cities as c (c)}<option value={c}></option>{/each}
 		</datalist>
