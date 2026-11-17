@@ -19,6 +19,7 @@ export interface Copy {
 		button: string;
 		working: string;
 		consent: string;
+		privacy: string;
 		sent: (email: string) => string;
 		sentHint: string;
 		again: string;
@@ -96,6 +97,7 @@ const en: Copy = {
 		working: 'One moment…',
 		consent:
 			"We'll email you a link to confirm. After that we write when your invite is ready, and now and then about what's new in Laamo. You can leave the list anytime.",
+		privacy: 'Privacy policy',
 		sent: (email) => `Check your inbox: we sent a link to ${email}.`,
 		sentHint: 'Tap it to confirm your spot. Nothing there? Look in your spam folder.',
 		again: 'Use another address',
@@ -296,6 +298,7 @@ const de: Copy = {
 		working: 'Einen Moment…',
 		consent:
 			'Wir schicken dir einen Link zum Bestätigen. Danach schreiben wir dir, sobald deine Einladung bereit ist, und ab und zu, was es Neues bei Laamo gibt. Du kannst die Liste jederzeit verlassen.',
+		privacy: 'Datenschutzerklärung',
 		sent: (email) => `Schau in dein Postfach: Wir haben einen Link an ${email} geschickt.`,
 		sentHint: 'Tipp ihn an, um deinen Platz zu bestätigen. Nichts da? Schau im Spam-Ordner nach.',
 		again: 'Andere Adresse verwenden',

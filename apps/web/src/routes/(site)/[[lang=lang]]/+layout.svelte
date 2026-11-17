@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { t } from '#lib/i18n/index.svelte.ts';
 	import { localPath } from '#lib/site/site.ts';
+	import { LEGAL, LEGAL_SLUGS } from '#lib/site/legal.ts';
 	import { UI } from '#lib/site/usecases.ts';
 
 	let { data, children } = $props();
@@ -42,6 +43,10 @@
 
 	<footer>
 		<p><a href={localPath('/use-cases', lang)}>{UI[lang].all}</a></p>
+		<p class="legal">
+			{#each LEGAL_SLUGS as s (s)}<a href={localPath(`/${s}`, lang)}>{LEGAL[lang][s].title}</a
+				>{/each}
+		</p>
 		<p>{t('site.madeBy', {}, lang)}</p>
 		<p><span aria-hidden="true">🇪🇺</span> {t('landing.eu', {}, lang)}</p>
 	</footer>
@@ -98,5 +103,13 @@
 	footer a {
 		color: var(--ink);
 		font-weight: 700;
+	}
+	.legal {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-4);
+	}
+	.legal a {
+		font-weight: 400;
 	}
 </style>
