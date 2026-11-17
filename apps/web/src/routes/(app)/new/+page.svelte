@@ -1,5 +1,6 @@
 <!-- S7 Shelf: templates sorted by the needs picked in onboarding. -->
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { goto } from '$app/navigation';
 	import type { Schemas } from '#lib/api/client.ts';
 	import PageHeader from '#lib/components/PageHeader.svelte';
@@ -45,7 +46,7 @@
 {#snippet card(tpl: Schemas['ShelfTemplate'])}
 	<li>
 		<a href="/new/{tpl.slug}">
-			<span class="avatar" aria-hidden="true">{tpl.avatar}</span>
+			<span class="avatar" aria-hidden="true"><HelperIcon avatar={tpl.avatar} size={40} /></span>
 			<span class="text">
 				<span class="name display">{tpl.name}</span>
 				<span class="promise">{tpl.promise}</span>

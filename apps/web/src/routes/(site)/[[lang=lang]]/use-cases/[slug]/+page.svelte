@@ -1,6 +1,7 @@
 <!-- One use case: the problem, how the helper solves it, its bricks, an
      example result and the waiting list. Words in lib/site/usecases.ts. -->
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { copy } from '#lib/site/copy.ts';
 	import Seo from '#lib/site/Seo.svelte';
 	import { localPath } from '#lib/site/site.ts';
@@ -20,7 +21,7 @@
 <section class="top">
 	<p class="crumb"><a href={localPath('/use-cases', data.lang)}>{ui.all}</a></p>
 	<p class="name">
-		<span aria-hidden="true">{u.avatar}</span>
+		<HelperIcon avatar={u.avatar} size={28} />
 		{t.name}{#if u.soon}<span class="soon">{copy[data.lang].soon}</span>{/if}
 	</p>
 	<h1>{t.title}</h1>
@@ -38,7 +39,7 @@
 <section>
 	<h2>{ui.result}</h2>
 	<div class="card">
-		<p class="card-head"><span aria-hidden="true">{u.avatar}</span> {t.name}</p>
+		<p class="card-head"><HelperIcon avatar={u.avatar} size={20} /> {t.name}</p>
 		<p class="card-title">{t.result.title}</p>
 		{#each t.result.lines as line, i (i)}<p>{line}</p>{/each}
 	</div>
@@ -62,7 +63,7 @@
 		{#each others as o (o.slug)}
 			<li>
 				<a href={localPath(`/use-cases/${o.slug}`, data.lang)}
-					><span aria-hidden="true">{o.avatar}</span> {o.text[data.lang].name}</a
+					><HelperIcon avatar={o.avatar} size={28} /> {o.text[data.lang].name}</a
 				>
 			</li>
 		{/each}

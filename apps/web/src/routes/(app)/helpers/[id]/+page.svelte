@@ -1,5 +1,6 @@
 <!-- S11 Helper page: on/off, rename, run now, its bricks, recent runs, delete. -->
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { Schemas } from '#lib/api/client.ts';
@@ -117,7 +118,7 @@
 	<p class="note">{t('feed.empty.title')}</p>
 {:else if helper}
 	<header>
-		<span class="avatar" aria-hidden="true">{helper.avatar ?? '🧱'}</span>
+		<span class="avatar" aria-hidden="true"><HelperIcon avatar={helper.avatar} size={56} /></span>
 		{#if renaming}
 			<form
 				class="rename"

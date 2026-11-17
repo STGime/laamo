@@ -1,5 +1,6 @@
 <!-- All use cases: one line each, linking to its page. -->
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { copy } from '#lib/site/copy.ts';
 	import Seo from '#lib/site/Seo.svelte';
 	import { localPath } from '#lib/site/site.ts';
@@ -20,7 +21,7 @@
 		{@const t = u.text[data.lang]}
 		<li>
 			<a href={localPath(`/use-cases/${u.slug}`, data.lang)}>
-				<span class="avatar" aria-hidden="true">{u.avatar}</span>
+				<HelperIcon avatar={u.avatar} size={40} />
 				<span>
 					<b
 						>{t.name}{#if u.soon}<span class="soon">{copy[data.lang].soon}</span>{/if}</b
@@ -57,9 +58,6 @@
 		border-bottom: var(--border);
 		color: var(--ink);
 		text-decoration: none;
-	}
-	.avatar {
-		font-size: 28px;
 	}
 	b {
 		display: block;

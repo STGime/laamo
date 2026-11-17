@@ -1,5 +1,6 @@
 <!-- Try before sign-up (#75): one sample helper, a real result in about 15 seconds, then keep it. -->
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { goto } from '$app/navigation';
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import { guessCity, savePending, solve, type DemoTemplate } from '#lib/demo.ts';
@@ -90,7 +91,9 @@
 	{#if result}
 		<article class="card">
 			<p class="who">
-				<span class="avatar" aria-hidden="true">{result.avatar}</span>
+				<span class="avatar" aria-hidden="true"
+					><HelperIcon avatar={result.avatar} size={24} /></span
+				>
 				<span class="tag">{t('try.test')}</span>
 			</p>
 			<h2 class="display">{cards.length > 1 ? result.title : result.name}</h2>
@@ -142,7 +145,8 @@
 						disabled={busy}
 						onclick={() => (template = c.slug)}
 					>
-						<span class="avatar" aria-hidden="true">{c.avatar}</span>
+						<span class="avatar" aria-hidden="true"><HelperIcon avatar={c.avatar} size={36} /></span
+						>
 						<span>
 							<strong>{t(c.name)}</strong>
 							<span class="what">{t(c.what)}</span>

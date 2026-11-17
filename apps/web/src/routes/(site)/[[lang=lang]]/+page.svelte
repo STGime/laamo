@@ -1,6 +1,7 @@
 <!-- The site's home page (prerendered): the problem, how Laamo works, what it
      can do, and the waiting list (top and bottom). Words in lib/site/copy.ts. -->
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import Brick from '#lib/components/Brick.svelte';
 	import { copy, type Stack } from '#lib/site/copy.ts';
 	import Seo from '#lib/site/Seo.svelte';
@@ -135,7 +136,7 @@
 		{#each USE_CASES as u (u.slug)}
 			<li>
 				<a href={localPath(`/use-cases/${u.slug}`, data.lang)}
-					><span aria-hidden="true">{u.avatar}</span>
+					><HelperIcon avatar={u.avatar} size={28} />
 					{u.text[data.lang].name}{#if u.soon}<span class="soon">{c.soon}</span>{/if}</a
 				>
 			</li>
