@@ -1,5 +1,6 @@
 <!-- A template: its bricks in plain words, the questions still open, then a test run. -->
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { Schemas } from '#lib/api/client.ts';
@@ -123,7 +124,7 @@
 {#if tpl}
 	<div class="page">
 		<header>
-			<span class="avatar" aria-hidden="true">{tpl.avatar}</span>
+			<span class="avatar" aria-hidden="true"><HelperIcon avatar={tpl.avatar} size={56} /></span>
 			<h1>{tpl.name}</h1>
 			<p class="promise">{tpl.promise}</p>
 		</header>

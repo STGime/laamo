@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import type { Schemas } from '#lib/api/client.ts';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
@@ -44,7 +45,7 @@
 		{#each helpers as h (h.id)}
 			<li>
 				<a class="open" href={h.status === 'draft' ? `/helpers/${h.id}/edit` : `/helpers/${h.id}`}>
-					<span class="avatar" aria-hidden="true">{h.avatar ?? '🧱'}</span>
+					<span class="avatar" aria-hidden="true"><HelperIcon avatar={h.avatar} size={40} /></span>
 					<span class="text">
 						<span class="name display">{h.name}</span>
 						{#if h.run}

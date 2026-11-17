@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { page } from '$app/state';
 	import FeedItem from '#lib/components/FeedItem.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
@@ -87,7 +88,7 @@
 
 {#each working as h (h.id)}
 	<a class="working" href="/helpers/{h.id}">
-		<span class="avatar" aria-hidden="true">{h.avatar ?? '🧱'}</span>
+		<span class="avatar" aria-hidden="true"><HelperIcon avatar={h.avatar} size={28} /></span>
 		<span class="wtext">
 			<strong>{h.name}</strong>
 			{#if h.run}<span class="wline">{progressText(h.run)}</span>
