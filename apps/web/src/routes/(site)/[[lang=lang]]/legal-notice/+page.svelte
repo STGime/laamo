@@ -4,4 +4,4 @@
 	let { data } = $props();
 </script>
 
-<LegalPage lang={data.lang} slug="imprint" />
+<LegalPage lang={data.lang} slug="legal-notice" />

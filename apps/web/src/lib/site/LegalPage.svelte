@@ -1,4 +1,4 @@
-<!-- One legal document (imprint, privacy, terms) from lib/site/legal.ts. -->
+<!-- One legal document (legal notice, privacy, terms) from lib/site/legal.ts. -->
 <script lang="ts">
 	import type { Lang } from '#lib/i18n/index.svelte.ts';
 	import { LEGAL, type LegalSlug } from './legal.ts';

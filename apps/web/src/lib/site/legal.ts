@@ -1,4 +1,4 @@
-// Legal pages of the public site: imprint, privacy policy, terms. Operator:
+// Legal pages of the public site: legal notice, privacy policy, terms. Operator:
 // Eurobase OÜ (details as in the Eurobase console's legal.ts). Unlike the
 // marketing copy, these name the services we use: the GDPR requires it.
 //
@@ -27,13 +27,13 @@ export interface LegalDoc {
 	sections: { h?: string; blocks: Block[] }[];
 }
 
-export type LegalSlug = 'imprint' | 'privacy' | 'terms';
+export type LegalSlug = 'legal-notice' | 'privacy' | 'terms';
 
 const c = COMPANY;
 
 const en: Record<LegalSlug, LegalDoc> = {
-	imprint: {
-		title: 'Imprint',
+	'legal-notice': {
+		title: 'Legal notice',
 		description: 'Who runs Laamo: Eurobase OÜ, Tallinn, Estonia.',
 		updated: 'Last updated: 17 November 2026',
 		sections: [
@@ -250,8 +250,8 @@ const en: Record<LegalSlug, LegalDoc> = {
 };
 
 const de: Record<LegalSlug, LegalDoc> = {
-	imprint: {
-		title: 'Impressum',
+	'legal-notice': {
+		title: 'Rechtliche Hinweise',
 		description: 'Wer Laamo betreibt: Eurobase OÜ, Tallinn, Estland.',
 		updated: 'Stand: 17. November 2026',
 		sections: [
@@ -468,4 +468,4 @@ const de: Record<LegalSlug, LegalDoc> = {
 };
 
 export const LEGAL: Record<Lang, Record<LegalSlug, LegalDoc>> = { en, de };
-export const LEGAL_SLUGS: LegalSlug[] = ['imprint', 'privacy', 'terms'];
+export const LEGAL_SLUGS: LegalSlug[] = ['legal-notice', 'privacy', 'terms'];

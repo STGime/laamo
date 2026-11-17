@@ -28,7 +28,7 @@ export const PAGES: SitePage[] = [
 		changefreq: 'monthly' as const,
 		priority: 0.7
 	})),
-	{ path: '/imprint', changefreq: 'yearly', priority: 0.2 },
+	{ path: '/legal-notice', changefreq: 'yearly', priority: 0.2 },
 	{ path: '/privacy', changefreq: 'yearly', priority: 0.2 },
 	{ path: '/terms', changefreq: 'yearly', priority: 0.2 }
 ];
