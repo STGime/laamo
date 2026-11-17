@@ -25,9 +25,16 @@ server {
         try_files $uri =404;
     }
 
-    # SPA fallback: unknown paths load index.html.
+    # Site pages are prerendered (/ → index.html, /de → de.html); every
+    # other path is the app (app.html, rendered in the browser).
     location / {
         add_header Cache-Control "no-cache";
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri.html $uri/index.html /app.html;
+    }
+
+    # The app is not for search engines.
+    location = /app.html {
+        add_header Cache-Control "no-cache";
+        add_header X-Robots-Tag "noindex";
     }
 }

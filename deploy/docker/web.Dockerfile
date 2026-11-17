@@ -12,7 +12,10 @@ COPY apps/web/ apps/web/
 # Eurobase auth directly). Never pass the secret key here.
 ARG EUROBASE_URL=https://laamo.eurobase.app
 ARG EUROBASE_PUBLIC_KEY=
-ENV EUROBASE_URL=$EUROBASE_URL EUROBASE_PUBLIC_KEY=$EUROBASE_PUBLIC_KEY
+# The public site's URL, and SITE_INDEX=1 only for production (search engines).
+ARG SITE_URL=https://laamo.app
+ARG SITE_INDEX=
+ENV EUROBASE_URL=$EUROBASE_URL EUROBASE_PUBLIC_KEY=$EUROBASE_PUBLIC_KEY SITE_URL=$SITE_URL SITE_INDEX=$SITE_INDEX
 RUN pnpm --filter @laamo/web build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine

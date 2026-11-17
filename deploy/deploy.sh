@@ -72,9 +72,13 @@ if [[ ${SKIP_BUILD:-} != 1 ]]; then
 		docker buildx build --platform linux/amd64 --push -f deploy/docker/go.Dockerfile \
 			--build-arg CMD=$svc -t "$REGISTRY/$svc:$TAG" .
 	done
-	# The web bundle holds this environment's Eurobase URL and public key.
+	# The web bundle holds this environment's Eurobase URL and public key,
+	# and the site's URL; only prod may be indexed by search engines.
+	SITE_INDEX=
+	[[ $ENV_NAME == prod ]] && SITE_INDEX=1
 	docker buildx build --platform linux/amd64 --push -f deploy/docker/web.Dockerfile \
 		--build-arg EUROBASE_URL="$EUROBASE_URL" --build-arg EUROBASE_PUBLIC_KEY="$EUROBASE_PUBLIC_KEY" \
+		--build-arg SITE_URL="https://${WEB_DOMAIN:-laamo.app}" --build-arg SITE_INDEX="$SITE_INDEX" \
 		-t "$REGISTRY/web:$ENV_NAME-$TAG" .
 fi
 
