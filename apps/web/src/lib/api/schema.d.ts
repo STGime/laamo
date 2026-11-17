@@ -792,6 +792,7 @@ export interface components {
 				| 'bad_request'
 				| 'unauthorized'
 				| 'forbidden'
+				| 'not_invited'
 				| 'not_found'
 				| 'conflict'
 				| 'auth_unavailable'
@@ -1834,6 +1835,15 @@ export interface operations {
 				};
 			};
 			401: components['responses']['Unauthorized'];
+			/** @description Not invited yet (code not_invited). While Laamo is invite-only, every signed-in endpoint answers this for people who haven't been invited from the waiting list. */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Error'];
+				};
+			};
 		};
 	};
 	createWorkspace: {

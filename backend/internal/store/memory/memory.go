@@ -1208,3 +1208,18 @@ func (s *Store) waitlistWhere(ok func(store.WaitlistEntry) bool) (store.Waitlist
 func (s *Store) UpdateWaitlist(_ context.Context, id string, p store.WaitlistPatch) (store.WaitlistEntry, error) {
 	return update(s, s.waitlist, id, p)
 }
+
+func (s *Store) WaitlistToInvite(_ context.Context, limit int) ([]store.WaitlistEntry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.WaitlistEntry
+	for _, e := range s.waitlist {
+		if e.ConfirmedAt != nil && e.InvitedAt == nil {
+			out = append(out, clone(e))
+		}
+	}
+	slices.SortFunc(out, func(a, b store.WaitlistEntry) int {
+		return cmp.Or(a.ConfirmedAt.Compare(*b.ConfirmedAt), strings.Compare(a.ID, b.ID))
+	})
+	return out[:min(limit, len(out))], nil
+}

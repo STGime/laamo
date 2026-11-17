@@ -213,4 +213,7 @@ type WaitlistStore interface {
 	// WaitlistByToken finds an entry by its confirmation token hash, or ErrNotFound.
 	WaitlistByToken(ctx context.Context, tokenHash string) (WaitlistEntry, error)
 	UpdateWaitlist(ctx context.Context, id string, p WaitlistPatch) (WaitlistEntry, error)
+	// WaitlistToInvite returns up to limit confirmed, not yet invited
+	// entries, the ones who confirmed first first.
+	WaitlistToInvite(ctx context.Context, limit int) ([]WaitlistEntry, error)
 }

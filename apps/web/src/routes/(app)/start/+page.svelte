@@ -2,9 +2,11 @@
 <script lang="ts">
 	import { AuthError, callbackURL } from '#lib/auth.ts';
 	import { t } from '#lib/i18n/index.svelte.ts';
+	import { page } from '$app/state';
 	import { auth } from '#lib/session.svelte.ts';
 
-	let email = $state('');
+	// The invite email links here with the address filled in.
+	let email = $state(page.url.searchParams.get('email')?.trim() ?? '');
 	let sent = $state('');
 	let busy = $state(false);
 	let error = $state('');

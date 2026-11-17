@@ -35,7 +35,9 @@ function save(s: Stored | null) {
 	}
 }
 
-type Status = 'loading' | 'signedOut' | 'signedIn' | 'offline';
+// notInvited: signed in, but Laamo is invite-only and this email isn't
+// invited from the waiting list yet.
+type Status = 'loading' | 'signedOut' | 'signedIn' | 'notInvited' | 'offline';
 
 const stored = load();
 let tokens = $state<Stored | null>(stored);
@@ -98,8 +100,13 @@ export const session = {
 			return;
 		}
 		try {
-			const { data, response } = await api.GET('/me');
+			const { data, error, response } = await api.GET('/me');
 			if (response.status === 401) return this.signOut();
+			if (response.status === 403 && error?.code === 'not_invited') {
+				me = null;
+				status = 'notInvited';
+				return;
+			}
 			if (!data) {
 				status = 'offline';
 				return;

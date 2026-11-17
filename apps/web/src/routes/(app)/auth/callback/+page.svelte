@@ -22,6 +22,8 @@
 			.signIn(token)
 			.then((tokens) => session.useTokens(tokens))
 			.then((ok) => {
+				// Not invited yet: the app shows "you're not in yet".
+				if (session.status === 'notInvited') return goto('/feed', { replaceState: true });
 				if (!ok) throw new Error('session');
 				goto(session.me?.workspaces.length ? '/feed' : '/welcome', { replaceState: true });
 			})

@@ -270,6 +270,11 @@ export const de: Record<Key, string> = {
 	'callback.working': 'Du wirst angemeldet…',
 	'callback.failed': 'Dieser Link hat nicht funktioniert. Links gelten einmal, 15 Minuten lang.',
 	'callback.again': 'Neuen Link schicken',
+	'invite.title': 'Du bist noch nicht dabei',
+	'invite.body':
+		'Laamo gibt es gerade nur mit Einladung. Trag dich mit dieser E-Mail-Adresse auf die Warteliste ein, wir schreiben dir, sobald du dran bist.',
+	'invite.join': 'Auf die Warteliste',
+	'invite.other': 'Andere E-Mail verwenden',
 	'welcome.name.title': 'Wie sollen wir dich nennen?',
 	'welcome.name': 'Dein Name',
 	'welcome.business': 'Name deines Geschäfts',

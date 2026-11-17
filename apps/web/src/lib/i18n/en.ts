@@ -262,6 +262,11 @@ export const en = {
 	'callback.working': 'Signing you in…',
 	'callback.failed': 'This link didn’t work. Links work once, for 15 minutes.',
 	'callback.again': 'Send a new link',
+	'invite.title': 'You’re not in yet',
+	'invite.body':
+		'Laamo is invite-only for now. Join the waiting list with this email address, and we’ll email you when it’s your turn.',
+	'invite.join': 'Join the waiting list',
+	'invite.other': 'Use a different email',
 	'welcome.name.title': 'What should we call you?',
 	'welcome.name': 'Your name',
 	'welcome.business': 'Business name',

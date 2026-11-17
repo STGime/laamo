@@ -43,6 +43,7 @@ type Server struct {
 	waitlist *waitlist.Service
 	wlProof  *proof.Checker
 	wlLimit  limiter
+	invites  inviteGate
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -126,7 +127,7 @@ func (s *Server) Handler() http.Handler {
 		// A shared list: the link's token is the key.
 		return r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, BaseURL+"/shared/lists/")
 	}
-	api := http.MaxBytesHandler(withClientIP(auth.Middleware(s.auth, public, WriteError)(mux), s.cfg.TrustProxy), maxBody)
+	api := http.MaxBytesHandler(withClientIP(auth.Middleware(s.auth, public, WriteError)(s.inviteOnly(mux)), s.cfg.TrustProxy), maxBody)
 	// Incoming email: signed by our Email Worker instead of a user, and up
 	// to mail.MaxInbound big (see inbound.go).
 	top := http.NewServeMux()
