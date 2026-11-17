@@ -1,6 +1,7 @@
 // The public site (routes/(site)): prerendered pages for people and search
 // engines. English at /, German under /de, one language per URL.
 import type { Lang } from '#lib/i18n/index.svelte.ts';
+import { USE_CASES } from './usecases.ts';
 
 /** Where the site lives; canonical links and the sitemap use it. */
 export const SITE_URL = __SITE_URL__.replace(/\/+$/, '');
@@ -19,7 +20,15 @@ export interface SitePage {
 }
 
 /** Every page of the site. New site pages are added here (sitemap, alternates). */
-export const PAGES: SitePage[] = [{ path: '/', changefreq: 'weekly', priority: 1 }];
+export const PAGES: SitePage[] = [
+	{ path: '/', changefreq: 'weekly', priority: 1 },
+	{ path: '/use-cases', changefreq: 'monthly', priority: 0.8 },
+	...USE_CASES.map((u) => ({
+		path: `/use-cases/${u.slug}`,
+		changefreq: 'monthly' as const,
+		priority: 0.7
+	}))
+];
 
 /** The path of a page in a language: ("/", "de") → "/de". */
 export function localPath(path: string, lang: Lang): string {
