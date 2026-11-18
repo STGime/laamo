@@ -56,6 +56,21 @@ the script attaches the domain and Scaleway issues the certificate.
 DNS overview (issue #5): `laamo.app` (site + app), `in.laamo.app` (incoming
 mail, Cloudflare Email Routing), `notify.laamo.app` (outgoing, Resend).
 
+## Staging login
+
+Staging is for testing before prod, so nobody else should see it: with
+`WEB_LOGIN_USER` and `WEB_LOGIN_PASSWORD` in `deploy/staging.env`, the web
+container asks for that login (HTTP Basic auth in nginx) on every page.
+The script sends only the password's hash. Left out:
+
+- `/api/`: the API has its own sign-in and uses the same `Authorization`
+  header for it; it stays invite-only.
+- `/healthz`: Scaleway's health check.
+
+Prod and `docker run` locally leave the two lines empty, so there's no login.
+The flow is: local (no login) → `task deploy:staging` (login) →
+`task deploy:prod`.
+
 ## To check on staging
 
 - **Client IP.** `LAAMO_TRUST_PROXY` is off: behind web's nginx and Scaleway's
