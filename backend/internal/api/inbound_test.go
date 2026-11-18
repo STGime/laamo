@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,12 +83,54 @@ func TestInboundMail(t *testing.T) {
 		t.Fatal("helper details lack the address")
 	}
 
+	// Only from me by default: a stack that never had a sender list gets
+	// the user's address, and an unsigned mail claiming to be from them
+	// (anyone can write any From) doesn't start a run.
+	cur := must(c.GetHelperStackWithResponse(ctx, uuidOf(h.ID))).JSON200.Stack
+	if s, _ := json.Marshal(cur.Bricks[0].Config); string(s) != `{"senders":["anna@example.com"]}` {
+		t.Fatalf("senders not defaulted to the user: %s", s)
+	}
+	if code, out := deliver(t, srv.URL, "<"+addr+">", mailFrom("Anna <anna@example.com>", "termin"), secret); code != 202 || out != "sender_not_allowed" {
+		t.Fatalf("unsigned mail from the owner's address: %d %s", code, out)
+	}
+	// The user hears about it in the Feed (the sender doesn't): once per
+	// sender and day, without Allow (an unsigned mail wouldn't get in).
+	notes := func() []store.FeedCard {
+		var out []store.FeedCard
+		all, _ := st.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: ws.ID})
+		for _, fc := range all {
+			if fc.Payload["ignored_mail"] == true {
+				out = append(out, fc)
+			}
+		}
+		return out
+	}
+	_, _ = deliver(t, srv.URL, "<"+addr+">", mailFrom("Anna <anna@example.com>", "termin again"), secret)
+	if n := notes(); len(n) != 1 || n[0].Type != "problem" || n[0].HelperID == nil || *n[0].HelperID != h.ID ||
+		n[0].Payload["from"] != "anna@example.com" || n[0].Payload["can_allow"] != false || !strings.Contains(*n[0].Body, "nicht signiert") {
+		t.Fatalf("notes: %+v", n)
+	}
+	// Mails from many addresses don't flood the Feed.
+	for i := range 8 {
+		_, _ = deliver(t, srv.URL, "<"+addr+">", mailFrom(fmt.Sprintf("x%d@spam.example", i), "hi"), secret)
+	}
+	if n := notes(); len(n) != api.MaxIgnoredNotesPerDay {
+		t.Fatalf("notes after spam: %d", len(n))
+	}
+	// Cleared on purpose: anyone may email the helper.
+	cur.Bricks[0].Config = map[string]any{"senders": []any{}}
+	if r := must(c.SaveHelperStackWithResponse(ctx, uuidOf(h.ID), api.SaveStack{Stack: cur, Version: 3})); r.StatusCode() != 200 {
+		t.Fatalf("save open: %d %s", r.StatusCode(), r.Body)
+	}
+
 	// A mail: one run with the email, stored in Storage.
 	if code, out := deliver(t, srv.URL, "<"+addr+">", mailFrom("Anna <anna@example.com>", "termin"), secret); code != 202 || out != "run_started" {
 		t.Fatalf("deliver: %d %s", code, out)
 	}
 	runs, _ := st.ListRuns(ctx, store.RunFilter{HelperID: h.ID})
-	if len(runs) != 1 || runs[0].TriggerType != "email" || runs[0].TriggerData["from"] != "anna@example.com" || runs[0].TriggerData["text"] != "Können wir uns treffen?" {
+	if len(runs) != 1 || runs[0].TriggerType != "email" || runs[0].TriggerData["from"] != "anna@example.com" || runs[0].TriggerData["text"] != "Können wir uns treffen?" ||
+		runs[0].TriggerData["from_signed"] != "no" { // no DKIM signature
+
 		t.Fatalf("runs: %+v", runs)
 	}
 	if data, err := blobs.Get(ctx, runs[0].TriggerData["mail"].(string)); err != nil || !bytes.Contains(data, []byte("Subject: termin")) {

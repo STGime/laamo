@@ -202,3 +202,66 @@ func TestNeverSendsTwice(t *testing.T) {
 		}
 	})
 }
+
+// An email can say anything. What it says reaches the chat as plain text:
+// no link hides where it goes, and the reader sees who sent it and whether
+// Laamo could check the sender.
+func TestEmailCantHideLinks(t *testing.T) {
+	email := func(signed string) engine.Card {
+		c := engine.Card{ID: "m1", Kind: "email"}
+		c.Set("from", "security@evil.example", engine.TrustUntrusted)
+		c.Set("from_name", "Your Bank", engine.TrustUntrusted)
+		c.Set("subject", "[Action needed](https://evil.example/login) <https://evil.example|Your Bank> <!channel>", engine.TrustUntrusted)
+		c.Set("text", "Log in at https://xn--pypal-4ve.com/verify or www.evil.example today.", engine.TrustUntrusted)
+		c.Set("from_signed", signed, engine.TrustUser)
+		return c
+	}
+	for _, typ := range []string{"discord", "slack"} {
+		e := setup(t, typ)
+		if _, err := e.run(t, []engine.Card{email("no")}, nil); err != nil {
+			t.Fatal(err)
+		}
+		text := e.sender.sent[0].text
+		for _, bad := range []string{"](http", "https://", "<http", "<!channel>", "www.evil"} {
+			if strings.Contains(text, bad) {
+				t.Errorf("%s: %q made it into the message:\n%s", typ, bad, text)
+			}
+		}
+		for _, want := range []string{"(link: evil.example)", "(link: xn--pypal-4ve.com)", "✉️ From Your Bank (security@evil.example) · sender not checked"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("%s: want %q in:\n%s", typ, want, text)
+			}
+		}
+	}
+
+	// A signed sender is shown as checked; "yes" written by anyone else isn't.
+	e := setup(t, "discord")
+	forged := email("yes")
+	forged.ID = "m2"
+	forged.Set("from_signed", "yes", engine.TrustExtracted)
+	if _, err := e.run(t, []engine.Card{email("yes"), forged}, map[string]any{"mode": "each"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(e.sender.sent[0].text, "· sender checked") || !strings.Contains(e.sender.sent[1].text, "· sender not checked") {
+		t.Fatalf("sent: %+v", e.sender.sent)
+	}
+}
+
+// Links come from link fields only, and their host is always visible.
+func TestLinksShowTheirHost(t *testing.T) {
+	in := cards(3)
+	in[0].Set("title", "Totally your bank", engine.TrustUntrusted)
+	in[0].Set("url", "https://раypal.com/a(b)", engine.TrustUntrusted)
+	in[1].Set("url", "javascript:alert(1)", engine.TrustUntrusted)
+	e := setup(t, "discord")
+	if _, err := e.run(t, in, nil); err != nil {
+		t.Fatal(err)
+	}
+	text := e.sender.sent[0].text
+	if !strings.Contains(text, "• [Totally your bank](https://раypal.com/a%28b%29) · xn--ypal-43d9g.com") {
+		t.Errorf("look-alike host not shown:\n%s", text)
+	}
+	if strings.Contains(text, "javascript:") || !strings.Contains(text, "• News 1\n") {
+		t.Errorf("bad link kept:\n%s", text)
+	}
+}

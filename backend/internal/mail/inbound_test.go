@@ -80,6 +80,10 @@ func TestAllowed(t *testing.T) {
 		{"ben@example.com", []string{"example.com"}, true},
 		{"ben@evil-example.com", []string{"example.com"}, false},
 		{"anna@example.com", nil, false},
+		{"Anna@GoogleMail.com", []string{"anna@gmail.com"}, true},
+		{"anna@gmail.com", []string{"anna@googlemail.com"}, true},
+		{"ben@gmail.com", []string{"@googlemail.com"}, true},
+		{"anna@notgooglemail.com", []string{"anna@notgmail.com"}, false},
 	} {
 		if got := mail.Allowed(c.from, c.senders); got != c.want {
 			t.Errorf("Allowed(%q, %v) = %v", c.from, c.senders, got)

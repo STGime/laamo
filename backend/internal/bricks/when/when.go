@@ -48,10 +48,15 @@ var Email = engine.BrickFunc(func(_ context.Context, rc *engine.RunContext, _ []
 		v, _ := rc.Value("trigger." + f)
 		c.Set(f, v, engine.TrustUntrusted)
 	}
+	// from_signed is Laamo's own DKIM check ("yes" or "no"), not something
+	// the sender wrote, so it keeps the user's trust.
+	signed, _ := rc.Value("trigger.from_signed")
+	c.Set("from_signed", signed, engine.TrustUser)
 	return []engine.Card{c}, nil
 })
 
-// emailFields: what an email card has (the catalog's adds for when.email).
+// emailFields: what an email card has (the catalog's adds for when.email),
+// apart from from_signed.
 var emailFields = []string{"from", "from_name", "subject", "text", "date", "attachments", "mail"}
 
 // sampleEmail stands in for an email in a test run (Test in the builder):
@@ -61,6 +66,7 @@ func sampleEmail(rc *engine.RunContext) engine.Card {
 	for _, f := range emailFields {
 		c.Set(f, "", engine.TrustUntrusted)
 	}
+	c.Set("from_signed", "no", engine.TrustUser)
 	c.Set("date", time.Now().UTC().Format(time.RFC3339), engine.TrustUntrusted)
 	de := rc.Workspace.Locale == "de"
 	pick := func(en, deText string) string {

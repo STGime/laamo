@@ -271,7 +271,7 @@
 		sheetOpen = true;
 	}
 	function pick(type: string) {
-		const r = add(bricks, type);
+		const r = add(bricks, type, session.me?.user.email);
 		bricks = r.bricks;
 		trayOpen = false;
 		open(bricks.find((b) => b.id === r.id)!);

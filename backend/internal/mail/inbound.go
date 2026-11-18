@@ -201,11 +201,12 @@ func orgDomain(d string) string {
 
 // Allowed reports whether from matches a sender list entry: an address
 // (anna@example.com) or a whole domain (@example.com or example.com).
+// gmail.com and googlemail.com are one mailbox.
 func Allowed(from string, senders []string) bool {
-	from = strings.ToLower(strings.TrimSpace(from))
+	from = sameMailbox(from)
 	_, domain, _ := strings.Cut(from, "@")
 	for _, s := range senders {
-		s = strings.ToLower(strings.TrimSpace(s))
+		s = sameMailbox(s)
 		switch {
 		case s == "":
 		case strings.Contains(s, "@") && !strings.HasPrefix(s, "@"):
@@ -217,6 +218,14 @@ func Allowed(from string, senders []string) bool {
 		}
 	}
 	return false
+}
+
+func sameMailbox(a string) string {
+	a = strings.ToLower(strings.TrimSpace(a))
+	if local, ok := strings.CutSuffix(a, "googlemail.com"); ok && (local == "" || strings.HasSuffix(local, "@")) {
+		a = local + "gmail.com"
+	}
+	return a
 }
 
 // NewAddress makes a helper's address: a readable part from its name and a

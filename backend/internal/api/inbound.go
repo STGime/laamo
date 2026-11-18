@@ -145,10 +145,14 @@ func (s *Server) takeMail(ctx context.Context, to string, raw []byte) (int, stri
 	if err != nil {
 		return 0, "", err
 	}
-	// Only from these senders: the address must be on the list and its
-	// domain must have signed the mail (anyone can write any From).
-	if len(senders) > 0 && (!mail.Allowed(m.From, senders) || !mail.SignedBy(raw, m.From, nil)) {
+	// Did the From address's domain sign the mail? Anyone can write any
+	// From, so only then is the sender who they say they are. The run gets
+	// the answer too: the user sees whether the sender was checked.
+	signed := mail.SignedBy(raw, m.From, nil)
+	// Only from these senders: the address must be on the list and signed.
+	if len(senders) > 0 && (!mail.Allowed(m.From, senders) || !signed) {
 		s.log.Info("inbound mail ignored: sender not on the helper's list or not signed", "helper", h.ID, "from", m.From)
+		s.noteIgnored(ctx, h, m.From, senders, signed, time.Now())
 		return http.StatusAccepted, "sender_not_allowed", nil
 	}
 	if n, err := s.mailsToday(ctx, h.ID); err != nil {
@@ -165,7 +169,7 @@ func (s *Server) takeMail(ctx context.Context, to string, raw []byte) (int, stri
 		return 0, "", err
 	}
 
-	data := map[string]any{"from": m.From, "from_name": m.FromName, "subject": m.Subject, "text": m.Text, "mail": path}
+	data := map[string]any{"from": m.From, "from_name": m.FromName, "from_signed": yesNo(signed), "subject": m.Subject, "text": m.Text, "mail": path}
 	if !m.Date.IsZero() {
 		data["date"] = m.Date.UTC().Format(time.RFC3339)
 	}
@@ -228,4 +232,11 @@ func (s *Server) mailsToday(ctx context.Context, helperID string) (int, error) {
 		}
 	}
 	return n, nil
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
 }

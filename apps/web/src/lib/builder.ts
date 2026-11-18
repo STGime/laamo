@@ -58,12 +58,19 @@ export function nextId(bricks: StackBrick[]): string {
 
 /**
  * Adds a brick from the tray: a When brick replaces the old one on top
- * (a helper starts one way), anything else goes at the end.
+ * (a helper starts one way), anything else goes at the end. Email this
+ * helper starts as "only from me" (ownEmail): its address is public, so
+ * strangers get in only when the user clears the list on purpose.
  */
-export function add(bricks: StackBrick[], type: string): { bricks: StackBrick[]; id: string } {
+export function add(
+	bricks: StackBrick[],
+	type: string,
+	ownEmail?: string
+): { bricks: StackBrick[]; id: string } {
 	const b = brick(type);
 	if (!b) return { bricks, id: '' };
 	const sb: StackBrick = { id: nextId(bricks), type, config: withDefaults(b, {}) };
+	if (type === 'when.email' && ownEmail) sb.config = { ...sb.config, senders: [ownEmail] };
 	if (b.shape === 'start') return { bricks: [sb, ...bricks.filter((x) => !isStart(x))], id: sb.id };
 	// Draw a picture with no cards before it: one picture in total.
 	if (type === 'think.draw' && !cardsBefore(bricks, bricks.length))

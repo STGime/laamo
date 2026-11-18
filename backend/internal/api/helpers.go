@@ -178,8 +178,9 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 	if err := s.resolveLists(ctx, cat, &stack, w); err != nil {
 		return nil, err
 	}
-	raw, _ := json.Marshal(stack)
 	u, _ := user(ctx)
+	onlyMeByDefault(&stack, u.Email)
+	raw, _ := json.Marshal(stack)
 	existing, err := s.store.ListHelpers(ctx, w.ID)
 	if err != nil {
 		return nil, err
