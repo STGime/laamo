@@ -155,6 +155,9 @@ export const de: Record<Key, string> = {
 	'feed.failed': 'Das hat nicht geklappt. Versuch es noch mal.',
 	'feed.test': 'Testlauf',
 	'feed.fromWeb': 'aus dem Web',
+	'feed.allowSender': 'Diesen Absender erlauben',
+	'feed.senderChecked': 'Absender geprüft',
+	'feed.senderNotChecked': 'Absender nicht geprüft',
 	'time.now': 'gerade eben',
 	'time.min': 'vor {n} Min.',
 	'time.hour': 'vor {n} Std.',
@@ -339,6 +342,15 @@ export const de: Record<Key, string> = {
 	'mail.copied': 'Kopiert',
 	'mail.hint':
 		'Leite E-Mails dorthin weiter oder richte in deinem Postfach eine automatische Weiterleitung ein. Jede E-Mail startet einen Lauf.',
+	'mail.forwardTitle': 'Automatisch weiterleiten?',
+	'mail.forwardHint':
+		'Trag diese Adresse in die automatische Weiterleitung deines Postfachs ein. Weitergeleitete E-Mails behalten ihren ursprünglichen Absender, also würde „Nur von diesen Absendern“ sie aufhalten; an diese Adresse kommt E-Mail von jedem Absender durch.',
+	'mail.forwardPrivate':
+		'Behalte sie für dich: Wer sie kennt, kann diesen Helfer starten. Ist sie bekannt geworden, hol dir eine neue und ändere deine Weiterleitung.',
+	'mail.forwardNew': 'Neue Weiterleitungsadresse',
+	'mail.forwardNewConfirm':
+		'Neue Weiterleitungsadresse holen? Die jetzige funktioniert dann nicht mehr, bis du die neue in deiner Weiterleitung einträgst.',
+	'mail.forwardNewFailed': 'Das hat nicht geklappt. Versuch es noch einmal.',
 	'mail.afterSave': 'Der Helfer bekommt seine eigene Adresse, sobald du ihn speicherst.',
 	'helper.onEmail': 'Läuft, wenn eine E-Mail ankommt',
 	'helper.noSchedule': 'Läuft, wenn du auf „Jetzt ausführen“ tippst',

@@ -31,6 +31,14 @@ describe('builder', () => {
 		expect(tap.id).not.toBe('b2');
 	});
 
+	it('starts Email this helper as only from me', () => {
+		const st = [b('b1', 'when.every'), b('b2', 'look.search')];
+		const mail = add(st, 'when.email', 'anna@example.com');
+		expect(mail.bricks[0].config.senders).toEqual(['anna@example.com']);
+		expect(add(st, 'when.email').bricks[0].config.senders).toBeUndefined();
+		expect(add(st, 'when.tap', 'anna@example.com').bricks[0].config.senders).toBeUndefined();
+	});
+
 	it('picks a fresh id', () => {
 		expect(nextId([b('b1', 'x'), b('b3', 'y')])).toBe('b4');
 		expect(nextId([b('b3', 'x'), b('b4', 'y')])).toBe('b5');

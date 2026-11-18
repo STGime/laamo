@@ -34,6 +34,18 @@
 	const href = $derived(safeURL(text('url') || text('website')));
 	const editable = $derived(['email', 'subject', 'title', 'body'].filter((k) => text(k) !== ''));
 	const untrusted = (k: string) => card.trust[k] === 'untrusted';
+	// An email the helper received: who sent it, and whether Laamo could
+	// check the sender (anyone can write any From).
+	const sender = $derived(
+		untrusted('from') && text('from')
+			? [text('from_name'), text('from_name') ? `(${text('from')})` : text('from')]
+					.filter(Boolean)
+					.join(' ')
+			: ''
+	);
+	const senderChecked = $derived(
+		text('from_signed') === 'yes' && card.trust.from_signed === 'user_entered'
+	);
 	// Map data must name its source (OpenStreetMap's licence).
 	const fromMap = $derived(osmSource(card.source_url));
 	// A business: where it is, how far, when it's open, how to call.
@@ -99,6 +111,11 @@
 		{/each}
 	{:else}
 		{#if heading}<h3 class="display">{edits?.title ?? edits?.subject ?? heading}</h3>{/if}
+		{#if sender}
+			<p class="host">
+				✉️ {sender} · {t(senderChecked ? 'feed.senderChecked' : 'feed.senderNotChecked')}
+			</p>
+		{/if}
 		{#if business}
 			{#if text('address') || away}
 				<p class="where">{[text('address'), away].filter(Boolean).join(' · ')}</p>

@@ -160,7 +160,11 @@
 					)}{/if}
 			</p>
 		</div>
-		{#if helper.email_address}<HelperAddress address={helper.email_address} />{/if}
+		{#if helper.email_address}<HelperAddress
+				address={helper.email_address}
+				forward={helper.forward_address}
+				helperId={helper.id}
+			/>{/if}
 		<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
 			>{#if run}<RunTicker
 					{run}

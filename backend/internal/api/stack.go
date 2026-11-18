@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"strings"
 
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -138,8 +140,11 @@ func (s *Server) checkStack(ctx context.Context, in Stack, workspaceID string) (
 }
 
 func (s *Server) addVersion(ctx context.Context, h store.Helper, stack catalog.Stack, current bool) (store.HelperVersion, error) {
-	raw, _ := json.Marshal(stack)
 	u, _ := user(ctx)
+	if u.ID == h.UserID { // another member's address isn't "only me" for the owner
+		onlyMeByDefault(&stack, u.Email)
+	}
+	raw, _ := json.Marshal(stack)
 	v := store.HelperVersion{HelperID: h.ID, Stack: raw, CreatedBy: &u.ID}
 	err := s.store.AddHelperVersion(ctx, &v, current)
 	return v, err
@@ -180,7 +185,8 @@ func (s *Server) foreignRefs(ctx context.Context, cat *catalog.Catalog, st catal
 }
 
 func (s *Server) stackOut(ctx context.Context, h store.Helper, v store.HelperVersion) (HelperStack, error) {
-	out := HelperStack{Version: v.Version, LastOut: map[string]int{}, EmailAddress: s.emailAddress(ctx, h.ID)}
+	out := HelperStack{Version: v.Version, LastOut: map[string]int{}}
+	out.EmailAddress, out.ForwardAddress = s.emailAddresses(ctx, h.ID)
 	if err := json.Unmarshal(v.Stack, &out.Stack); err != nil {
 		return out, err
 	}
@@ -219,4 +225,23 @@ func issueOut(i catalog.Issue) StackIssue {
 		out.Field = &i.Field
 	}
 	return out
+}
+
+// onlyMeByDefault: an Email this helper brick that never had a sender list
+// gets the user's own address. A helper's address is public, so strangers
+// get in only when the user clears the list on purpose (senders: []).
+func onlyMeByDefault(stack *catalog.Stack, email string) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" || len(stack.Bricks) == 0 || stack.Bricks[0].Type != "when.email" {
+		return
+	}
+	if _, set := stack.Bricks[0].Config["senders"]; set {
+		return
+	}
+	cfg := maps.Clone(stack.Bricks[0].Config)
+	if cfg == nil {
+		cfg = map[string]any{}
+	}
+	cfg["senders"] = []any{email}
+	stack.Bricks[0].Config = cfg
 }

@@ -80,6 +80,47 @@
 		}
 	}
 
+	// An email was ignored (sender not on the helper's list): Allow adds
+	// the sender to Email this helper's list, then the note goes away.
+	const canAllow = $derived(
+		card.type === 'problem' &&
+			card.payload.ignored_mail === true &&
+			card.payload.can_allow === true &&
+			!!card.helper_id
+	);
+	// The list as the API reads it: an array, or tags typed as one line.
+	function senderList(v: unknown): string[] {
+		if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string');
+		if (typeof v === 'string') return v.split(/[,; ]+/).filter(Boolean);
+		return [];
+	}
+	async function allowSender() {
+		const helperId = card.helper_id!;
+		const from = String(card.payload.from ?? '');
+		busy = true;
+		failed = false;
+		try {
+			const { data } = await api.GET('/helpers/{helperId}/stack', {
+				params: { path: { helperId } }
+			});
+			const stack = data && structuredClone(data.stack);
+			const first = stack?.bricks[0];
+			if (!data || !stack || first?.type !== 'when.email' || !from) throw new Error('stack');
+			const senders = senderList(first.config.senders);
+			if (!senders.includes(from)) first.config = { ...first.config, senders: [...senders, from] };
+			const saved = await api.PUT('/helpers/{helperId}/stack', {
+				params: { path: { helperId } },
+				body: { stack, version: data.version }
+			});
+			if (!saved.data) throw new Error('save');
+			await dismiss();
+		} catch {
+			failed = true;
+		} finally {
+			busy = false;
+		}
+	}
+
 	async function dismiss() {
 		const { data } = await api.POST('/feed-cards/{feedCardId}/dismiss', {
 			params: { path: { feedCardId: card.id } }
@@ -312,6 +353,11 @@
 	{#if card.type === 'result' && count > 1}
 		<button class="link" type="button" onclick={openPile}
 			>{t('feed.showAll', { n: count })} →</button
+		>
+	{/if}
+	{#if canAllow}
+		<button class="btn" type="button" disabled={busy} onclick={allowSender}
+			>{t('feed.allowSender')}</button
 		>
 	{/if}
 	{#if card.type === 'problem' && card.helper_id}

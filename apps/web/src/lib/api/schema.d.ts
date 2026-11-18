@@ -506,6 +506,25 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/helpers/{helperId}/forward-address': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Give the helper a new forwarding address (the old one stops skipping the sender list) */
+		post: operations['newForwardAddress'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/helpers/{helperId}/runs': {
 		parameters: {
 			query?: never;
@@ -992,6 +1011,11 @@ export interface components {
 			/** @description How well it fits your needs (0 = not one of them) */
 			match: number;
 		};
+		HelperAddresses: {
+			email_address?: string;
+			/** @description The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders. */
+			forward_address?: string;
+		};
 		HelperStack: {
 			version: number;
 			stack: components['schemas']['Stack'];
@@ -1001,6 +1025,8 @@ export interface components {
 			};
 			/** @description The helper's own address, once saved with Email this helper first */
 			email_address?: string;
+			/** @description The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders. */
+			forward_address?: string;
 		};
 		/** @description A stack as in packages/catalog (schema 1); checked against bricks.json */
 		Stack: {
@@ -1091,6 +1117,8 @@ export interface components {
 			next_run_at?: string;
 			/** @description The helper's own address (stacks that start with Email this helper), e.g. meetings.x7k2qa@in.laamo.app */
 			email_address?: string;
+			/** @description The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders. */
+			forward_address?: string;
 			run?: components['schemas']['RunProgress'];
 			/** Format: date-time */
 			created_at: string;
@@ -2132,6 +2160,30 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content?: never;
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+		};
+	};
+	newForwardAddress: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The helper's addresses */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HelperAddresses'];
+				};
 			};
 			401: components['responses']['Unauthorized'];
 			404: components['responses']['NotFound'];
