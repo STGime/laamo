@@ -46,6 +46,7 @@
 	let bricks = $state<StackBrick[]>([]);
 	let lastOut = $state<Record<string, number>>({});
 	let emailAddress = $state<string | null>(null);
+	let forwardAddress = $state<string | null>(null);
 	let places = $state<Schemas['Place'][]>([]);
 	let lists = $state<Schemas['ListSummary'][]>([]);
 	let about = $state<Record<string, unknown>>({});
@@ -83,6 +84,7 @@
 				base = data.stack as Stack;
 				lastOut = data.last_out;
 				emailAddress = data.email_address ?? null;
+				forwardAddress = data.forward_address ?? null;
 				bricks = structuredClone(data.stack.bricks) as StackBrick[];
 				// An edit that wasn't saved comes back. After Connect a chat
 				// that's expected; otherwise it's marked, with Discard.
@@ -612,6 +614,8 @@
 			bind:lists
 			lastOut={lastOut[editing]}
 			{emailAddress}
+			{forwardAddress}
+			helperId={id}
 			{pills}
 			onfact={rememberFact}
 			onleave={keepDraft}

@@ -365,13 +365,42 @@ func (s *Server) syncTriggers(ctx context.Context, h store.Helper, w store.Works
 	}
 }
 
-// emailAddress is the helper's own address, if it has one.
-func (s *Server) emailAddress(ctx context.Context, helperID string) *string {
-	a, err := mail.HelperAddress(ctx, s.store, helperID)
-	if err != nil || a == "" {
+// emailAddresses are the helper's address and forwarding address, if it
+// has them.
+func (s *Server) emailAddresses(ctx context.Context, helperID string) (address, forward *string) {
+	a, err := mail.HelperAddresses(ctx, s.store, helperID)
+	if err != nil {
+		s.log.Warn("helper email address", "helper", helperID, "err", err)
+	}
+	return nonEmpty(a.Address), nonEmpty(a.Forward)
+}
+
+func nonEmpty(s string) *string {
+	if s == "" {
 		return nil
 	}
-	return &a
+	return &s
+}
+
+// NewForwardAddress replaces the helper's forwarding key, for when the
+// forwarding address got out.
+func (s *Server) NewForwardAddress(ctx context.Context, req NewForwardAddressRequestObject) (NewForwardAddressResponseObject, error) {
+	h, ok, err := s.helper(ctx, req.HelperId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return NewForwardAddress404JSONResponse{NotFoundJSONResponse(helperNotFound)}, nil
+	}
+	a, err := mail.NewForwardKey(ctx, s.store, h.ID)
+	if err != nil {
+		return nil, err
+	}
+	if a.Address == "" {
+		return NewForwardAddress404JSONResponse{NotFoundJSONResponse(apiErr(ErrorCodeNotFound, "helper has no email address"))}, nil
+	}
+	s.log.Info("helper got a new forwarding address", "helper", h.ID)
+	return NewForwardAddress200JSONResponse{EmailAddress: nonEmpty(a.Address), ForwardAddress: nonEmpty(a.Forward)}, nil
 }
 
 func (s *Server) nextRun(ctx context.Context, h store.Helper) *time.Time {
@@ -405,7 +434,7 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 	}
 	out := HelperDetail{Helper: helperOut(h), Bricks: []BrickPreview{}, Runs: []RunSummary{}}
 	out.Helper.NextRunAt = s.nextRun(ctx, h)
-	out.Helper.EmailAddress = s.emailAddress(ctx, h.ID)
+	out.Helper.EmailAddress, out.Helper.ForwardAddress = s.emailAddresses(ctx, h.ID)
 	var latest *store.Run
 	out.Helper.Run, latest = s.activeRun(ctx, h)
 	if latest != nil {

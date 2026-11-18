@@ -736,8 +736,8 @@
             "de": "Nur von diesen Absendern"
           },
           "help": {
-            "en": "Starts with your own address, so only you can start this helper. Add others, or clear it so anyone can email this helper.",
-            "de": "Anfangs steht hier deine eigene Adresse: Nur du kannst diesen Helfer starten. Füge weitere hinzu oder leere das Feld, damit jeder diesem Helfer mailen kann."
+            "en": "Starts with your own address, so only you can start this helper. Add others, or clear it so anyone can email this helper. For automatic forwarding, use the helper's forwarding address instead: it skips this list.",
+            "de": "Anfangs steht hier deine eigene Adresse: Nur du kannst diesen Helfer starten. Füge weitere hinzu oder leere das Feld, damit jeder diesem Helfer mailen kann. Für automatische Weiterleitung nimm stattdessen die Weiterleitungsadresse des Helfers: Für sie gilt diese Liste nicht."
           },
           "placeholder": {
             "en": "anna@example.com",

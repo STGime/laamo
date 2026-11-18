@@ -333,6 +333,15 @@ export const en = {
 	'mail.copied': 'Copied',
 	'mail.hint':
 		'Forward emails to it, or set up an automatic forwarding rule in your mailbox. Each email starts a run.',
+	'mail.forwardTitle': 'Forwarding automatically?',
+	'mail.forwardHint':
+		'Use this address in your mailbox’s automatic forwarding rule. Forwarded emails keep their original sender, so “Only from these senders” would stop them; mail to this address gets in from any sender.',
+	'mail.forwardPrivate':
+		'Keep it private: anyone who knows it can start this helper. If it got out, get a new one and update your forwarding rule.',
+	'mail.forwardNew': 'New forwarding address',
+	'mail.forwardNewConfirm':
+		'Get a new forwarding address? The current one stops working until you put the new one in your forwarding rule.',
+	'mail.forwardNewFailed': 'That didn’t work. Try again.',
 	'mail.afterSave': 'The helper gets its own address when you save it.',
 	'helper.onEmail': 'Runs when an email arrives',
 	'helper.noSchedule': 'Runs when you tap Run now',

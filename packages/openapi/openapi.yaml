@@ -792,6 +792,24 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /helpers/{helperId}/forward-address:
+    parameters:
+      - $ref: '#/components/parameters/HelperId'
+    post:
+      operationId: newForwardAddress
+      summary: Give the helper a new forwarding address (the old one stops skipping the sender list)
+      tags: [helpers]
+      responses:
+        '200':
+          description: The helper's addresses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelperAddresses'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /helpers/{helperId}/runs:
     parameters:
       - $ref: '#/components/parameters/HelperId'
@@ -1691,6 +1709,14 @@ components:
         match:
           type: integer
           description: How well it fits your needs (0 = not one of them)
+    HelperAddresses:
+      type: object
+      properties:
+        email_address:
+          type: string
+        forward_address:
+          type: string
+          description: The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders.
     HelperStack:
       type: object
       required: [version, stack, last_out]
@@ -1707,6 +1733,9 @@ components:
         email_address:
           type: string
           description: The helper's own address, once saved with Email this helper first
+        forward_address:
+          type: string
+          description: The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders.
     Stack:
       type: object
       description: A stack as in packages/catalog (schema 1); checked against bricks.json
@@ -1865,6 +1894,9 @@ components:
         email_address:
           type: string
           description: The helper's own address (stacks that start with Email this helper), e.g. meetings.x7k2qa@in.laamo.app
+        forward_address:
+          type: string
+          description: The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders.
         run:
           $ref: '#/components/schemas/RunProgress'
         created_at:

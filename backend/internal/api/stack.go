@@ -183,7 +183,8 @@ func (s *Server) foreignRefs(ctx context.Context, cat *catalog.Catalog, st catal
 }
 
 func (s *Server) stackOut(ctx context.Context, h store.Helper, v store.HelperVersion) (HelperStack, error) {
-	out := HelperStack{Version: v.Version, LastOut: map[string]int{}, EmailAddress: s.emailAddress(ctx, h.ID)}
+	out := HelperStack{Version: v.Version, LastOut: map[string]int{}}
+	out.EmailAddress, out.ForwardAddress = s.emailAddresses(ctx, h.ID)
 	if err := json.Unmarshal(v.Stack, &out.Stack); err != nil {
 		return out, err
 	}

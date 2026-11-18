@@ -2,7 +2,6 @@ package mail
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -34,6 +33,9 @@ type Message struct {
 	MessageID   string
 	Text        string // the plain text (or the HTML's text), at most MaxText runes
 	Attachments []Attachment
+	// Forwarded: headers say a mailbox forwarded it automatically (Gmail's
+	// X-Forwarded-To, Resent-From). Anyone can write these: a hint only.
+	Forwarded bool
 }
 
 // Attachment is a file that came with an email (not stored separately: the
@@ -61,6 +63,7 @@ func Parse(raw []byte) (Message, error) {
 	m.Subject, _ = h.Subject()
 	m.Date, _ = h.Date()
 	m.MessageID, _ = h.MessageID()
+	m.Forwarded = h.Get("X-Forwarded-To") != "" || h.Get("X-Forwarded-For") != "" || h.Get("Resent-From") != ""
 
 	var plain, htmlText string
 	for {
@@ -250,18 +253,13 @@ func NewAddress(helperName, domain string) string {
 	if name == "" {
 		name = "helper"
 	}
-	const letters = "abcdefghijkmnpqrstuvwxyz23456789" // no l, o, 0, 1
-	buf := make([]byte, 6)
-	_, _ = rand.Read(buf)
-	for i := range buf {
-		buf[i] = letters[int(buf[i])%len(letters)]
-	}
-	return name + "." + string(buf) + "@" + domain
+	return name + "." + newKey(6) + "@" + domain
 }
 
-// Recipient reads the address a mail was sent to (lower case, without
-// "+tags"), as the Worker passes it.
-func Recipient(s string) (string, error) {
+// Recipient reads the address a mail was sent to, as the Worker passes it:
+// the address (lower case, without "+tag") and the tag, which may be the
+// helper's forwarding key.
+func Recipient(s string) (addr, tag string, err error) {
 	a, err := (&mime.WordDecoder{}).DecodeHeader(s)
 	if err != nil {
 		a = s
@@ -269,8 +267,8 @@ func Recipient(s string) (string, error) {
 	a = strings.ToLower(strings.TrimSpace(strings.Trim(a, "<>")))
 	local, domain, ok := strings.Cut(a, "@")
 	if !ok || local == "" || domain == "" || strings.ContainsAny(a, " ,;") {
-		return "", fmt.Errorf("mail: %q isn't an address", s)
+		return "", "", fmt.Errorf("mail: %q isn't an address", s)
 	}
-	local, _, _ = strings.Cut(local, "+")
-	return local + "@" + domain, nil
+	local, tag, _ = strings.Cut(local, "+")
+	return local + "@" + domain, tag, nil
 }

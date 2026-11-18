@@ -70,12 +70,12 @@ func (s *Server) serveInbound(w http.ResponseWriter, r *http.Request) {
 		answer(http.StatusRequestEntityTooLarge, "too_big")
 		return
 	}
-	to, err := mail.Recipient(r.Header.Get("X-Laamo-To"))
+	to, tag, err := mail.Recipient(r.Header.Get("X-Laamo-To"))
 	if err != nil || !strings.HasSuffix(to, "@"+s.cfg.InboundDomain) {
 		answer(http.StatusNotFound, "no_such_address")
 		return
 	}
-	status, outcome, err := s.takeMail(r.Context(), to, raw)
+	status, outcome, err := s.takeMail(r.Context(), to, tag, raw)
 	if err != nil {
 		s.log.Error("inbound mail", "to", to, "err", err)
 		// The Worker lets Cloudflare try again later.
@@ -110,8 +110,9 @@ func InboundSignature(secret string, ts int64, body []byte) []byte {
 	return m.Sum(nil)
 }
 
-// takeMail hands an email to the helper it was sent to.
-func (s *Server) takeMail(ctx context.Context, to string, raw []byte) (int, string, error) {
+// takeMail hands an email to the helper it was sent to. tag is the address's
+// "+tag": the helper's forwarding key, or anything else (then ignored).
+func (s *Server) takeMail(ctx context.Context, to, tag string, raw []byte) (int, string, error) {
 	t, err := s.store.TriggerByAddress(ctx, to)
 	if errors.Is(err, store.ErrNotFound) || (err == nil && t.Type != store.TriggerEmail) {
 		return http.StatusNotFound, "no_such_address", nil
@@ -149,10 +150,21 @@ func (s *Server) takeMail(ctx context.Context, to string, raw []byte) (int, stri
 	// From, so only then is the sender who they say they are. The run gets
 	// the answer too: the user sees whether the sender was checked.
 	signed := mail.SignedBy(raw, m.From, nil)
-	// Only from these senders: the address must be on the list and signed.
-	if len(senders) > 0 && (!mail.Allowed(m.From, senders) || !signed) {
+	// Setting up Gmail forwarding: Gmail mails a code to type in. That's
+	// for the user, not a run.
+	if m.From == mail.GmailForwarding && signed {
+		if code, requester, ok := mail.GmailForwardCode(m, s.cfg.InboundDomain); ok {
+			s.noteForwardCode(ctx, h, code, requester)
+			return http.StatusAccepted, "forward_confirmation", nil
+		}
+	}
+	// Sent to the forwarding address: the user's own forwarding rule (only
+	// they know the key), so any original sender is fine. Otherwise Only
+	// from these senders: the address must be on the list and signed.
+	forwarded := mail.IsForwardKey(t, tag)
+	if !forwarded && len(senders) > 0 && (!mail.Allowed(m.From, senders) || !signed) {
 		s.log.Info("inbound mail ignored: sender not on the helper's list or not signed", "helper", h.ID, "from", m.From)
-		s.noteIgnored(ctx, h, m.From, senders, signed, time.Now())
+		s.noteIgnored(ctx, h, m, senders, signed, time.Now())
 		return http.StatusAccepted, "sender_not_allowed", nil
 	}
 	if n, err := s.mailsToday(ctx, h.ID); err != nil {

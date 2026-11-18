@@ -954,9 +954,12 @@ type Helper struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// EmailAddress The helper's own address (stacks that start with Email this helper), e.g. meetings.x7k2qa@in.laamo.app
-	EmailAddress *string            `json:"email_address,omitempty"`
-	Id           openapi_types.UUID `json:"id"`
-	Name         string             `json:"name"`
+	EmailAddress *string `json:"email_address,omitempty"`
+
+	// ForwardAddress The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders.
+	ForwardAddress *string            `json:"forward_address,omitempty"`
+	Id             openapi_types.UUID `json:"id"`
+	Name           string             `json:"name"`
 
 	// NextRunAt When its schedule runs next (only when on and scheduled)
 	NextRunAt *time.Time `json:"next_run_at,omitempty"`
@@ -968,6 +971,14 @@ type Helper struct {
 
 // HelperStatus defines model for Helper.Status.
 type HelperStatus string
+
+// HelperAddresses defines model for HelperAddresses.
+type HelperAddresses struct {
+	EmailAddress *string `json:"email_address,omitempty"`
+
+	// ForwardAddress The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders.
+	ForwardAddress *string `json:"forward_address,omitempty"`
+}
 
 // HelperDetail defines model for HelperDetail.
 type HelperDetail struct {
@@ -996,6 +1007,9 @@ type HelperRef struct {
 type HelperStack struct {
 	// EmailAddress The helper's own address, once saved with Email this helper first
 	EmailAddress *string `json:"email_address,omitempty"`
+
+	// ForwardAddress The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders.
+	ForwardAddress *string `json:"forward_address,omitempty"`
 
 	// LastOut Cards each brick (by stack brick id) gave in the last finished run
 	LastOut map[string]int `json:"last_out"`
@@ -1814,6 +1828,11 @@ type ClientInterface interface {
 	// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
 	UpdateHelper(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// NewForwardAddress Give the helper a new forwarding address (the old one stops skipping the sender list)
+	//
+	// Corresponds with POST /helpers/{helperId}/forward-address (the `NewForwardAddress` operationId).
+	NewForwardAddress(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ForgetLearned Forget what the helper learned from Let me pick swipes
 	//
 	// Corresponds with DELETE /helpers/{helperId}/learned (the `ForgetLearned` operationId).
@@ -2304,6 +2323,21 @@ func (c *Client) UpdateHelperWithBody(ctx context.Context, helperId HelperId, co
 // Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
 func (c *Client) UpdateHelper(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateHelperRequest(c.Server, helperId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewForwardAddress Give the helper a new forwarding address (the old one stops skipping the sender list)
+//
+// Corresponds with POST /helpers/{helperId}/forward-address (the `NewForwardAddress` operationId).
+func (c *Client) NewForwardAddress(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewNewForwardAddressRequest(c.Server, helperId)
 	if err != nil {
 		return nil, err
 	}
@@ -3393,6 +3427,40 @@ func NewUpdateHelperRequestWithBody(server string, helperId HelperId, contentTyp
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewNewForwardAddressRequest constructs an http.Request for the NewForwardAddress method
+func NewNewForwardAddressRequest(server string, helperId HelperId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s/forward-address", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -4959,6 +5027,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /helpers/{helperId} (the `UpdateHelper` operationId).
 	UpdateHelperWithResponse(ctx context.Context, helperId HelperId, body UpdateHelperJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateHelperResponse, error)
 
+	// NewForwardAddressWithResponse Give the helper a new forwarding address (the old one stops skipping the sender list)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /helpers/{helperId}/forward-address (the `NewForwardAddress` operationId).
+	NewForwardAddressWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*NewForwardAddressResponse, error)
+
 	// ForgetLearnedWithResponse Forget what the helper learned from Let me pick swipes
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -5792,6 +5867,61 @@ func (r UpdateHelperResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateHelperResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type NewForwardAddressResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *HelperAddresses
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r NewForwardAddressResponse) GetJSON200() *HelperAddresses {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r NewForwardAddressResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r NewForwardAddressResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r NewForwardAddressResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NewForwardAddressResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NewForwardAddressResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NewForwardAddressResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7840,6 +7970,19 @@ func (c *ClientWithResponses) UpdateHelperWithResponse(ctx context.Context, help
 	return ParseUpdateHelperResponse(rsp)
 }
 
+// NewForwardAddressWithResponse Give the helper a new forwarding address (the old one stops skipping the sender list)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /helpers/{helperId}/forward-address (the `NewForwardAddress` operationId).
+func (c *ClientWithResponses) NewForwardAddressWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*NewForwardAddressResponse, error) {
+	rsp, err := c.NewForwardAddress(ctx, helperId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNewForwardAddressResponse(rsp)
+}
+
 // ForgetLearnedWithResponse Forget what the helper learned from Let me pick swipes
 //
 // Returns a wrapper object for the known response body format(s).
@@ -8802,6 +8945,46 @@ func ParseUpdateHelperResponse(rsp *http.Response) (*UpdateHelperResponse, error
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNewForwardAddressResponse parses an HTTP response from a NewForwardAddressWithResponse call
+func ParseNewForwardAddressResponse(rsp *http.Response) (*NewForwardAddressResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NewForwardAddressResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest HelperAddresses
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Unauthorized
@@ -10245,6 +10428,9 @@ type ServerInterface interface {
 	// UpdateHelper Rename a helper, or switch it on or off
 	// (PATCH /helpers/{helperId})
 	UpdateHelper(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// NewForwardAddress Give the helper a new forwarding address (the old one stops skipping the sender list)
+	// (POST /helpers/{helperId}/forward-address)
+	NewForwardAddress(w http.ResponseWriter, r *http.Request, helperId HelperId)
 	// ForgetLearned Forget what the helper learned from Let me pick swipes
 	// (DELETE /helpers/{helperId}/learned)
 	ForgetLearned(w http.ResponseWriter, r *http.Request, helperId HelperId)
@@ -10547,6 +10733,32 @@ func (siw *ServerInterfaceWrapper) UpdateHelper(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateHelper(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// NewForwardAddress operation middleware
+func (siw *ServerInterfaceWrapper) NewForwardAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.NewForwardAddress(w, r, helperId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11656,6 +11868,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}", wrapper.GetHelper)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/helpers/{helperId}", wrapper.UpdateHelper)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/helpers/{helperId}/learned", wrapper.ForgetLearned)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/forward-address", wrapper.NewForwardAddress)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/runs", wrapper.StartRun)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.GetHelperStack)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.SaveHelperStack)
@@ -12128,6 +12341,56 @@ func (response UpdateHelper401JSONResponse) VisitUpdateHelperResponse(w http.Res
 type UpdateHelper404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response UpdateHelper404JSONResponse) VisitUpdateHelperResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type NewForwardAddressRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+}
+
+type NewForwardAddressResponseObject interface {
+	VisitNewForwardAddressResponse(w http.ResponseWriter) error
+}
+
+type NewForwardAddress200JSONResponse HelperAddresses
+
+func (response NewForwardAddress200JSONResponse) VisitNewForwardAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type NewForwardAddress401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response NewForwardAddress401JSONResponse) VisitNewForwardAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type NewForwardAddress404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response NewForwardAddress404JSONResponse) VisitNewForwardAddressResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -13978,6 +14241,9 @@ type StrictServerInterface interface {
 	// UpdateHelper Rename a helper, or switch it on or off
 	// (PATCH /helpers/{helperId})
 	UpdateHelper(ctx context.Context, request UpdateHelperRequestObject) (UpdateHelperResponseObject, error)
+	// NewForwardAddress Give the helper a new forwarding address (the old one stops skipping the sender list)
+	// (POST /helpers/{helperId}/forward-address)
+	NewForwardAddress(ctx context.Context, request NewForwardAddressRequestObject) (NewForwardAddressResponseObject, error)
 	// ForgetLearned Forget what the helper learned from Let me pick swipes
 	// (DELETE /helpers/{helperId}/learned)
 	ForgetLearned(ctx context.Context, request ForgetLearnedRequestObject) (ForgetLearnedResponseObject, error)
@@ -14363,6 +14629,32 @@ func (sh *strictHandler) UpdateHelper(w http.ResponseWriter, r *http.Request, he
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateHelperResponseObject); ok {
 		if err := validResponse.VisitUpdateHelperResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// NewForwardAddress operation middleware
+func (sh *strictHandler) NewForwardAddress(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request NewForwardAddressRequestObject
+
+	request.HelperId = helperId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.NewForwardAddress(ctx, request.(NewForwardAddressRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "NewForwardAddress")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(NewForwardAddressResponseObject); ok {
+		if err := validResponse.VisitNewForwardAddressResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -105,11 +105,14 @@ func TestNewAddress(t *testing.T) {
 }
 
 func TestRecipient(t *testing.T) {
-	if a, err := mail.Recipient("<Meetings.X7K2QA+news@In.Laamo.App>"); err != nil || a != "meetings.x7k2qa@in.laamo.app" {
-		t.Fatalf("%q %v", a, err)
+	if a, tag, err := mail.Recipient("<Meetings.X7K2QA+News@In.Laamo.App>"); err != nil || a != "meetings.x7k2qa@in.laamo.app" || tag != "news" {
+		t.Fatalf("%q %q %v", a, tag, err)
+	}
+	if _, tag, _ := mail.Recipient("meetings.x7k2qa@in.laamo.app"); tag != "" {
+		t.Fatalf("tag %q", tag)
 	}
 	for _, bad := range []string{"", "nobody", "a@b.de, c@d.de"} {
-		if _, err := mail.Recipient(bad); err == nil {
+		if _, _, err := mail.Recipient(bad); err == nil {
 			t.Errorf("%q: no error", bad)
 		}
 	}

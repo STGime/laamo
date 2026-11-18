@@ -38,7 +38,9 @@
 		onleave,
 		back,
 		onremove,
-		emailAddress
+		emailAddress,
+		forwardAddress,
+		helperId
 	}: {
 		open?: boolean;
 		sb: StackBrick;
@@ -58,6 +60,9 @@
 		onremove: () => void;
 		/** Email this helper: the helper's address, once it's saved. */
 		emailAddress?: string | null;
+		/** …and its forwarding address, for automatic forwarding rules. */
+		forwardAddress?: string | null;
+		helperId?: string;
 	} = $props();
 
 	const lang = $derived(i18n.lang);
@@ -354,7 +359,11 @@
 	{#if lastOut !== undefined}
 		<p class="preview">{t('builder.lastTime', { n: lastOut })}</p>
 	{/if}
-	{#if sb.type === 'when.email'}<HelperAddress address={emailAddress} />{/if}
+	{#if sb.type === 'when.email'}<HelperAddress
+			address={emailAddress}
+			forward={forwardAddress}
+			{helperId}
+		/>{/if}
 	{#each main as s (s.key)}{@render field(s)}{/each}
 	{#if more.length}
 		<button
