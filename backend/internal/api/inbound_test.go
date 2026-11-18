@@ -276,3 +276,33 @@ func TestForwardingAddress(t *testing.T) {
 		t.Fatalf("unknown helper: %d", r.StatusCode())
 	}
 }
+
+// Another workspace member saving the owner's email helper doesn't make it
+// "only from" that member.
+func TestOnlyMeIsTheOwner(t *testing.T) {
+	st := memory.New()
+	srv := httptest.NewServer(api.NewServer(api.Deps{Config: config.Config{InboundDomain: "in.laamo.app"}, Store: st,
+		Auth: fakeAuth{"anna": anna, "ben": ben}}).Handler())
+	t.Cleanup(srv.Close)
+	e := env{url: srv.URL, store: st}
+	ctx := context.Background()
+	ws := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Bäckerei", Locale: "de", Timezone: "Europe/Berlin"})
+	st.PutMember(store.Member{WorkspaceID: ws.ID, UserID: anna.ID, Role: store.RoleOwner})
+	st.PutMember(store.Member{WorkspaceID: ws.ID, UserID: ben.ID, Role: store.RoleMember})
+	h := st.PutHelper(store.Helper{WorkspaceID: ws.ID, UserID: anna.ID, Name: "Termine", Status: "active"})
+	raw, _ := json.Marshal(catalog.Stack{Schema: 1, Bricks: []catalog.StackBrick{
+		{ID: "b1", Type: "when.email"}, {ID: "b2", Type: "think.summarize"}}})
+	v := st.PutHelperVersion(store.HelperVersion{WorkspaceID: ws.ID, UserID: anna.ID, HelperID: h.ID, Version: 1, Stack: raw})
+	h.CurrentVersionID = &v.ID
+	st.PutHelper(h)
+
+	c := e.client(t, "ben")
+	got := must(c.GetHelperStackWithResponse(ctx, uuidOf(h.ID)))
+	saved := must(c.SaveHelperStackWithResponse(ctx, uuidOf(h.ID), api.SaveStack{Stack: got.JSON200.Stack, Version: 1}))
+	if saved.StatusCode() != 200 {
+		t.Fatalf("save: %d %s", saved.StatusCode(), saved.Body)
+	}
+	if _, set := saved.JSON200.Stack.Bricks[0].Config["senders"]; set {
+		t.Fatalf("senders set by a member: %v", saved.JSON200.Stack.Bricks[0].Config)
+	}
+}

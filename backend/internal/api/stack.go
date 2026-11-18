@@ -141,7 +141,9 @@ func (s *Server) checkStack(ctx context.Context, in Stack, workspaceID string) (
 
 func (s *Server) addVersion(ctx context.Context, h store.Helper, stack catalog.Stack, current bool) (store.HelperVersion, error) {
 	u, _ := user(ctx)
-	onlyMeByDefault(&stack, u.Email)
+	if u.ID == h.UserID { // another member's address isn't "only me" for the owner
+		onlyMeByDefault(&stack, u.Email)
+	}
 	raw, _ := json.Marshal(stack)
 	v := store.HelperVersion{HelperID: h.ID, Stack: raw, CreatedBy: &u.ID}
 	err := s.store.AddHelperVersion(ctx, &v, current)

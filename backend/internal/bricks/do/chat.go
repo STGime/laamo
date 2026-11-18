@@ -272,10 +272,15 @@ func hostOf(raw string) string {
 		return ""
 	}
 	h := strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
+	// A host Lookup refuses (mixed scripts, bidi) still shows as xn--…:
+	// Punycode encodes anything, so a look-alike never shows in Unicode.
 	if a, err := idna.Lookup.ToASCII(h); err == nil {
-		h = a
+		return a
 	}
-	return h
+	if a, err := idna.Punycode.ToASCII(h); err == nil {
+		return a
+	}
+	return ""
 }
 
 // origin says who an email card came from and whether Laamo could check

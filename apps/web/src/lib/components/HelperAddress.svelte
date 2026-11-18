@@ -12,8 +12,15 @@
 	let {
 		address,
 		forward,
-		helperId
-	}: { address?: string | null; forward?: string | null; helperId?: string } = $props();
+		helperId,
+		onrenew
+	}: {
+		address?: string | null;
+		forward?: string | null;
+		helperId?: string;
+		/** A new forwarding address was made (the parent keeps it). */
+		onrenew?: (forward: string) => void;
+	} = $props();
 
 	// A new forwarding address replaces the one we were given.
 	let renewed = $state<string | null>(null);
@@ -37,8 +44,10 @@
 			const { data } = await api.POST('/helpers/{helperId}/forward-address', {
 				params: { path: { helperId } }
 			});
-			if (data?.forward_address) renewed = data.forward_address;
-			else failed = true;
+			if (data?.forward_address) {
+				renewed = data.forward_address;
+				onrenew?.(data.forward_address);
+			} else failed = true;
 		} catch {
 			failed = true;
 		} finally {

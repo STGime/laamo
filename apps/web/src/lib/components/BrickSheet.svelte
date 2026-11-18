@@ -39,7 +39,7 @@
 		back,
 		onremove,
 		emailAddress,
-		forwardAddress,
+		forwardAddress = $bindable(),
 		helperId
 	}: {
 		open?: boolean;
@@ -363,6 +363,7 @@
 			address={emailAddress}
 			forward={forwardAddress}
 			{helperId}
+			onrenew={(f) => (forwardAddress = f)}
 		/>{/if}
 	{#each main as s (s.key)}{@render field(s)}{/each}
 	{#if more.length}

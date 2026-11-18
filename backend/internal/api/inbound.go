@@ -154,7 +154,7 @@ func (s *Server) takeMail(ctx context.Context, to, tag string, raw []byte) (int,
 	// for the user, not a run.
 	if m.From == mail.GmailForwarding && signed {
 		if code, requester, ok := mail.GmailForwardCode(m, s.cfg.InboundDomain); ok {
-			s.noteForwardCode(ctx, h, code, requester)
+			s.noteForwardCode(ctx, h, code, requester, time.Now())
 			return http.StatusAccepted, "forward_confirmation", nil
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"maps"
 	"strings"
 
 	"github.com/STGime/laamo/backend/internal/catalog"
@@ -143,9 +144,9 @@ func emailTrigger(ctx context.Context, st store.TriggerStore, helperID string) (
 }
 
 func setForwardKey(ctx context.Context, st store.TriggerStore, t store.Trigger) (store.Trigger, error) {
-	cfg := map[string]any{}
-	for k, v := range t.Config {
-		cfg[k] = v
+	cfg := maps.Clone(t.Config)
+	if cfg == nil {
+		cfg = map[string]any{}
 	}
 	cfg[forwardKeyConfig] = newKey(12)
 	return st.UpdateTrigger(ctx, t.ID, store.TriggerPatch{Config: cfg})

@@ -614,7 +614,7 @@
 			bind:lists
 			lastOut={lastOut[editing]}
 			{emailAddress}
-			{forwardAddress}
+			bind:forwardAddress
 			helperId={id}
 			{pills}
 			onfact={rememberFact}

@@ -15,6 +15,10 @@ import (
 // 24 hours. Someone mailing from many addresses shouldn't flood the Feed.
 const MaxIgnoredNotesPerDay = 5
 
+// MaxForwardCodesPerDay: Gmail forwarding codes one helper puts in the Feed
+// in 24 hours. Anyone can ask Gmail to forward to a helper's address.
+const MaxForwardCodesPerDay = 3
+
 // ignoredSpace makes note ids: one note per helper, sender and day.
 var ignoredSpace = guuid.MustParse("4c0b6a9e-2f61-4e43-a1d3-69676e6f7265")
 
@@ -27,22 +31,7 @@ func (s *Server) noteIgnored(ctx context.Context, h store.Helper, m mail.Message
 	from := m.From
 	day := now.UTC().Format(time.DateOnly)
 	id := guuid.NewSHA1(ignoredSpace, []byte(h.ID+"/"+from+"/"+day)).String()
-	since := now.Add(-24 * time.Hour)
-	recent, err := s.store.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: h.WorkspaceID, Types: []string{"problem"}, Limit: 100})
-	if err != nil {
-		s.log.Error("ignored mail note", "helper", h.ID, "err", err)
-		return
-	}
-	n := 0
-	for _, c := range recent {
-		if c.ID == id {
-			return // already told today
-		}
-		if c.HelperID != nil && *c.HelperID == h.ID && c.Payload["ignored_mail"] == true && c.CreatedAt.After(since) {
-			n++
-		}
-	}
-	if n >= MaxIgnoredNotesPerDay {
+	if !s.mayNote(ctx, h, id, "ignored_mail", MaxIgnoredNotesPerDay, now) {
 		return
 	}
 	listed := mail.Allowed(from, senders)
@@ -96,14 +85,53 @@ func whyIgnored(de bool, from string, listed, signed bool) (string, string) {
 	return title, "From " + from + ". That address isn't on this helper's sender list, and Laamo can't check that the email really came from there."
 }
 
+// mayNote: the note with this id isn't in the Feed yet, and the helper got
+// fewer than max notes of this kind (a payload key) in the last 24 hours.
+// The cheap id lookup comes first: repeats from one sender stop there.
+func (s *Server) mayNote(ctx context.Context, h store.Helper, id, kind string, maxPerDay int, now time.Time) bool {
+	if _, err := s.store.GetFeedCard(ctx, id); err == nil {
+		return false // already told
+	} else if !errors.Is(err, store.ErrNotFound) {
+		s.log.Error("feed note", "helper", h.ID, "err", err)
+		return false
+	}
+	since := now.Add(-24 * time.Hour)
+	n := 0
+	var before *time.Time
+	for { // newest first, back to since
+		page, err := s.store.ListFeedCards(ctx, store.FeedFilter{WorkspaceID: h.WorkspaceID, Types: []string{"problem"}, Before: before, Limit: 100})
+		if err != nil {
+			s.log.Error("feed note", "helper", h.ID, "err", err)
+			return false
+		}
+		for _, c := range page {
+			if !c.CreatedAt.After(since) {
+				return n < maxPerDay
+			}
+			if c.HelperID != nil && *c.HelperID == h.ID && c.Payload[kind] != nil && c.Payload[kind] != false {
+				if n++; n >= maxPerDay {
+					return false
+				}
+			}
+		}
+		if len(page) < 100 {
+			return true
+		}
+		before = &page[len(page)-1].CreatedAt
+	}
+}
+
 // forwardCodeSpace makes note ids: one note per helper and code.
 var forwardCodeSpace = guuid.MustParse("9a3e1f52-77c4-4b0a-8e15-666f72776172")
 
 // noteForwardCode puts Gmail's forwarding code in the Feed: the user types
 // it into Gmail to finish setting up forwarding to this helper. Someone else
 // can ask Gmail to forward to the helper too, so the note says who asked.
-func (s *Server) noteForwardCode(ctx context.Context, h store.Helper, code, requester string) {
+func (s *Server) noteForwardCode(ctx context.Context, h store.Helper, code, requester string, now time.Time) {
 	id := guuid.NewSHA1(forwardCodeSpace, []byte(h.ID+"/"+code)).String()
+	if !s.mayNote(ctx, h, id, "forward_code", MaxForwardCodesPerDay, now) {
+		return
+	}
 	title, body := forwardCodeText(s.german(ctx, h), code, cutRunes(requester, 120))
 	card := store.FeedCard{ID: id, WorkspaceID: h.WorkspaceID, UserID: h.UserID, HelperID: &h.ID, Type: "problem",
 		Title: title, Body: &body, Payload: map[string]any{"forward_code": code, "from": requester}}

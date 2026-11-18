@@ -88,6 +88,12 @@
 			card.payload.can_allow === true &&
 			!!card.helper_id
 	);
+	// The list as the API reads it: an array, or tags typed as one line.
+	function senderList(v: unknown): string[] {
+		if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string');
+		if (typeof v === 'string') return v.split(/[,; ]+/).filter(Boolean);
+		return [];
+	}
 	async function allowSender() {
 		const helperId = card.helper_id!;
 		const from = String(card.payload.from ?? '');
@@ -100,7 +106,7 @@
 			const stack = data && structuredClone(data.stack);
 			const first = stack?.bricks[0];
 			if (!data || !stack || first?.type !== 'when.email' || !from) throw new Error('stack');
-			const senders = Array.isArray(first.config.senders) ? (first.config.senders as string[]) : [];
+			const senders = senderList(first.config.senders);
 			if (!senders.includes(from)) first.config = { ...first.config, senders: [...senders, from] };
 			const saved = await api.PUT('/helpers/{helperId}/stack', {
 				params: { path: { helperId } },
