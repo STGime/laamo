@@ -1,0 +1,10 @@
+#!/bin/sh
+# Sourced by the nginx image's entrypoint before the config template is
+# filled in. With BASIC_AUTH_HTPASSWD set (staging: "user:$apr1$..."), the
+# whole site asks for a login; without it (prod, docker run locally) it's off.
+if [ -n "${BASIC_AUTH_HTPASSWD:-}" ]; then
+	printf '%s\n' "$BASIC_AUTH_HTPASSWD" >/etc/nginx/conf.d/htpasswd
+	export BASIC_AUTH="Laamo staging"
+else
+	export BASIC_AUTH=off
+fi

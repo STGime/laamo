@@ -24,7 +24,7 @@ case "$ENV_NAME" in staging | prod) ;; *)
 esac
 cd "$(dirname "$0")/.."
 
-for bin in scw docker jq git; do
+for bin in scw docker jq git openssl; do
 	command -v "$bin" >/dev/null || {
 		echo "needs $bin" >&2
 		exit 1
@@ -146,9 +146,20 @@ upsert worker "$REGISTRY/worker:$TAG" 1024 1 1 /healthz \
 	environment-variables.LAAMO_ENV="$ENV_NAME" environment-variables.HEALTH_ADDR=:8080 \
 	environment-variables.SITE_URL="$SITE_URL" "${SECRETS[@]}" >/dev/null
 
+# A login in front of the web container (staging): WEB_LOGIN_USER and
+# WEB_LOGIN_PASSWORD in the env file. Only the hash leaves this machine.
+WEB_LOGIN=()
+if [[ -n ${WEB_LOGIN_USER:-} && -n ${WEB_LOGIN_PASSWORD:-} ]]; then
+	hash=$(printf '%s' "$WEB_LOGIN_PASSWORD" | openssl passwd -apr1 -stdin)
+	WEB_LOGIN=("secret-environment-variables.0.key=BASIC_AUTH_HTPASSWD"
+		"secret-environment-variables.0.value=$WEB_LOGIN_USER:$hash")
+elif [[ $ENV_NAME != prod ]]; then
+	echo "warning: no WEB_LOGIN_USER/WEB_LOGIN_PASSWORD: $ENV_NAME is open to everyone" >&2
+fi
+
 say "web"
-WEB_HOST=$(upsert web "$REGISTRY/web:$ENV_NAME-$TAG" 128 "$MIN" "$MAX" / timeout=900s \
-	environment-variables.API_UPSTREAM="https://$API_HOST")
+WEB_HOST=$(upsert web "$REGISTRY/web:$ENV_NAME-$TAG" 128 "$MIN" "$MAX" /healthz timeout=900s \
+	environment-variables.API_UPSTREAM="https://$API_HOST" ${WEB_LOGIN[@]+"${WEB_LOGIN[@]}"})
 
 if [[ -n ${WEB_DOMAIN:-} ]]; then
 	WEB_ID=$(scw container container list namespace-id="$NS_ID" name=web region=$REGION -o json | jq -r '.[0].id')
