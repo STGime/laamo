@@ -8,10 +8,13 @@
 
 const MAX_BYTES = 15 * 1024 * 1024; // the API's mail.MaxInbound
 
+// The reject texts have no full stop at the end: Cloudflare adds one, and
+// the sender would read "…at this address..".
+
 export default {
 	async email(message, env) {
 		if (message.rawSize > MAX_BYTES) {
-			message.setReject('This email is too big for a Laamo helper (15 MB at most).');
+			message.setReject('This email is too big for a Laamo helper (15 MB at most)');
 			return;
 		}
 		const raw = new Uint8Array(await new Response(message.raw).arrayBuffer());
@@ -33,16 +36,16 @@ export default {
 			case 202: // a run started, a duplicate, or ignored on purpose
 				return;
 			case 404:
-				message.setReject('There is no Laamo helper at this address.');
+				message.setReject('There is no Laamo helper at this address');
 				return;
 			case 410:
-				message.setReject('This Laamo helper is switched off.');
+				message.setReject('This Laamo helper is switched off');
 				return;
 			case 413:
-				message.setReject('This email is too big for a Laamo helper (15 MB at most).');
+				message.setReject('This email is too big for a Laamo helper (15 MB at most)');
 				return;
 			case 422:
-				message.setReject('This email could not be read.');
+				message.setReject('This email could not be read');
 				return;
 			default:
 				// 401 (secrets differ) or our API is down: fail this delivery so

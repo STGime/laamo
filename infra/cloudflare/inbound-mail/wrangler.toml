@@ -6,3 +6,8 @@ compatibility_date = "2026-11-01"
 API_URL = "https://laamo.app/api/inbound/email"
 
 # The shared secret is not here: wrangler secret put INBOUND_SECRET
+
+# Keep the Worker's logs (dashboard → Workers → Logs), so a slow or
+# missing bounce can be looked up later without a live tail.
+[observability]
+enabled = true
