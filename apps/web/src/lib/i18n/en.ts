@@ -339,8 +339,10 @@ export const en = {
 	'mail.forwardPrivate':
 		'Keep it private: anyone who knows it can start this helper. If it got out, get a new one and update your forwarding rule.',
 	'mail.forwardNew': 'New forwarding address',
-	'mail.forwardNewConfirm':
-		'Get a new forwarding address? The current one stops working until you put the new one in your forwarding rule.',
+	'mail.forwardNewTitle': 'Get a new forwarding address?',
+	'mail.forwardNewBody':
+		'The current one stops working right away. Emails only get in again once you put the new address in your forwarding rule.',
+	'mail.forwardNewYes': 'Get new address',
 	'mail.forwardNewFailed': 'That didn’t work. Try again.',
 	'mail.afterSave': 'The helper gets its own address when you save it.',
 	'helper.onEmail': 'Runs when an email arrives',

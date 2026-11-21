@@ -3,11 +3,12 @@
   helper is saved there's none yet: we say when it comes. Folded away below
   it: the forwarding address for automatic forwarding rules (auto-forwarded
   mail keeps its original sender, so the sender list would stop it), with
-  New address for when it got out.
+  New address for when it got out (asks first, in a sheet).
 -->
 <script lang="ts">
 	import { t } from '#lib/i18n/index.svelte.ts';
 	import { api } from '#lib/session.svelte.ts';
+	import BottomSheet from './BottomSheet.svelte';
 
 	let {
 		address,
@@ -34,10 +35,12 @@
 		setTimeout(() => (copied = null), 2000);
 	}
 
+	let asking = $state(false);
 	let busy = $state(false);
 	let failed = $state(false);
 	async function renew() {
-		if (!helperId || busy || !confirm(t('mail.forwardNewConfirm'))) return;
+		if (!helperId || busy) return;
+		asking = false;
 		busy = true;
 		failed = false;
 		try {
@@ -78,7 +81,7 @@
 				</div>
 				<p class="hint">{t('mail.forwardPrivate')}</p>
 				{#if helperId}
-					<button type="button" class="btn" disabled={busy} onclick={renew}
+					<button type="button" class="btn" disabled={busy} onclick={() => (asking = true)}
 						>{t('mail.forwardNew')}</button
 					>
 				{/if}
@@ -89,6 +92,18 @@
 		<p class="hint">{t('mail.afterSave')}</p>
 	{/if}
 </div>
+
+<BottomSheet bind:open={asking} title={t('mail.forwardNewTitle')}>
+	<p class="ask">{t('mail.forwardNewBody')}</p>
+	{#snippet footer()}
+		<div class="confirm">
+			<button type="button" class="btn" onclick={() => (asking = false)}
+				>{t('helper.cancel')}</button
+			>
+			<button type="button" class="btn primary" onclick={renew}>{t('mail.forwardNewYes')}</button>
+		</div>
+	{/snippet}
+</BottomSheet>
 
 <style>
 	.address {
@@ -136,5 +151,13 @@
 		margin: 0;
 		color: var(--muted);
 		font-size: var(--text-sm);
+	}
+	.ask {
+		margin: 0;
+	}
+	.confirm {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-2);
 	}
 </style>

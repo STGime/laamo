@@ -348,8 +348,10 @@ export const de: Record<Key, string> = {
 	'mail.forwardPrivate':
 		'Behalte sie für dich: Wer sie kennt, kann diesen Helfer starten. Ist sie bekannt geworden, hol dir eine neue und ändere deine Weiterleitung.',
 	'mail.forwardNew': 'Neue Weiterleitungsadresse',
-	'mail.forwardNewConfirm':
-		'Neue Weiterleitungsadresse holen? Die jetzige funktioniert dann nicht mehr, bis du die neue in deiner Weiterleitung einträgst.',
+	'mail.forwardNewTitle': 'Neue Weiterleitungsadresse holen?',
+	'mail.forwardNewBody':
+		'Die jetzige funktioniert sofort nicht mehr. E-Mails kommen erst wieder an, wenn du die neue Adresse in deiner Weiterleitung einträgst.',
+	'mail.forwardNewYes': 'Neue Adresse holen',
 	'mail.forwardNewFailed': 'Das hat nicht geklappt. Versuch es noch einmal.',
 	'mail.afterSave': 'Der Helfer bekommt seine eigene Adresse, sobald du ihn speicherst.',
 	'helper.onEmail': 'Läuft, wenn eine E-Mail ankommt',

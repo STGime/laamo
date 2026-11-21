@@ -1,6 +1,8 @@
 <!--
   Bottom sheet: slides up inside the app column. Escape, the scrim or the
-  close button close it; focus moves in on open and back on close.
+  close button close it; focus moves in on open and back on close. A sheet
+  can open from inside another one (a confirmation): Escape then closes only
+  the top one, and the page stays locked until the last one is closed.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -20,16 +22,19 @@
 		if (open) {
 			opener = document.activeElement;
 			panel?.focus();
+			const before = document.body.style.overflow;
 			document.body.style.overflow = 'hidden';
 			return () => {
-				document.body.style.overflow = '';
+				document.body.style.overflow = before;
 				(opener as HTMLElement | null)?.focus?.();
 			};
 		}
 	});
 
 	function onkeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') open = false;
+		if (e.key !== 'Escape') return;
+		e.stopPropagation();
+		open = false;
 	}
 </script>
 
