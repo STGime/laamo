@@ -2269,6 +2269,8 @@ export interface operations {
 					answer?: string;
 					/** @description Photos for Read the photo, each the path uploadPhoto returned */
 					photos?: string[];
+					/** @description The photos are parts of one thing, in order (a long receipt taken in several photos). They become one card instead of one each */
+					photos_one?: boolean;
 				};
 			};
 		};

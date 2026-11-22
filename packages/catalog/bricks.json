@@ -392,6 +392,13 @@
       }
     },
     {
+      "key": "more_images",
+      "label": {
+        "en": "More pictures",
+        "de": "Weitere Bilder"
+      }
+    },
+    {
       "key": "photo_text",
       "label": {
         "en": "Text in the photo",
@@ -1548,8 +1555,8 @@
         "de": "Foto lesen"
       },
       "does": {
-        "en": "Reads the photos you take in the app or email to this helper, e.g. a receipt. Each photo becomes a card with its picture and the text on it.",
-        "de": "Liest die Fotos, die du in der App aufnimmst oder diesem Helfer mailst, z. B. einen Beleg. Jedes Foto wird zu einer Karte mit dem Bild und dem Text darauf."
+        "en": "Reads the photos you take in the app or email to this helper, e.g. a receipt. Each photo becomes a card with its picture and the text on it; a long receipt taken in several photos becomes one card.",
+        "de": "Liest die Fotos, die du in der App aufnimmst oder diesem Helfer mailst, z. B. einen Beleg. Jedes Foto wird zu einer Karte mit dem Bild und dem Text darauf; ein langer Beleg in mehreren Fotos wird zu einer Karte."
       },
       "sentence": [
         {
@@ -1564,6 +1571,7 @@
       "adds": [
         "image",
         "image_alt",
+        "more_images",
         "photo_text"
       ]
     },

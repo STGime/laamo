@@ -19,7 +19,9 @@
 		(list?.columns ?? [])
 			.map((c) => c.key)
 			// Pictures (receipt photos) are for members only: a shared link shows none.
-			.filter((k) => columnLabel(k, i18n.lang) && k !== 'image' && k !== 'image_alt')
+			.filter(
+				(k) => columnLabel(k, i18n.lang) && !['image', 'image_alt', 'more_images'].includes(k)
+			)
 	);
 </script>
 

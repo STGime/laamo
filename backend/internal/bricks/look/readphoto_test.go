@@ -129,3 +129,39 @@ func TestReadPhotoKeepsTopAndBottomOfALongText(t *testing.T) {
 		t.Fatalf("kept %d runes: %.40q … %.40q", len([]rune(text)), text, text[len(text)-40:])
 	}
 }
+
+// A long receipt taken in three photos: one AI call with all three, one
+// card. Its picture is the first part; the others are kept with it.
+func TestReadPhotoPartsOfOneReceipt(t *testing.T) {
+	e := &eyes{answer: `{"text":"OBI\nEndsumme 7,80\nMwSt 1,25","title":"Kassenbon von OBI"}`}
+	rc := brickstest.RunContext("look.read_photo")
+	st := memory.New()
+	st.PutBrain(store.Brain{WorkspaceID: rc.Run.WorkspaceID, AllowanceCredits: 500})
+	rc.Brain = &llm.Brain{Chat: e, Store: st, USDToEUR: 1}
+	blobs := &engine.MemoryBlobs{}
+	rc.Blobs = blobs
+	var paths []string
+	for _, n := range []string{"a", "b", "c"} {
+		p := "images/" + rc.Run.WorkspaceID + "/in-" + n + "/p1.jpg"
+		_ = blobs.Put(context.Background(), p, []byte("JPEG-"+n))
+		paths = append(paths, p)
+	}
+	rc.SetValue(look.PhotosValue, strings.Join(paths, ","))
+	rc.SetValue(look.PhotosOneValue, "yes")
+	out, err := brickstest.Contract(t, "look.read_photo", look.ReadPhoto, rc, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 || len(e.reqs) != 1 {
+		t.Fatalf("%d cards, %d AI calls, want 1 and 1", len(out), len(e.reqs))
+	}
+	msg := e.reqs[0].Messages[0]
+	if len(msg.Images) != 3 || string(msg.Images[0]) != "JPEG-a" || string(msg.Images[2]) != "JPEG-c" ||
+		!strings.Contains(msg.Content, "one document in parts") {
+		t.Errorf("sent %d images, %q", len(msg.Images), msg.Content)
+	}
+	if out[0].Text("image") != paths[0] || out[0].Text("more_images") != paths[1]+","+paths[2] ||
+		!strings.Contains(out[0].Text("photo_text"), "MwSt 1,25") {
+		t.Fatalf("card %+v", out[0].Fields)
+	}
+}

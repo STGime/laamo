@@ -5,6 +5,7 @@ import {
 	columnLabel,
 	csvName,
 	osmSource,
+	morePictures,
 	rowHeading,
 	rowPicture
 } from './lists.ts';
@@ -54,5 +55,12 @@ describe('dates', () => {
 		expect(rowPicture({ image: 'https://example.com/x.jpg' })).toBeNull();
 		expect(rowPicture({ vendor: 'x' })).toBeNull();
 		expect(csvName('Belege 2026', 'zip')).toBe('belege-2026.zip');
+		// A long receipt taken in several photos keeps its other parts.
+		expect(morePictures({ more_images: 'images/ws/in-2/p1.jpg, images/ws/in-3/p1.jpg' })).toEqual([
+			'images/ws/in-2/p1.jpg',
+			'images/ws/in-3/p1.jpg'
+		]);
+		expect(morePictures({ more_images: '' })).toEqual([]);
+		expect(morePictures({})).toEqual([]);
 	});
 });

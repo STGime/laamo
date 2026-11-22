@@ -853,6 +853,9 @@ paths:
                   items:
                     type: string
                     maxLength: 200
+                photos_one:
+                  type: boolean
+                  description: The photos are parts of one thing, in order (a long receipt taken in several photos). They become one card instead of one each
       responses:
         '202':
           description: Started; follow it in the Feed

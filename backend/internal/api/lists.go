@@ -461,40 +461,58 @@ type zipPicture struct {
 	saved      time.Time
 }
 
-// zipPictures names the file each row's picture gets in the ZIP
-// ("pictures/0007-cafe-sonne-2026-11-14.jpg") and returns the rows with
-// that name in place of the storage path, so the CSV points at the files.
-// Only this workspace's pictures count; past MaxZipPictures a row keeps an
-// empty image cell.
+// zipPictures names the files each row's pictures get in the ZIP
+// ("pictures/0007-cafe-sonne-2026-11-14.jpg"; a receipt taken in several
+// photos also has "…-part2.jpg", "…-part3.jpg") and returns the rows with
+// those names in place of the storage paths, so the CSV points at the
+// files. Only this workspace's pictures count; past MaxZipPictures a row
+// keeps empty picture cells.
 func zipPictures(workspaceID string, rows []store.ListRow) ([]store.ListRow, []zipPicture) {
 	out := make([]store.ListRow, len(rows))
 	var pics []zipPicture
+	mine := func(path string) bool { return strings.HasPrefix(path, "images/"+workspaceID+"/") }
 	for i, r := range rows {
 		out[i] = r
-		path, _ := r.Data["image"].(string)
-		if path == "" {
+		first, _ := r.Data["image"].(string)
+		more, _ := r.Data["more_images"].(string)
+		if first == "" && more == "" {
 			continue
 		}
 		data := maps.Clone(r.Data)
 		data["image"] = ""
-		if strings.HasPrefix(path, "images/"+workspaceID+"/") && len(pics) < MaxZipPictures {
-			what := ""
-			for _, k := range []string{"vendor", "name", "title"} {
-				if v, _ := r.Data[k].(string); strings.TrimSpace(v) != "" {
-					what = v
-					break
-				}
+		if more != "" {
+			data["more_images"] = ""
+		}
+		what := ""
+		for _, k := range []string{"vendor", "name", "title"} {
+			if v, _ := r.Data[k].(string); strings.TrimSpace(v) != "" {
+				what = v
+				break
 			}
-			name := fmt.Sprintf("pictures/%04d", i+1)
-			if slug := fileSlug(what, ""); slug != "" {
-				name += "-" + slug
+		}
+		base := fmt.Sprintf("pictures/%04d", i+1)
+		if slug := fileSlug(what, ""); slug != "" {
+			base += "-" + slug
+		}
+		if d, _ := r.Data["date"].(string); dateOnly.MatchString(d) {
+			base += "-" + d
+		}
+		if mine(first) && len(pics) < MaxZipPictures {
+			data["image"] = base + ".jpg"
+			pics = append(pics, zipPicture{path: first, name: base + ".jpg", saved: r.CreatedAt})
+		}
+		var parts []string
+		n := 1
+		for p := range strings.SplitSeq(more, ",") {
+			n++
+			if p = strings.TrimSpace(p); mine(p) && len(pics) < MaxZipPictures {
+				name := fmt.Sprintf("%s-part%d.jpg", base, n)
+				parts = append(parts, name)
+				pics = append(pics, zipPicture{path: p, name: name, saved: r.CreatedAt})
 			}
-			if d, _ := r.Data["date"].(string); dateOnly.MatchString(d) {
-				name += "-" + d
-			}
-			name += ".jpg"
-			data["image"] = name
-			pics = append(pics, zipPicture{path: path, name: name, saved: r.CreatedAt})
+		}
+		if len(parts) > 0 {
+			data["more_images"] = strings.Join(parts, ", ")
 		}
 		out[i].Data = data
 	}

@@ -101,32 +101,74 @@
 		after = 'following';
 	}
 
-	// The camera button (helpers with Read the photo): the photo is shrunk
-	// here, uploaded, and the run starts with it.
+	// The camera button (helpers with Read the photo): a photo is shrunk
+	// here and uploaded, and the run starts with it. A long receipt can be
+	// taken in several photos (parts), which are read as one.
+	const MAX_PARTS = 5;
 	let photoState = $state<'idle' | 'sending' | 'failed'>('idle');
-	async function runWithPhoto(e: Event & { currentTarget: HTMLInputElement }) {
+	let several = $state(false);
+	let parts = $state<{ path: string; url: string }[]>([]);
+
+	async function upload(file: Blob): Promise<{ path: string; url: string }> {
+		const jpeg = await shrink(file);
+		const up = await api.POST('/helpers/{helperId}/photos', {
+			params: { path: { helperId: id } },
+			body: jpeg as unknown as string,
+			bodySerializer: (b) => b,
+			headers: { 'Content-Type': 'image/jpeg' }
+		});
+		if (!up.data) throw new Error('upload');
+		return { path: up.data.path, url: URL.createObjectURL(jpeg) };
+	}
+
+	async function startWith(paths: string[]) {
+		const { data } = await api.POST('/helpers/{helperId}/runs', {
+			params: { path: { helperId: id } },
+			body: { photos: paths, photos_one: paths.length > 1 }
+		});
+		if (!data) throw new Error('start');
+		follow(data.run_id);
+	}
+
+	function dropParts() {
+		for (const p of parts) URL.revokeObjectURL(p.url);
+		parts = [];
+		several = false;
+	}
+
+	// One photo: taken, sent, and the run starts. In "several" mode the
+	// photos pile up as parts until Read it.
+	async function photosPicked(e: Event & { currentTarget: HTMLInputElement }) {
 		const input = e.currentTarget;
-		const file = input.files?.[0];
+		const files = [...(input.files ?? [])].slice(0, MAX_PARTS - parts.length);
 		input.value = ''; // the same picture can be picked again
-		if (!file) return;
+		if (!files.length) return;
 		photoState = 'sending';
 		busy = true;
 		try {
-			const jpeg = await shrink(file);
-			const up = await api.POST('/helpers/{helperId}/photos', {
-				params: { path: { helperId: id } },
-				body: jpeg as unknown as string,
-				bodySerializer: (b) => b,
-				headers: { 'Content-Type': 'image/jpeg' }
-			});
-			if (!up.data) throw new Error('upload');
-			const { data } = await api.POST('/helpers/{helperId}/runs', {
-				params: { path: { helperId: id } },
-				body: { photos: [up.data.path] }
-			});
-			if (!data) throw new Error('start');
+			for (const file of files) {
+				const part = await upload(file);
+				if (several) parts = [...parts, part];
+				else {
+					URL.revokeObjectURL(part.url);
+					await startWith([part.path]);
+				}
+			}
 			photoState = 'idle';
-			follow(data.run_id);
+		} catch {
+			photoState = 'failed';
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function readParts() {
+		photoState = 'sending';
+		busy = true;
+		try {
+			await startWith(parts.map((p) => p.path));
+			dropParts();
+			photoState = 'idle';
 		} catch {
 			photoState = 'failed';
 		} finally {
@@ -214,45 +256,104 @@
 				helperId={helper.id}
 			/>{/if}
 		{#if detail?.takes_photos}
-			<!-- A photo is this helper's input: the camera comes first. -->
-			<label class="btn primary wide photo" class:off={busy || running(run)}>
-				<input
-					type="file"
-					accept="image/*"
-					capture="environment"
-					class="visually-hidden"
-					disabled={busy || running(run)}
-					onchange={runWithPhoto}
-				/>
-				{#if run && running(run)}<RunTicker
+			{@const off = busy || running(run)}
+			{#snippet camera()}
+				<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
+					><path
+						fill="currentColor"
+						fill-rule="evenodd"
+						d="M8.5 4h7l1.5 2.5H21V20H3V6.5h4zM12 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 11a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"
+					/></svg
+				>
+			{/snippet}
+			{#if run && running(run)}
+				<!-- A photo is this helper's input: the camera comes first. -->
+				<div class="btn primary wide off">
+					<RunTicker
 						{run}
 						retrying={retrying(
 							run,
 							detail?.steps,
 							(detail?.bricks ?? []).map((b) => b.id)
 						)}
-					/>{:else if photoState === 'sending'}<RunTicker
-						waiting={t('photo.sending')}
-					/>{:else if after === 'starting'}<RunTicker />{:else}
-					<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
-						><path
-							fill="currentColor"
-							fill-rule="evenodd"
-							d="M8.5 4h7l1.5 2.5H21V20H3V6.5h4zM12 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 11a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"
-						/></svg
+					/>
+				</div>
+			{:else if photoState === 'sending' || after === 'starting'}
+				<div class="btn primary wide off">
+					<RunTicker waiting={photoState === 'sending' ? t('photo.sending') : ''} />
+				</div>
+			{:else if several}
+				<!-- A long receipt, part by part. -->
+				<p class="hint">{t('photo.partsHow', { n: MAX_PARTS })}</p>
+				{#if parts.length}
+					<ol class="parts">
+						{#each parts as p, i (p.path)}
+							<li><img src={p.url} alt={t('photo.part', { n: i + 1 })} /></li>
+						{/each}
+					</ol>
+				{/if}
+				{#if parts.length < MAX_PARTS}
+					<label class="btn wide photo" class:primary={!parts.length}>
+						<input
+							type="file"
+							accept="image/*"
+							capture="environment"
+							class="visually-hidden"
+							onchange={photosPicked}
+						/>
+						{@render camera()}
+						{t('photo.takePart', { n: parts.length + 1 })}
+					</label>
+					<label class="choose">
+						<input
+							type="file"
+							accept="image/*"
+							multiple
+							class="visually-hidden"
+							onchange={photosPicked}
+						/>
+						{t('photo.chooseParts')}
+					</label>
+				{/if}
+				{#if parts.length}
+					<button class="btn primary wide" onclick={readParts}
+						>{t(parts.length > 1 ? 'photo.readParts' : 'photo.readOne', {
+							n: parts.length
+						})}</button
 					>
-					{t('photo.take')}{/if}
-			</label>
-			<label class="choose" class:off={busy || running(run)}>
-				<input
-					type="file"
-					accept="image/*"
-					class="visually-hidden"
-					disabled={busy || running(run)}
-					onchange={runWithPhoto}
-				/>
-				{t('photo.choose')}
-			</label>
+				{/if}
+				<button class="choose plain" onclick={dropParts}>{t('helper.cancel')}</button>
+			{:else}
+				<label class="btn primary wide photo" class:off>
+					<input
+						type="file"
+						accept="image/*"
+						capture="environment"
+						class="visually-hidden"
+						disabled={off}
+						onchange={photosPicked}
+					/>
+					{@render camera()}
+					{t('photo.take')}
+				</label>
+				<label class="choose" class:off>
+					<input
+						type="file"
+						accept="image/*"
+						class="visually-hidden"
+						disabled={off}
+						onchange={photosPicked}
+					/>
+					{t('photo.choose')}
+				</label>
+				<!-- Small print reads best close up: a long receipt in parts. -->
+				<p class="hint">
+					{t('photo.longHint')}
+					<button class="link" disabled={off} onclick={() => (several = true)}
+						>{t('photo.several')}</button
+					>
+				</p>
+			{/if}
 			{#if photoState === 'failed'}<p class="started" role="alert">{t('photo.failed')}</p>{/if}
 		{:else}
 			<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
@@ -408,6 +509,29 @@
 		opacity: 0.5;
 		cursor: default;
 		pointer-events: none;
+	}
+	.choose.plain {
+		border: 0;
+		background: none;
+		font: inherit;
+		font-weight: 600;
+		color: inherit;
+	}
+	.parts {
+		display: flex;
+		gap: var(--space-2);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		overflow-x: auto;
+	}
+	.parts img {
+		display: block;
+		width: 72px;
+		height: 96px;
+		object-fit: cover;
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
 	}
 	.switch {
 		display: inline-flex;

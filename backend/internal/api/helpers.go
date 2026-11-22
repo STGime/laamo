@@ -314,6 +314,9 @@ func (s *Server) StartRun(ctx context.Context, req StartRunRequestObject) (Start
 				return StartRun400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "photos must be up to 5 paths from uploadPhoto"))}, nil
 			}
 			data["photos"] = photos
+			if req.Body.PhotosOne != nil && *req.Body.PhotosOne && len(*req.Body.Photos) > 1 {
+				data["photos_one"] = "yes"
+			}
 		}
 	}
 	runID, err := s.startRun(ctx, h.ID, "", trigger, data)

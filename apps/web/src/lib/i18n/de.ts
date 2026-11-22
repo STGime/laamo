@@ -328,6 +328,15 @@ export const de: Record<Key, string> = {
 	'photo.take': 'Foto aufnehmen',
 	'photo.choose': 'Oder ein Bild auswählen',
 	'photo.sending': 'Foto wird gesendet…',
+	'photo.longHint': 'Kleine Schrift liest sich am besten aus der Nähe.',
+	'photo.several': 'Langer Beleg? In mehreren Fotos aufnehmen',
+	'photo.partsHow':
+		'Nimm den Beleg in Teilen auf, von oben nach unten, aus der Nähe. Jedes Foto darf das vorige um ein, zwei Zeilen überlappen. Bis zu {n} Fotos.',
+	'photo.takePart': 'Teil {n} aufnehmen',
+	'photo.part': 'Teil {n}',
+	'photo.chooseParts': 'Oder Bilder auswählen',
+	'photo.readParts': 'Als eins lesen ({n} Fotos)',
+	'photo.readOne': 'Lesen',
 	'photo.failed':
 		'Das Foto hat nicht geklappt. Versuch es noch einmal oder nimm ein JPEG- oder PNG-Bild.',
 	'helpers.active': 'An',

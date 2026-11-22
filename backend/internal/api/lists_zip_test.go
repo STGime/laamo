@@ -31,12 +31,14 @@ func TestExportListZip(t *testing.T) {
 	l := must(c.CreateListWithResponse(ctx, wsID(ws.ID), api.NewList{Name: "Belege 2026"})).JSON201
 
 	mine := "images/" + ws.ID + "/run-1/p1.jpg"
+	part2 := "images/" + ws.ID + "/in-2/p1.jpg" // the same receipt's second photo
+	_ = blobs.Put(ctx, part2, []byte("JPEG of its lower half"))
 	other := "images/" + store.NewID() + "/run-9/p1.jpg" // another workspace's picture
 	_ = blobs.Put(ctx, mine, []byte("JPEG of the slip"))
 	_ = blobs.Put(ctx, other, []byte("not yours"))
 	clock := time.Date(2026, 11, 14, 9, 0, 0, 0, time.UTC)
 	for _, d := range []map[string]any{
-		{"vendor": "Café Sonne", "date": "2026-11-14", "total": "11.50", "image": mine},
+		{"vendor": "Café Sonne", "date": "2026-11-14", "total": "11.50", "image": mine, "more_images": part2},
 		{"vendor": "Taxi Müller", "date": "2026-11-15", "total": "23.00"},
 		{"vendor": "Fremd GmbH", "total": "1.00", "image": other},
 	} {
@@ -46,7 +48,7 @@ func TestExportListZip(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	cols := []map[string]any{{"key": "vendor"}, {"key": "date"}, {"key": "total"}, {"key": "image"}}
+	cols := []map[string]any{{"key": "vendor"}, {"key": "date"}, {"key": "total"}, {"key": "image"}, {"key": "more_images"}}
 	_, _ = st.UpdateList(ctx, l.Id.String(), store.ListPatch{Columns: &cols})
 
 	res := must(c.ExportListZipWithResponse(ctx, l.Id))
@@ -65,20 +67,24 @@ func TestExportListZip(t *testing.T) {
 		files[f.Name] = string(b)
 	}
 	csv := files["belege-2026.csv"]
-	var picture string
+	var picture, second string
 	for name := range files {
-		if strings.HasPrefix(name, "pictures/") {
+		switch {
+		case strings.HasSuffix(name, "-part2.jpg"):
+			second = name
+		case strings.HasPrefix(name, "pictures/"):
 			picture = name
 		}
 	}
-	// One picture: this workspace's. Named after the vendor and date, and
-	// the CSV row points at it; the other rows have no picture.
-	if len(files) != 2 || files[picture] != "JPEG of the slip" ||
-		!strings.HasSuffix(picture, "-cafe-sonne-2026-11-14.jpg") {
+	// This workspace's pictures only: the receipt and its second part,
+	// named after the vendor and date. The CSV row points at both; the
+	// other rows have no picture.
+	if len(files) != 3 || files[picture] != "JPEG of the slip" || files[second] != "JPEG of its lower half" ||
+		!strings.HasSuffix(picture, "-cafe-sonne-2026-11-14.jpg") || !strings.HasSuffix(second, "-cafe-sonne-2026-11-14-part2.jpg") {
 		t.Fatalf("files: %v", keys(files))
 	}
-	if !strings.Contains(csv, "Café Sonne,2026-11-14,11.50,"+picture) ||
-		!strings.Contains(csv, "Taxi Müller,2026-11-15,23.00,,") || !strings.Contains(csv, "Fremd GmbH,,1.00,,") ||
+	if !strings.Contains(csv, "Café Sonne,2026-11-14,11.50,"+picture+","+second+",") ||
+		!strings.Contains(csv, "Taxi Müller,2026-11-15,23.00,,,") || !strings.Contains(csv, "Fremd GmbH,,1.00,,,") ||
 		strings.Contains(csv, "images/") {
 		t.Fatalf("csv:\n%s", csv)
 	}

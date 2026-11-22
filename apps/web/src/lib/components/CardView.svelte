@@ -3,7 +3,7 @@
 	import type { Schemas } from '#lib/api/client.ts';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { mailto, safeURL } from '#lib/links.ts';
-	import { columnLabel, osmSource } from '#lib/lists.ts';
+	import { columnLabel, morePictures, osmSource } from '#lib/lists.ts';
 	import MapThumb from './MapThumb.svelte';
 	import Picture from './Picture.svelte';
 
@@ -187,6 +187,7 @@
 			</div>
 		{/if}
 		{#if text('image')}<Picture path={text('image')} alt={text('image_alt')} />{/if}
+		{#each morePictures(card.fields) as more (more)}<Picture path={more} />{/each}
 		{#if business && location}<MapThumb {location} href={fromMap} />{/if}
 		{#if fromMap}
 			<p class="host">

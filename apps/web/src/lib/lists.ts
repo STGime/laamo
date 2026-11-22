@@ -68,6 +68,19 @@ export function rowPicture(data: Record<string, unknown>): string | null {
 	return typeof v === 'string' && v.startsWith('images/') ? v : null;
 }
 
+/**
+ * The other pictures of the same thing (`more_images`): the further parts
+ * of a long receipt taken in several photos.
+ */
+export function morePictures(data: Record<string, unknown>): string[] {
+	const v = data.more_images;
+	if (typeof v !== 'string') return [];
+	return v
+		.split(',')
+		.map((p) => p.trim())
+		.filter((p) => p.startsWith('images/'));
+}
+
 /** An OpenStreetMap page this came from, or null. */
 export function osmSource(url: unknown): string | null {
 	return typeof url === 'string' &&

@@ -95,12 +95,19 @@ func TestPhotos(t *testing.T) {
 			t.Errorf("start with %s: %d, want 400", bad, r.StatusCode())
 		}
 	}
-	run := must(c.StartRunWithResponse(ctx, uuidOf(h.ID), api.StartRunJSONRequestBody{Photos: &[]string{path}}))
+	// A long receipt in two photos: both paths, marked as one thing. (One
+	// photo alone is never "parts".)
+	up2 := must(c.UploadPhotoWithBodyWithResponse(ctx, uuidOf(h.ID), "image/jpeg", bytes.NewReader(photo(t, 600, 900))))
+	if up2.StatusCode() != 201 {
+		t.Fatalf("second upload: %d %s", up2.StatusCode(), up2.Body)
+	}
+	one := true
+	run := must(c.StartRunWithResponse(ctx, uuidOf(h.ID), api.StartRunJSONRequestBody{Photos: &[]string{path, up2.JSON201.Path}, PhotosOne: &one}))
 	if run.StatusCode() != 202 {
 		t.Fatalf("start: %d %s", run.StatusCode(), run.Body)
 	}
 	r, err := st.GetRun(ctx, run.JSON202.RunId.String())
-	if err != nil || r.TriggerData["photos"] != path || r.TriggerType != "manual" {
+	if err != nil || r.TriggerData["photos"] != path+","+up2.JSON201.Path || r.TriggerData["photos_one"] != "yes" || r.TriggerType != "manual" {
 		t.Fatalf("run: %+v, %v", r.TriggerData, err)
 	}
 

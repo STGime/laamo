@@ -12,6 +12,7 @@
 		columnLabel,
 		csvName,
 		osmSource,
+		morePictures,
 		rowHeading,
 		rowPicture
 	} from '#lib/lists.ts';
@@ -202,7 +203,7 @@
 						{#if heading}<strong>{heading}</strong>{/if}
 						<dl>
 							{#each columns as c (c)}
-								{#if c === 'image' || c === 'image_alt'}
+								{#if c === 'image' || c === 'image_alt' || c === 'more_images'}
 									<!-- shown as the picture below -->
 								{:else if r.data[c] != null && r.data[c] !== '' && r.data[c] !== heading}
 									{@const href = cellHref(c, r.data[c])}
@@ -227,6 +228,7 @@
 										path={picture}
 										alt={typeof r.data.image_alt === 'string' ? r.data.image_alt : ''}
 									/>
+									{#each morePictures(r.data) as more (more)}<Picture path={more} />{/each}
 								{/if}
 							</details>
 						{/if}

@@ -1479,7 +1479,10 @@ type StartRunJSONBody struct {
 
 	// Photos Photos for Read the photo, each the path uploadPhoto returned
 	Photos *[]string `json:"photos,omitempty"`
-	Test   *bool     `json:"test,omitempty"`
+
+	// PhotosOne The photos are parts of one thing, in order (a long receipt taken in several photos). They become one card instead of one each
+	PhotosOne *bool `json:"photos_one,omitempty"`
+	Test      *bool `json:"test,omitempty"`
 }
 
 // GetImageParams defines parameters for GetImage.
