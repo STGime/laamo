@@ -22,5 +22,7 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine
 # Where /api goes (set per environment; the default suits docker run locally).
 ENV API_UPSTREAM=http://host.docker.internal:8787
 COPY deploy/docker/web.nginx.conf.template /etc/nginx/templates/default.conf.template
+# Optional login in front of the site (BASIC_AUTH_HTPASSWD, set on staging).
+COPY --chmod=755 deploy/docker/web-basic-auth.envsh /docker-entrypoint.d/15-basic-auth.envsh
 COPY --from=build /src/apps/web/build /usr/share/nginx/html
 EXPOSE 8080
