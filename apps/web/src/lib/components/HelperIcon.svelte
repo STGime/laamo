@@ -34,6 +34,11 @@
 			color: 'green',
 			d: 'M3 9.5h4l10-5v15l-10-5H3zM7.5 15.5h3.2l1.3 5H9zM19 10h2.5v4H19z'
 		},
+		// Weekend Scout: a ticket
+		'🎟': {
+			color: 'red',
+			d: 'M2.5 6.5h19V10a2 2 0 0 0 0 4v3.5h-19V14a2 2 0 0 0 0-4zM15 8h1.5v2H15zM15 11h1.5v2H15zM15 14h1.5v2H15z'
+		},
 		// Business List Builder: a list on a sheet
 		'📋': {
 			color: 'blue',
@@ -83,11 +88,6 @@
 		'🛍': {
 			color: 'green',
 			d: 'M5 8h14l1.5 13h-17zM8 8a4 4 0 0 1 8 0h-1.800a2.2 2.2 0 0 0-4.4 0zM8 11h1.800v2H8zM14.2 11H16v2h-1.800z'
-		},
-		// Weekend Scout: a ticket
-		'🎟': {
-			color: 'red',
-			d: 'M2.5 6.5h19V10a2 2 0 0 0 0 4v3.5h-19V14a2 2 0 0 0 0-4zM15 8h1.5v2H15zM15 11h1.5v2H15zM15 14h1.5v2H15z'
 		},
 		// Any helper without a picture: three bricks
 		'🧱': {
