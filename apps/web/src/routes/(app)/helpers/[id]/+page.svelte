@@ -21,7 +21,10 @@
 	let name = $state('');
 	let confirmDelete = $state(false);
 	let busy = $state(false);
-	let started = $state(false);
+	// A run started from this page: first "starting" (until the page has
+	// loaded it), then we follow it and say how it ended.
+	let after = $state<'none' | 'starting' | 'following'>('none');
+	let startedRun = $state('');
 	let forgetting = $state(false);
 	let forgot = $state(false);
 
@@ -62,6 +65,13 @@
 		)
 	);
 	const bricks = $derived(view.items as StackItem[]);
+	// How the run started here ended ('' while it's going or unknown).
+	const ended = $derived.by(() => {
+		if (after !== 'following' || running(run)) return '';
+		if (run?.id === startedRun) return 'waiting'; // not running, so it waits for the user
+		const status = detail?.runs.find((r) => r.id === startedRun)?.status;
+		return status === 'done' || status === 'failed' || status === 'stopped' ? status : '';
+	});
 	const current = $derived(view.current);
 
 	async function patch(body: { name?: string; status?: 'active' | 'paused' }) {
@@ -81,10 +91,14 @@
 			body: {}
 		});
 		busy = false;
-		if (data) {
-			started = true;
-			load();
-		}
+		if (data) follow(data.run_id);
+	}
+
+	async function follow(runId: string) {
+		startedRun = runId;
+		after = 'starting';
+		await load();
+		after = 'following';
 	}
 
 	// The camera button (helpers with Read the photo): the photo is shrunk
@@ -112,8 +126,7 @@
 			});
 			if (!data) throw new Error('start');
 			photoState = 'idle';
-			started = true;
-			load();
+			follow(data.run_id);
 		} catch {
 			photoState = 'failed';
 		} finally {
@@ -211,14 +224,16 @@
 					disabled={busy || running(run)}
 					onchange={runWithPhoto}
 				/>
-				{#if run}<RunTicker
+				{#if run && running(run)}<RunTicker
 						{run}
 						retrying={retrying(
 							run,
 							detail?.steps,
 							(detail?.bricks ?? []).map((b) => b.id)
 						)}
-					/>{:else if photoState === 'sending'}{t('photo.sending')}{:else}
+					/>{:else if photoState === 'sending'}<RunTicker
+						waiting={t('photo.sending')}
+					/>{:else if after === 'starting'}<RunTicker />{:else}
 					<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
 						><path
 							fill="currentColor"
@@ -248,12 +263,18 @@
 							detail?.steps,
 							(detail?.bricks ?? []).map((b) => b.id)
 						)}
-					/>{:else}{t('helpers.runNow')}{/if}</button
+					/>{:else if after === 'starting'}<RunTicker />{:else}{t('helpers.runNow')}{/if}</button
 			>
 		{/if}
-		{#if started && !run}<p class="started">
-				{t('helpers.started')} <a href="/feed">{t('tab.feed')} →</a>
-			</p>{/if}
+		{#if ended === 'waiting'}
+			<p class="started">{t('helpers.waiting')}. <a href="/feed">{t('tab.feed')} →</a></p>
+		{:else if ended === 'done'}
+			<p class="started">{t('helpers.finished')} <a href="/feed">{t('tab.feed')} →</a></p>
+		{:else if ended}
+			<p class="started failed" role="alert">
+				{t('helpers.runFailed')} <a href="/feed">{t('tab.feed')} →</a>
+			</p>
+		{/if}
 	</header>
 
 	<section>
@@ -419,6 +440,9 @@
 	.started {
 		margin: 0;
 		font-weight: 600;
+	}
+	.failed {
+		color: var(--danger);
 	}
 	section {
 		padding: var(--space-4) var(--gutter);
