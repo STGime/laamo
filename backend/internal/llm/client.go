@@ -63,6 +63,9 @@ type Request struct {
 	Temperature float64   // 0 = deterministic, the default for bricks
 	MaxTokens   int       // 0 = DefaultMaxTokens
 	JSON        bool      // ask for a JSON object answer
+	// Timeout for one attempt; 0 = the client's AttemptTimeout. Reading a
+	// photo with much text takes longer than a text answer.
+	Timeout time.Duration
 }
 
 // DefaultMaxTokens caps one answer.
@@ -171,6 +174,9 @@ func (c *Client) Chat(ctx context.Context, req Request) (Response, error) {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
+	if req.Timeout > 0 {
+		timeout = req.Timeout
+	}
 	start := time.Now()
 	var lastErr error
 	var failures []string
@@ -201,7 +207,7 @@ func (c *Client) Chat(ctx context.Context, req Request) (Response, error) {
 		}
 		actx, cancel := context.WithTimeout(ctx, timeout)
 		t0 := time.Now()
-		res, err := c.once(actx, payload)
+		res, err := c.once(actx, payload, timeout)
 		cancel()
 		if err == nil {
 			logCall(res, nil, attempt+1)
@@ -231,7 +237,7 @@ type retryAfterError struct {
 	wait time.Duration
 }
 
-func (c *Client) once(ctx context.Context, payload []byte) (Response, error) {
+func (c *Client) once(ctx context.Context, payload []byte, timeout time.Duration) (Response, error) {
 	url := strings.TrimRight(c.BaseURL, "/") + "/chat/completions"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
@@ -246,7 +252,8 @@ func (c *Client) once(ctx context.Context, payload []byte) (Response, error) {
 
 	hc := c.HTTP
 	if hc == nil {
-		hc = &http.Client{Timeout: 90 * time.Second}
+		// The attempt's own deadline (ctx) ends it first.
+		hc = &http.Client{Timeout: max(90*time.Second, timeout+10*time.Second)}
 	}
 	resp, err := hc.Do(httpReq) //nolint:gosec // G704: BaseURL is config, not user input
 	if err != nil {
