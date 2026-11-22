@@ -7,6 +7,8 @@ import type { Lang } from '#lib/i18n/index.svelte.ts';
 export type Stack = { group: Group; text: string }[];
 
 export interface Copy {
+	/** What Laamo is, in a few words: said next to the name wherever it's introduced. */
+	category: string;
 	meta: { title: string; description: string };
 	hero: { title: string; sub: string };
 	form: {
@@ -46,6 +48,16 @@ export interface Copy {
 	free: { title: string; points: { text: string; soon?: boolean }[] };
 	soon: string;
 	tryIt: { title: string; body: string; button: string };
+	/** The demo page (/try): its head tags and what happens, in words. */
+	tryPage: {
+		title: string;
+		description: string;
+		howTitle: string;
+		steps: string[];
+		notes: string[];
+	};
+	/** The page for an address that doesn't exist. */
+	notFound: { title: string; body: string; home: string; all: string };
 	faq: { title: string; items: { q: string; a: string }[] };
 	end: { title: string; body: string };
 	confirm: {
@@ -69,10 +81,11 @@ export interface Copy {
 }
 
 const en: Copy = {
+	category: 'AI helpers for small businesses',
 	meta: {
-		title: 'Laamo: agents that do your busywork, set up in a few taps',
+		title: 'Laamo: AI helpers for small businesses, set up in a few taps',
 		description:
-			'Pick a helper, answer three questions, and it does a daily task for you: finds customers, watches competitors, sums up the news, writes posts. On your phone or computer.'
+			'Laamo gives small businesses AI helpers that each do one daily task: find customers, watch competitors, sum up the news, sort emails. Pick one, answer three questions. On your phone or computer.'
 	},
 	hero: {
 		title: 'Agents that do your busywork. Set up in a few taps.',
@@ -216,6 +229,27 @@ const en: Copy = {
 		body: 'No account, no email. Pick a sample helper and see its result in under a minute.',
 		button: 'Try it now'
 	},
+	tryPage: {
+		title: 'Try an AI helper for your business, no account · Laamo',
+		description:
+			'See a Laamo helper at work in about 15 seconds: the local news that matter for your business, or things to do in your city this weekend. No account, no email.',
+		howTitle: 'What happens when you tap Show me',
+		steps: [
+			'You pick a sample helper and name your city (and, for the news, your kind of business).',
+			'The helper searches the web, keeps what fits and sums it up. That takes about 15 seconds.',
+			'You see the result here, the way it would land in your Feed every morning or every Thursday.'
+		],
+		notes: [
+			'Nothing is saved and no account is made. If you like the result, join the waiting list and the helper keeps running for you once your invite arrives.',
+			'These are two of the ready-made helpers. In the app you can change every step, or build your own from bricks.'
+		]
+	},
+	notFound: {
+		title: 'This page doesn’t exist.',
+		body: 'The address may be mistyped, or the page has moved.',
+		home: 'To the Laamo home page',
+		all: 'See what a helper can do'
+	},
 	faq: {
 		title: 'Questions',
 		items: [
@@ -270,10 +304,11 @@ const en: Copy = {
 };
 
 const de: Copy = {
+	category: 'KI-Helfer für kleine Unternehmen',
 	meta: {
-		title: 'Laamo: Agenten, die dir Kleinkram abnehmen, mit ein paar Taps eingerichtet',
+		title: 'Laamo: KI-Helfer für kleine Unternehmen, schnell eingerichtet',
 		description:
-			'Such dir einen Helfer aus, beantworte drei Fragen, und er erledigt eine tägliche Aufgabe für dich: findet Kunden, beobachtet Mitbewerber, fasst Neuigkeiten zusammen, schreibt Beiträge. Am Handy oder Computer.'
+			'Laamo gibt kleinen Unternehmen KI-Helfer, die je eine tägliche Aufgabe erledigen: Kunden finden, Mitbewerber beobachten, Neuigkeiten zusammenfassen, E-Mails sortieren. Such dir einen aus, beantworte drei Fragen. Am Handy oder Computer.'
 	},
 	hero: {
 		title: 'Agenten, die dir Kleinkram abnehmen. Mit ein paar Taps eingerichtet.',
@@ -416,6 +451,27 @@ const de: Copy = {
 		title: 'Probier jetzt einen Helfer aus.',
 		body: 'Kein Konto, keine E-Mail. Such dir einen Beispiel-Helfer aus und sieh sein Ergebnis in unter einer Minute.',
 		button: 'Jetzt ausprobieren'
+	},
+	tryPage: {
+		title: 'KI-Helfer für dein Geschäft ausprobieren, ohne Konto · Laamo',
+		description:
+			'Sieh einem Laamo-Helfer in etwa 15 Sekunden bei der Arbeit zu: die lokalen Nachrichten, die für dein Geschäft zählen, oder Tipps fürs Wochenende in deiner Stadt. Ohne Konto, ohne E-Mail.',
+		howTitle: 'Was passiert, wenn du auf „Zeig her“ tippst',
+		steps: [
+			'Du wählst einen Beispiel-Helfer und nennst deine Stadt (und für die Nachrichten deine Art von Geschäft).',
+			'Der Helfer sucht im Web, behält, was passt, und fasst es zusammen. Das dauert etwa 15 Sekunden.',
+			'Du siehst das Ergebnis hier, so wie es jeden Morgen oder jeden Donnerstag in deinem Feed landen würde.'
+		],
+		notes: [
+			'Nichts wird gespeichert, und es wird kein Konto angelegt. Gefällt dir das Ergebnis, trag dich in die Warteliste ein: Der Helfer läuft für dich weiter, sobald deine Einladung da ist.',
+			'Das sind zwei der fertigen Helfer. In der App kannst du jeden Schritt ändern oder aus Bausteinen deinen eigenen bauen.'
+		]
+	},
+	notFound: {
+		title: 'Diese Seite gibt es nicht.',
+		body: 'Vielleicht ist die Adresse vertippt, oder die Seite ist umgezogen.',
+		home: 'Zur Laamo-Startseite',
+		all: 'Sieh, was ein Helfer kann'
 	},
 	faq: {
 		title: 'Fragen',

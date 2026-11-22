@@ -44,7 +44,7 @@
 	{#if image === '/og.png'}
 		<meta property="og:image:width" content="1200" />
 		<meta property="og:image:height" content="630" />
-		<meta property="og:image:alt" content="Laamo: little helpers that do your busywork" />
+		<meta property="og:image:alt" content="Laamo: AI helpers for small businesses" />
 	{/if}
 	<meta property="og:locale" content={lang === 'de' ? 'de_DE' : 'en_US'} />
 	<meta name="twitter:card" content="summary_large_image" />

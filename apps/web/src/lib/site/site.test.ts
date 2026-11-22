@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { basePath, langOf, localPath, pageURL, robots, sitemap } from './site';
+import { readdirSync, readFileSync } from 'node:fs';
+import {
+	APP_ROUTES,
+	basePath,
+	jsonLD,
+	langOf,
+	llmsTxt,
+	localPath,
+	PAGES,
+	pageURL,
+	robots,
+	sitemap,
+	SITE_UPDATED
+} from './site';
+import { USE_CASES } from './usecases';
 
 describe('site', () => {
 	it('puts German under /de', () => {
@@ -29,5 +43,40 @@ describe('site', () => {
 		expect(prod).toContain('Disallow: /feed');
 		expect(prod).toContain('Sitemap: https://laamo.app/sitemap.xml');
 		expect(prod).not.toMatch(/Disallow: \/\n/);
+	});
+	it('dates every page in the sitemap', () => {
+		const xml = sitemap([{ path: '/' }, { path: '/x', updated: '2027-01-02' }]);
+		expect(xml).toContain(`<lastmod>${SITE_UPDATED}</lastmod>`);
+		expect(xml).toContain('<lastmod>2027-01-02</lastmod>');
+		expect(SITE_UPDATED).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+		expect(PAGES.map((p) => p.path)).toContain('/try');
+	});
+	// An address that isn't a page must be a real 404, so the web server
+	// sends app.html only for the app's own screens. Three lists have to
+	// agree: the route folders, APP_ROUTES (robots.txt) and nginx.
+	it('knows the app screens, like the web server does', () => {
+		const folders = readdirSync(new URL('../../routes/(app)', import.meta.url), {
+			withFileTypes: true
+		})
+			.filter((d) => d.isDirectory())
+			.map((d) => d.name)
+			.sort();
+		expect(APP_ROUTES).toEqual(folders);
+		const nginx = readFileSync(
+			new URL('../../../../../deploy/docker/web.nginx.conf.template', import.meta.url),
+			'utf8'
+		);
+		expect(nginx).toContain(`location ~ ^/(${APP_ROUTES.join('|')})(/|$) {`);
+		for (const r of APP_ROUTES) expect(robots(true)).toContain(`Disallow: /${r}\n`);
+	});
+	it('tells AI assistants what Laamo is and where its pages are', () => {
+		const txt = llmsTxt();
+		expect(txt.startsWith('# Laamo\n\n> Laamo: AI helpers for small businesses.')).toBe(true);
+		for (const u of USE_CASES) expect(txt).toContain(`(https://laamo.app/use-cases/${u.slug})`);
+		expect(txt).toContain('(https://laamo.app/try)');
+		expect(txt).toContain('invite-only');
+	});
+	it('keeps structured data from closing its script tag', () => {
+		expect(jsonLD({ a: '</script><b>' })).not.toContain('<');
 	});
 });
