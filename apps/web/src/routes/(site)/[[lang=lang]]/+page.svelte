@@ -4,6 +4,7 @@
 	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import Brick from '#lib/components/Brick.svelte';
 	import { copy, type Stack } from '#lib/site/copy.ts';
+	import { INDUSTRIES, INDUSTRY_UI } from '#lib/site/industries.ts';
 	import Seo from '#lib/site/Seo.svelte';
 	import { jsonLD, localPath, organizationLD, pageURL, SITE_URL } from '#lib/site/site.ts';
 	import { UI, USE_CASES } from '#lib/site/usecases.ts';
@@ -156,6 +157,17 @@
 				<a href={localPath(`/use-cases/${u.slug}`, data.lang)}
 					><HelperIcon avatar={u.avatar} size={28} />
 					{u.text[data.lang].name}{#if u.soon}<span class="soon">{c.soon}</span>{/if}</a
+				>
+			</li>
+		{/each}
+	</ul>
+	<h3 class="kinds">{INDUSTRY_UI[data.lang].listTitle}</h3>
+	<ul class="cases">
+		{#each INDUSTRIES as ind (ind.slug)}
+			<li>
+				<a href={localPath(`/for/${ind.slug}`, data.lang)}
+					><HelperIcon avatar={ind.avatar} size={28} />
+					{ind.text[data.lang].name}</a
 				>
 			</li>
 		{/each}
@@ -373,5 +385,9 @@
 	}
 	.end {
 		padding-bottom: var(--space-7);
+	}
+	.kinds {
+		margin: var(--space-5) 0 var(--space-2);
+		font-size: var(--text-lg);
 	}
 </style>

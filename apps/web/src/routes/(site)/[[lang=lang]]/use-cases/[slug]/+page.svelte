@@ -48,7 +48,19 @@
 					step: t.stack.map((b, i) => ({ '@type': 'HowToStep', position: i + 1, text: b.text })),
 					publisher: { '@id': organizationLD()['@id'] }
 				},
-				organizationLD()
+				organizationLD(),
+				...(t.faq?.length
+					? [
+							{
+								'@type': 'FAQPage',
+								mainEntity: t.faq.map((i) => ({
+									'@type': 'Question',
+									name: i.q,
+									acceptedAnswer: { '@type': 'Answer', text: i.a }
+								}))
+							}
+						]
+					: [])
 			]
 		})
 	);
@@ -91,6 +103,18 @@
 	{#each t.notes as n, i (i)}<p class="note">{n}</p>{/each}
 	{#if u.demo}<a class="btn wide outline" href={localPath('/try', data.lang)}>{ui.tryIt}</a>{/if}
 </section>
+
+{#if t.faq?.length}
+	<section>
+		<h2>{ui.faq}</h2>
+		<dl class="faq">
+			{#each t.faq as f (f.q)}
+				<dt>{f.q}</dt>
+				<dd>{f.a}</dd>
+			{/each}
+		</dl>
+	</section>
+{/if}
 
 <section>
 	<h2>{ui.join}</h2>
@@ -204,5 +228,15 @@
 		color: var(--ink);
 		font-weight: 700;
 		text-decoration: none;
+	}
+	.faq {
+		margin: 0;
+	}
+	.faq dt {
+		margin-top: var(--space-4);
+		font-weight: 700;
+	}
+	.faq dd {
+		margin: var(--space-1) 0 0;
 	}
 </style>

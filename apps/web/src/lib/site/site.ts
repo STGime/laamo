@@ -2,6 +2,7 @@
 // engines. English at /, German under /de, one language per URL.
 import type { Lang } from '#lib/i18n/index.svelte.ts';
 import { copy } from './copy.ts';
+import { INDUSTRIES } from './industries.ts';
 import { USE_CASES } from './usecases.ts';
 
 /** Where the site lives; canonical links and the sitemap use it. */
@@ -36,6 +37,11 @@ export const PAGES: SitePage[] = [
 	{ path: '/use-cases', changefreq: 'monthly', priority: 0.8 },
 	...USE_CASES.map((u) => ({
 		path: `/use-cases/${u.slug}`,
+		changefreq: 'monthly' as const,
+		priority: 0.7
+	})),
+	...INDUSTRIES.map((i) => ({
+		path: `/for/${i.slug}`,
 		changefreq: 'monthly' as const,
 		priority: 0.7
 	})),
@@ -188,6 +194,10 @@ export function llmsTxt(): string {
 				u.text.en.description
 			)
 		),
+		'',
+		'## For a kind of business',
+		'',
+		...INDUSTRIES.map((i) => line(`/for/${i.slug}`, i.text.en.name, i.text.en.description)),
 		'',
 		'## Questions and answers',
 		'',
