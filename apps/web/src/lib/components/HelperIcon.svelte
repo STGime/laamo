@@ -34,6 +34,11 @@
 			color: 'green',
 			d: 'M3 9.5h4l10-5v15l-10-5H3zM7.5 15.5h3.2l1.3 5H9zM19 10h2.5v4H19z'
 		},
+		// Receipt Keeper: a till receipt
+		'🧾': {
+			color: 'green',
+			d: 'M5 2.5h14v19l-2.3-1.7-2.4 1.7-2.3-1.7-2.3 1.7-2.4-1.7L5 21.5zM8 6.5h8v1.8H8zM8 10h8v1.8H8zM8 13.5h5v1.8H8z'
+		},
 		// Weekend Scout: a ticket
 		'🎟': {
 			color: 'red',

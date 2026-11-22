@@ -24,10 +24,12 @@ const maxListValue = 1000
 // Fields that don't go into a row: whole pages, internal ones, and
 // distances from a search.
 var skipFields = map[string]bool{"page_text": true, "sources": true, "list_row_id": true,
-	"distance_km": true, "distance_from": true} // how far from where a search started: means nothing later
+	"distance_km": true, "distance_from": true, // how far from where a search started: means nothing later
+	"photo_text": true} // everything printed on a photo: the row keeps the picture and the details pulled out
 
 // columnOrder: the usual columns come first, in this order.
-var columnOrder = []string{"name", "title", "email", "phone", "website", "address", "url", "date", "time", "place", "price"}
+var columnOrder = []string{"name", "title", "email", "phone", "website", "address", "url", "date", "time", "place", "price",
+	"vendor", "total", "net", "vat_rate", "vat_amount", "currency", "invoice_number"}
 
 // List is the Save to a list brick (do.list): every card becomes a row in
 // one of the user's Lists, unless a row with the same email, website or

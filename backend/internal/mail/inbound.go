@@ -38,12 +38,47 @@ type Message struct {
 	Forwarded bool
 }
 
-// Attachment is a file that came with an email (not stored separately: the
-// raw email in Storage holds it).
+// Attachment is a file that came with an email. The raw email in Storage
+// holds them all; pictures are also kept here (Data), for Read the photo.
 type Attachment struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 	Size int    `json:"size"`
+	// Data is the file itself, for the first MaxPictures pictures (JPEG,
+	// PNG or WebP) only.
+	Data []byte `json:"-"`
+}
+
+// MaxPictures is how many of an email's pictures are kept for the run.
+const MaxPictures = 5
+
+// minInlinePicture: a picture inside the text smaller than this is a logo
+// or a tracking pixel, not a photo someone took.
+const minInlinePicture = 20_000
+
+// isPicture reports whether an email part is a picture Read the photo can
+// take, by its type or (mail apps often say "application/octet-stream")
+// its file name.
+func isPicture(ctype, name string) bool {
+	switch strings.ToLower(ctype) {
+	case "image/jpeg", "image/jpg", "image/png", "image/webp":
+		return true
+	case "", "application/octet-stream":
+		n := strings.ToLower(name)
+		return strings.HasSuffix(n, ".jpg") || strings.HasSuffix(n, ".jpeg") || strings.HasSuffix(n, ".png") || strings.HasSuffix(n, ".webp")
+	}
+	return false
+}
+
+// Pictures returns the email's pictures that were kept (Data set).
+func (m Message) Pictures() []Attachment {
+	var out []Attachment
+	for _, a := range m.Attachments {
+		if len(a.Data) > 0 {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // Parse reads a raw email (RFC 5322).
@@ -66,6 +101,7 @@ func Parse(raw []byte) (Message, error) {
 	m.Forwarded = h.Get("X-Forwarded-To") != "" || h.Get("X-Forwarded-For") != "" || h.Get("Resent-From") != ""
 
 	var plain, htmlText string
+	pictures := 0
 	for {
 		p, err := r.NextPart()
 		if errors.Is(err, io.EOF) {
@@ -77,7 +113,21 @@ func Parse(raw []byte) (Message, error) {
 		}
 		switch ph := p.Header.(type) {
 		case *gomail.InlineHeader:
-			ct, _, _ := ph.ContentType()
+			ct, params, _ := ph.ContentType()
+			// A photo put into the text itself (phones' mail apps do that)
+			// counts as an attachment.
+			if strings.HasPrefix(ct, "image/") {
+				body, _ := io.ReadAll(io.LimitReader(p.Body, MaxInbound))
+				if len(body) >= minInlinePicture {
+					a := Attachment{Name: params["name"], Type: ct, Size: len(body)}
+					if isPicture(ct, a.Name) && pictures < MaxPictures {
+						a.Data = body
+						pictures++
+					}
+					m.Attachments = append(m.Attachments, a)
+				}
+				continue
+			}
 			body, _ := io.ReadAll(io.LimitReader(p.Body, 4*MaxText))
 			switch {
 			case ct == "text/plain" && plain == "":
@@ -88,8 +138,16 @@ func Parse(raw []byte) (Message, error) {
 		case *gomail.AttachmentHeader:
 			name, _ := ph.Filename()
 			ct, _, _ := ph.ContentType()
-			n, _ := io.Copy(io.Discard, p.Body)
-			m.Attachments = append(m.Attachments, Attachment{Name: name, Type: ct, Size: int(n)})
+			a := Attachment{Name: name, Type: ct}
+			if isPicture(ct, name) && pictures < MaxPictures {
+				a.Data, _ = io.ReadAll(io.LimitReader(p.Body, MaxInbound))
+				a.Size = len(a.Data)
+				pictures++
+			} else {
+				n, _ := io.Copy(io.Discard, p.Body)
+				a.Size = int(n)
+			}
+			m.Attachments = append(m.Attachments, a)
 		}
 	}
 	text := plain

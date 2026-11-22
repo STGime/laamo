@@ -1,4 +1,4 @@
-<!-- S11 Helper page: on/off, rename, run now, its bricks, recent runs, delete. -->
+<!-- S11 Helper page: on/off, rename, run now (or with a photo), its bricks, recent runs, delete. -->
 <script lang="ts">
 	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { goto } from '$app/navigation';
@@ -12,6 +12,7 @@
 	import RunTicker from '#lib/components/RunTicker.svelte';
 	import HelperAddress from '#lib/components/HelperAddress.svelte';
 	import { api, session } from '#lib/session.svelte.ts';
+	import { shrink } from '#lib/photo.ts';
 	import { ago, when } from '#lib/time.ts';
 
 	let detail = $state<Schemas['HelperDetail'] | null>(null);
@@ -83,6 +84,40 @@
 		if (data) {
 			started = true;
 			load();
+		}
+	}
+
+	// The camera button (helpers with Read the photo): the photo is shrunk
+	// here, uploaded, and the run starts with it.
+	let photoState = $state<'idle' | 'sending' | 'failed'>('idle');
+	async function runWithPhoto(e: Event & { currentTarget: HTMLInputElement }) {
+		const input = e.currentTarget;
+		const file = input.files?.[0];
+		input.value = ''; // the same picture can be picked again
+		if (!file) return;
+		photoState = 'sending';
+		busy = true;
+		try {
+			const jpeg = await shrink(file);
+			const up = await api.POST('/helpers/{helperId}/photos', {
+				params: { path: { helperId: id } },
+				body: jpeg as unknown as string,
+				bodySerializer: (b) => b,
+				headers: { 'Content-Type': 'image/jpeg' }
+			});
+			if (!up.data) throw new Error('upload');
+			const { data } = await api.POST('/helpers/{helperId}/runs', {
+				params: { path: { helperId: id } },
+				body: { photos: [up.data.path] }
+			});
+			if (!data) throw new Error('start');
+			photoState = 'idle';
+			started = true;
+			load();
+		} catch {
+			photoState = 'failed';
+		} finally {
+			busy = false;
 		}
 	}
 
@@ -165,16 +200,57 @@
 				forward={helper.forward_address}
 				helperId={helper.id}
 			/>{/if}
-		<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
-			>{#if run}<RunTicker
-					{run}
-					retrying={retrying(
-						run,
-						detail?.steps,
-						(detail?.bricks ?? []).map((b) => b.id)
-					)}
-				/>{:else}{t('helpers.runNow')}{/if}</button
-		>
+		{#if detail?.takes_photos}
+			<!-- A photo is this helper's input: the camera comes first. -->
+			<label class="btn primary wide photo" class:off={busy || running(run)}>
+				<input
+					type="file"
+					accept="image/*"
+					capture="environment"
+					class="visually-hidden"
+					disabled={busy || running(run)}
+					onchange={runWithPhoto}
+				/>
+				{#if run}<RunTicker
+						{run}
+						retrying={retrying(
+							run,
+							detail?.steps,
+							(detail?.bricks ?? []).map((b) => b.id)
+						)}
+					/>{:else if photoState === 'sending'}{t('photo.sending')}{:else}
+					<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
+						><path
+							fill="currentColor"
+							fill-rule="evenodd"
+							d="M8.5 4h7l1.5 2.5H21V20H3V6.5h4zM12 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 11a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"
+						/></svg
+					>
+					{t('photo.take')}{/if}
+			</label>
+			<label class="choose" class:off={busy || running(run)}>
+				<input
+					type="file"
+					accept="image/*"
+					class="visually-hidden"
+					disabled={busy || running(run)}
+					onchange={runWithPhoto}
+				/>
+				{t('photo.choose')}
+			</label>
+			{#if photoState === 'failed'}<p class="started" role="alert">{t('photo.failed')}</p>{/if}
+		{:else}
+			<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
+				>{#if run}<RunTicker
+						{run}
+						retrying={retrying(
+							run,
+							detail?.steps,
+							(detail?.bricks ?? []).map((b) => b.id)
+						)}
+					/>{:else}{t('helpers.runNow')}{/if}</button
+			>
+		{/if}
 		{#if started && !run}<p class="started">
 				{t('helpers.started')} <a href="/feed">{t('tab.feed')} →</a>
 			</p>{/if}
@@ -288,6 +364,29 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
+	}
+	/* The camera button and "choose a picture" are labels around a file input. */
+	.photo,
+	.choose {
+		cursor: pointer;
+	}
+	.photo:focus-within,
+	.choose:focus-within {
+		outline: 3px solid var(--focus);
+		outline-offset: 2px;
+	}
+	.choose {
+		align-self: center;
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--tap-min);
+		font-weight: 600;
+		text-decoration: underline;
+	}
+	.off {
+		opacity: 0.5;
+		cursor: default;
+		pointer-events: none;
 	}
 	.switch {
 		display: inline-flex;

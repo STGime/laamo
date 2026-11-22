@@ -993,6 +993,9 @@ type HelperDetail struct {
 
 	// Steps The latest run's steps, by brick (for the live run view)
 	Steps *[]StepProgress `json:"steps,omitempty"`
+
+	// TakesPhotos The helper has a Read the photo brick, so a run can start with photos (the camera button)
+	TakesPhotos *bool `json:"takes_photos,omitempty"`
 }
 
 // HelperRef defines model for HelperRef.
@@ -1473,7 +1476,10 @@ type UpdateHelperJSONBodyStatus string
 type StartRunJSONBody struct {
 	// Answer The answer to Tap Go's question ({answer})
 	Answer *string `json:"answer,omitempty"`
-	Test   *bool   `json:"test,omitempty"`
+
+	// Photos Photos for Read the photo, each the path uploadPhoto returned
+	Photos *[]string `json:"photos,omitempty"`
+	Test   *bool     `json:"test,omitempty"`
 }
 
 // GetImageParams defines parameters for GetImage.
@@ -1838,6 +1844,13 @@ type ClientInterface interface {
 	// Corresponds with DELETE /helpers/{helperId}/learned (the `ForgetLearned` operationId).
 	ForgetLearned(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// UploadPhotoWithBody Upload a photo for the helper's next run (the camera button). Start the run with the returned path in photos
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /helpers/{helperId}/photos (the `UploadPhoto` operationId).
+	UploadPhotoWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// StartRunWithBody Run a helper now (Tap Go, or a test run with at most 3 cards)
 	//
 	// Takes any type of body and a specified content type.
@@ -1885,7 +1898,7 @@ type ClientInterface interface {
 	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
 	TestHelperStack(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetImage A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+	// GetImage A picture Draw a picture made, or a photo a helper read (JPEG). Signed in, and only from your own workspaces
 	//
 	// Corresponds with GET /images (the `GetImage` operationId).
 	GetImage(ctx context.Context, params *GetImageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1952,6 +1965,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
 	ShareList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportListZip All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
+	//
+	// Corresponds with GET /lists/{listId}/zip (the `ExportListZip` operationId).
+	ExportListZip(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
 	//
@@ -2363,6 +2381,23 @@ func (c *Client) ForgetLearned(ctx context.Context, helperId HelperId, reqEditor
 	return c.Client.Do(req)
 }
 
+// UploadPhotoWithBody Upload a photo for the helper's next run (the camera button). Start the run with the returned path in photos
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /helpers/{helperId}/photos (the `UploadPhoto` operationId).
+func (c *Client) UploadPhotoWithBody(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUploadPhotoRequestWithBody(c.Server, helperId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // StartRunWithBody Run a helper now (Tap Go, or a test run with at most 3 cards)
 //
 // Takes any type of body and a specified content type.
@@ -2480,7 +2515,7 @@ func (c *Client) TestHelperStack(ctx context.Context, helperId HelperId, body Te
 	return c.Client.Do(req)
 }
 
-// GetImage A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+// GetImage A picture Draw a picture made, or a photo a helper read (JPEG). Signed in, and only from your own workspaces
 //
 // Corresponds with GET /images (the `GetImage` operationId).
 func (c *Client) GetImage(ctx context.Context, params *GetImageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2658,6 +2693,21 @@ func (c *Client) UnshareList(ctx context.Context, listId ListId, reqEditors ...R
 // Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
 func (c *Client) ShareList(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewShareListRequest(c.Server, listId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportListZip All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
+//
+// Corresponds with GET /lists/{listId}/zip (the `ExportListZip` operationId).
+func (c *Client) ExportListZip(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportListZipRequest(c.Server, listId)
 	if err != nil {
 		return nil, err
 	}
@@ -3499,6 +3549,42 @@ func NewForgetLearnedRequest(server string, helperId HelperId) (*http.Request, e
 	return req, nil
 }
 
+// NewUploadPhotoRequestWithBody constructs an http.Request for the UploadPhoto method, with any body, and a specified content type
+func NewUploadPhotoRequestWithBody(server string, helperId HelperId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "helperId", helperId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/helpers/%s/photos", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewStartRunRequest calls the generic StartRun builder with application/json body
 func NewStartRunRequest(server string, helperId HelperId, body StartRunJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -4107,6 +4193,40 @@ func NewShareListRequest(server string, listId ListId) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewExportListZipRequest constructs an http.Request for the ExportListZip method
+func NewExportListZipRequest(server string, listId ListId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "listId", listId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/lists/%s/zip", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -5041,6 +5161,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /helpers/{helperId}/learned (the `ForgetLearned` operationId).
 	ForgetLearnedWithResponse(ctx context.Context, helperId HelperId, reqEditors ...RequestEditorFn) (*ForgetLearnedResponse, error)
 
+	// UploadPhotoWithBodyWithResponse Upload a photo for the helper's next run (the camera button). Start the run with the returned path in photos
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /helpers/{helperId}/photos (the `UploadPhoto` operationId).
+	UploadPhotoWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadPhotoResponse, error)
+
 	// StartRunWithBodyWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -5090,7 +5217,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /helpers/{helperId}/stack/test (the `TestHelperStack` operationId).
 	TestHelperStackWithResponse(ctx context.Context, helperId HelperId, body TestHelperStackJSONRequestBody, reqEditors ...RequestEditorFn) (*TestHelperStackResponse, error)
 
-	// GetImageWithResponse A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+	// GetImageWithResponse A picture Draw a picture made, or a photo a helper read (JPEG). Signed in, and only from your own workspaces
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -5173,6 +5300,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /lists/{listId}/share (the `ShareList` operationId).
 	ShareListWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ShareListResponse, error)
+
+	// ExportListZipWithResponse All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /lists/{listId}/zip (the `ExportListZip` operationId).
+	ExportListZipWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ExportListZipResponse, error)
 
 	// GetMapWithResponse A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
 	//
@@ -5976,11 +6110,81 @@ func (r ForgetLearnedResponse) ContentType() string {
 	return ""
 }
 
+type UploadPhotoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *struct {
+		// Path Where the photo is stored; also works with getImage
+		Path string `json:"path"`
+	}
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r UploadPhotoResponse) GetJSON201() *struct {
+	// Path Where the photo is stored; also works with getImage
+	Path string `json:"path"`
+} {
+	return r.JSON201
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r UploadPhotoResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UploadPhotoResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UploadPhotoResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r UploadPhotoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UploadPhotoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UploadPhotoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UploadPhotoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type StartRunResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON202 the response for an HTTP 202 `application/json` response
 	JSON202 *RunStarted
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *Unauthorized
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -5992,6 +6196,11 @@ type StartRunResponse struct {
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
 func (r StartRunResponse) GetJSON202() *RunStarted {
 	return r.JSON202
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r StartRunResponse) GetJSON400() *BadRequest {
+	return r.JSON400
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
@@ -6733,6 +6942,47 @@ func (r ShareListResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ShareListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ExportListZipResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ExportListZipResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r ExportListZipResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportListZipResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportListZipResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExportListZipResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7996,6 +8246,19 @@ func (c *ClientWithResponses) ForgetLearnedWithResponse(ctx context.Context, hel
 	return ParseForgetLearnedResponse(rsp)
 }
 
+// UploadPhotoWithBodyWithResponse Upload a photo for the helper's next run (the camera button). Start the run with the returned path in photos
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /helpers/{helperId}/photos (the `UploadPhoto` operationId).
+func (c *ClientWithResponses) UploadPhotoWithBodyWithResponse(ctx context.Context, helperId HelperId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadPhotoResponse, error) {
+	rsp, err := c.UploadPhotoWithBody(ctx, helperId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUploadPhotoResponse(rsp)
+}
+
 // StartRunWithBodyWithResponse Run a helper now (Tap Go, or a test run with at most 3 cards)
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -8087,7 +8350,7 @@ func (c *ClientWithResponses) TestHelperStackWithResponse(ctx context.Context, h
 	return ParseTestHelperStackResponse(rsp)
 }
 
-// GetImageWithResponse A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+// GetImageWithResponse A picture Draw a picture made, or a photo a helper read (JPEG). Signed in, and only from your own workspaces
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -8241,6 +8504,19 @@ func (c *ClientWithResponses) ShareListWithResponse(ctx context.Context, listId 
 		return nil, err
 	}
 	return ParseShareListResponse(rsp)
+}
+
+// ExportListZipWithResponse All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /lists/{listId}/zip (the `ExportListZip` operationId).
+func (c *ClientWithResponses) ExportListZipWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ExportListZipResponse, error) {
+	rsp, err := c.ExportListZip(ctx, listId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportListZipResponse(rsp)
 }
 
 // GetMapWithResponse A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
@@ -9041,6 +9317,56 @@ func ParseForgetLearnedResponse(rsp *http.Response) (*ForgetLearnedResponse, err
 	return response, nil
 }
 
+// ParseUploadPhotoResponse parses an HTTP response from a UploadPhotoWithResponse call
+func ParseUploadPhotoResponse(rsp *http.Response) (*UploadPhotoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UploadPhotoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest struct {
+			// Path Where the photo is stored; also works with getImage
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseStartRunResponse parses an HTTP response from a StartRunWithResponse call
 func ParseStartRunResponse(rsp *http.Response) (*StartRunResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -9061,6 +9387,13 @@ func ParseStartRunResponse(rsp *http.Response) (*StartRunResponse, error) {
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest Unauthorized
@@ -9600,6 +9933,32 @@ func ParseShareListResponse(rsp *http.Response) (*ShareListResponse, error) {
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExportListZipResponse parses an HTTP response from a ExportListZipWithResponse call
+func ParseExportListZipResponse(rsp *http.Response) (*ExportListZipResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportListZipResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest NotFound
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -10434,6 +10793,9 @@ type ServerInterface interface {
 	// ForgetLearned Forget what the helper learned from Let me pick swipes
 	// (DELETE /helpers/{helperId}/learned)
 	ForgetLearned(w http.ResponseWriter, r *http.Request, helperId HelperId)
+	// UploadPhoto Upload a photo for the helper's next run (the camera button). Start the run with the returned path in photos
+	// (POST /helpers/{helperId}/photos)
+	UploadPhoto(w http.ResponseWriter, r *http.Request, helperId HelperId)
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	// (POST /helpers/{helperId}/runs)
 	StartRun(w http.ResponseWriter, r *http.Request, helperId HelperId)
@@ -10446,7 +10808,7 @@ type ServerInterface interface {
 	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
 	// (POST /helpers/{helperId}/stack/test)
 	TestHelperStack(w http.ResponseWriter, r *http.Request, helperId HelperId)
-	// GetImage A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+	// GetImage A picture Draw a picture made, or a photo a helper read (JPEG). Signed in, and only from your own workspaces
 	// (GET /images)
 	GetImage(w http.ResponseWriter, r *http.Request, params GetImageParams)
 	// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
@@ -10476,6 +10838,9 @@ type ServerInterface interface {
 	// ShareList Turn on the read-only share link (owner only). Anyone with the link can see the rows
 	// (PUT /lists/{listId}/share)
 	ShareList(w http.ResponseWriter, r *http.Request, listId ListId)
+	// ExportListZip All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
+	// (GET /lists/{listId}/zip)
+	ExportListZip(w http.ResponseWriter, r *http.Request, listId ListId)
 	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
 	// (GET /map)
 	GetMap(w http.ResponseWriter, r *http.Request, params GetMapParams)
@@ -10785,6 +11150,32 @@ func (siw *ServerInterfaceWrapper) ForgetLearned(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ForgetLearned(w, r, helperId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadPhoto operation middleware
+func (siw *ServerInterfaceWrapper) UploadPhoto(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "helperId" -------------
+	var helperId HelperId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "helperId", r.PathValue("helperId"), &helperId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "helperId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadPhoto(w, r, helperId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11207,6 +11598,32 @@ func (siw *ServerInterfaceWrapper) ShareList(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ShareList(w, r, listId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportListZip operation middleware
+func (siw *ServerInterfaceWrapper) ExportListZip(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "listId" -------------
+	var listId ListId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "listId", r.PathValue("listId"), &listId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "listId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportListZip(w, r, listId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11849,6 +12266,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/lists/{listId}/rows", wrapper.AddListRows)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/rows/{rowId}", wrapper.DeleteListRow)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}/csv", wrapper.ExportList)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/lists/{listId}/zip", wrapper.ExportListZip)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/lists/{listId}/share", wrapper.UnshareList)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/lists/{listId}/share", wrapper.ShareList)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/images", wrapper.GetImage)
@@ -11870,6 +12288,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/helpers/{helperId}/learned", wrapper.ForgetLearned)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/forward-address", wrapper.NewForwardAddress)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/runs", wrapper.StartRun)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/photos", wrapper.UploadPhoto)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.GetHelperStack)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/helpers/{helperId}/stack", wrapper.SaveHelperStack)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/helpers/{helperId}/stack/test", wrapper.TestHelperStack)
@@ -12446,6 +12865,74 @@ func (response ForgetLearned404JSONResponse) VisitForgetLearnedResponse(w http.R
 	return err
 }
 
+type UploadPhotoRequestObject struct {
+	HelperId HelperId `json:"helperId"`
+	Body     io.Reader
+}
+
+type UploadPhotoResponseObject interface {
+	VisitUploadPhotoResponse(w http.ResponseWriter) error
+}
+
+type UploadPhoto201JSONResponse struct {
+	// Path Where the photo is stored; also works with getImage
+	Path string `json:"path"`
+}
+
+func (response UploadPhoto201JSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhoto400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UploadPhoto400JSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhoto401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UploadPhoto401JSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UploadPhoto404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UploadPhoto404JSONResponse) VisitUploadPhotoResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type StartRunRequestObject struct {
 	HelperId HelperId `json:"helperId"`
 	Body     *StartRunJSONRequestBody
@@ -12465,6 +12952,20 @@ func (response StartRun202JSONResponse) VisitStartRunResponse(w http.ResponseWri
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartRun400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response StartRun400JSONResponse) VisitStartRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -13194,6 +13695,48 @@ func (response ShareList403JSONResponse) VisitShareListResponse(w http.ResponseW
 type ShareList404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response ShareList404JSONResponse) VisitShareListResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportListZipRequestObject struct {
+	ListId ListId `json:"listId"`
+}
+
+type ExportListZipResponseObject interface {
+	VisitExportListZipResponse(w http.ResponseWriter) error
+}
+
+type ExportListZip200ApplicationzipResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response ExportListZip200ApplicationzipResponse) VisitExportListZipResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "application/zip")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type ExportListZip404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ExportListZip404JSONResponse) VisitExportListZipResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -14247,6 +14790,9 @@ type StrictServerInterface interface {
 	// ForgetLearned Forget what the helper learned from Let me pick swipes
 	// (DELETE /helpers/{helperId}/learned)
 	ForgetLearned(ctx context.Context, request ForgetLearnedRequestObject) (ForgetLearnedResponseObject, error)
+	// UploadPhoto Upload a photo for the helper's next run (the camera button). Start the run with the returned path in photos
+	// (POST /helpers/{helperId}/photos)
+	UploadPhoto(ctx context.Context, request UploadPhotoRequestObject) (UploadPhotoResponseObject, error)
 	// StartRun Run a helper now (Tap Go, or a test run with at most 3 cards)
 	// (POST /helpers/{helperId}/runs)
 	StartRun(ctx context.Context, request StartRunRequestObject) (StartRunResponseObject, error)
@@ -14259,7 +14805,7 @@ type StrictServerInterface interface {
 	// TestHelperStack Test an edited stack once (max 3 cards) without making it the helper's version
 	// (POST /helpers/{helperId}/stack/test)
 	TestHelperStack(ctx context.Context, request TestHelperStackRequestObject) (TestHelperStackResponseObject, error)
-	// GetImage A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+	// GetImage A picture Draw a picture made, or a photo a helper read (JPEG). Signed in, and only from your own workspaces
 	// (GET /images)
 	GetImage(ctx context.Context, request GetImageRequestObject) (GetImageResponseObject, error)
 	// DeleteList Delete a list with all its rows (owner only). Helpers that save to it stop with a note until you pick another list
@@ -14289,6 +14835,9 @@ type StrictServerInterface interface {
 	// ShareList Turn on the read-only share link (owner only). Anyone with the link can see the rows
 	// (PUT /lists/{listId}/share)
 	ShareList(ctx context.Context, request ShareListRequestObject) (ShareListResponseObject, error)
+	// ExportListZip All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
+	// (GET /lists/{listId}/zip)
+	ExportListZip(ctx context.Context, request ExportListZipRequestObject) (ExportListZipResponseObject, error)
 	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
 	// (GET /map)
 	GetMap(ctx context.Context, request GetMapRequestObject) (GetMapResponseObject, error)
@@ -14681,6 +15230,34 @@ func (sh *strictHandler) ForgetLearned(w http.ResponseWriter, r *http.Request, h
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ForgetLearnedResponseObject); ok {
 		if err := validResponse.VisitForgetLearnedResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UploadPhoto operation middleware
+func (sh *strictHandler) UploadPhoto(w http.ResponseWriter, r *http.Request, helperId HelperId) {
+	var request UploadPhotoRequestObject
+
+	request.HelperId = helperId
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UploadPhoto(ctx, request.(UploadPhotoRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UploadPhoto")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UploadPhotoResponseObject); ok {
+		if err := validResponse.VisitUploadPhotoResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -15085,6 +15662,32 @@ func (sh *strictHandler) ShareList(w http.ResponseWriter, r *http.Request, listI
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ShareListResponseObject); ok {
 		if err := validResponse.VisitShareListResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExportListZip operation middleware
+func (sh *strictHandler) ExportListZip(w http.ResponseWriter, r *http.Request, listId ListId) {
+	var request ExportListZipRequestObject
+
+	request.ListId = listId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExportListZip(ctx, request.(ExportListZipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExportListZip")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExportListZipResponseObject); ok {
+		if err := validResponse.VisitExportListZipResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"archive/zip"
 	"bytes"
 	"cmp"
 	"context"
@@ -9,9 +10,16 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
+	"maps"
+	"regexp"
 	"slices"
 	"strings"
+	"time"
+	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/STGime/laamo/backend/internal/bricks/do"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -386,6 +394,140 @@ func (s *Server) ExportList(ctx context.Context, req ExportListRequestObject) (E
 		return nil, err
 	}
 	return ExportList200TextcsvResponse{Body: bytes.NewReader(b), ContentLength: int64(len(b))}, nil
+}
+
+// MaxZipPictures: a ZIP export holds at most this many pictures (the
+// newest rows' first); the CSV in it always has every row.
+const MaxZipPictures = 500
+
+// ExportListZip is the export for bookkeeping: the list as CSV plus the
+// rows' pictures (receipt photos), so each row can be matched to its slip.
+// It's written while it downloads, so a big list doesn't sit in memory.
+func (s *Server) ExportListZip(ctx context.Context, req ExportListZipRequestObject) (ExportListZipResponseObject, error) {
+	l, _, ok, err := s.list(ctx, req.ListId.String())
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return ExportListZip404JSONResponse{NotFoundJSONResponse(listNotFound)}, nil
+	}
+	rows, err := s.store.ListRows(ctx, l.ID, 0)
+	if err != nil {
+		return nil, err
+	}
+	rows, pictures := zipPictures(l.WorkspaceID, rows)
+	csvFile, err := listCSV(columnKeys(l), rows)
+	if err != nil {
+		return nil, err
+	}
+	pr, pw := io.Pipe()
+	go func() {
+		zw := zip.NewWriter(pw)
+		err := func() error {
+			f, err := zw.Create(fileSlug(l.Name, "list") + ".csv")
+			if err != nil {
+				return err
+			}
+			if _, err := f.Write(csvFile); err != nil {
+				return err
+			}
+			for _, p := range pictures {
+				if s.blobs == nil {
+					break
+				}
+				data, err := s.blobs.Get(ctx, p.path)
+				if err != nil {
+					s.log.Warn("list zip: a picture is missing", "list", l.ID, "path", p.path, "err", err)
+					continue
+				}
+				// Stored, not deflated: a JPEG doesn't get smaller.
+				f, err := zw.CreateHeader(&zip.FileHeader{Name: p.name, Method: zip.Store, Modified: p.saved})
+				if err != nil {
+					return err
+				}
+				if _, err := f.Write(data); err != nil {
+					return err
+				}
+			}
+			return zw.Close()
+		}()
+		_ = pw.CloseWithError(err)
+	}()
+	return ExportListZip200ApplicationzipResponse{Body: pr}, nil
+}
+
+type zipPicture struct {
+	path, name string
+	saved      time.Time
+}
+
+// zipPictures names the file each row's picture gets in the ZIP
+// ("pictures/0007-cafe-sonne-2026-11-14.jpg") and returns the rows with
+// that name in place of the storage path, so the CSV points at the files.
+// Only this workspace's pictures count; past MaxZipPictures a row keeps an
+// empty image cell.
+func zipPictures(workspaceID string, rows []store.ListRow) ([]store.ListRow, []zipPicture) {
+	out := make([]store.ListRow, len(rows))
+	var pics []zipPicture
+	for i, r := range rows {
+		out[i] = r
+		path, _ := r.Data["image"].(string)
+		if path == "" {
+			continue
+		}
+		data := maps.Clone(r.Data)
+		data["image"] = ""
+		if strings.HasPrefix(path, "images/"+workspaceID+"/") && len(pics) < MaxZipPictures {
+			what := ""
+			for _, k := range []string{"vendor", "name", "title"} {
+				if v, _ := r.Data[k].(string); strings.TrimSpace(v) != "" {
+					what = v
+					break
+				}
+			}
+			name := fmt.Sprintf("pictures/%04d", i+1)
+			if slug := fileSlug(what, ""); slug != "" {
+				name += "-" + slug
+			}
+			if d, _ := r.Data["date"].(string); dateOnly.MatchString(d) {
+				name += "-" + d
+			}
+			name += ".jpg"
+			data["image"] = name
+			pics = append(pics, zipPicture{path: path, name: name, saved: r.CreatedAt})
+		}
+		out[i].Data = data
+	}
+	return out, pics
+}
+
+var dateOnly = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+
+// fileSlug makes a file name part of s: lower case, a to z, digits and
+// dashes, at most 40 characters ("Café Sonne" → "cafe-sonne").
+func fileSlug(s, empty string) string {
+	var b strings.Builder
+	dash := false
+	for _, r := range norm.NFKD.String(strings.ToLower(s)) {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			if dash && b.Len() > 0 {
+				b.WriteByte('-')
+			}
+			dash = false
+			b.WriteRune(r)
+		case unicode.Is(unicode.Mn, r): // the accent of a letter: drop it
+		default:
+			dash = true
+		}
+		if b.Len() >= 40 {
+			break
+		}
+	}
+	if b.Len() == 0 {
+		return empty
+	}
+	return b.String()
 }
 
 func (s *Server) ShareList(ctx context.Context, req ShareListRequestObject) (ShareListResponseObject, error) {

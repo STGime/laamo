@@ -1,0 +1,45 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "receipt-keeper",
+  "name": { "en": "Receipt Keeper", "de": "Belegsammler" },
+  "promise": {
+    "en": "Take a photo of a receipt in the app, or email it to this helper. It reads the vendor, date, total and VAT, you check them, and they land in a list you can export for your bookkeeping.",
+    "de": "Fotografiere einen Beleg in der App oder maile ihn diesem Helfer. Er liest Händler, Datum, Summe und MwSt., du prüfst sie, und sie landen in einer Liste, die du für deine Buchhaltung exportieren kannst."
+  },
+  "category": "sort_emails",
+  "avatar": "🧾",
+  "sort_order": 12,
+  "setup_questions": [],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      { "id": "b1", "type": "when.email", "config": {} },
+      { "id": "b2", "type": "look.read_photo", "config": {} },
+      {
+        "id": "b3",
+        "type": "think.extract",
+        "config": {
+          "fields": ["vendor", "date", "total", "vat_rate", "vat_amount", "currency", "invoice_number"],
+          "only_found": false
+        }
+      },
+      {
+        "id": "b4",
+        "type": "ask.check",
+        "config": { "timeout_h": 168, "on_timeout": "skip" }
+      },
+      {
+        "id": "b5",
+        "type": "do.list",
+        "config": {
+          "list": { "en": "Receipts", "de": "Belege" },
+          "dedupe": "none",
+          "only_new": false
+        }
+      }
+    ],
+    "limits": { "max_cards": 10, "max_external_emails": 0, "max_cost_eur": 0.1 }
+  },
+  "required": { "brain": true }
+}

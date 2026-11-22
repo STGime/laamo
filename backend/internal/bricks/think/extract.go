@@ -28,15 +28,28 @@ var detailHints = map[string]string{
 	"time":    "the start time as HH:MM (24h)",
 	"place":   "where it happens: venue and city",
 	"title":   "a short title of at most 10 words",
+	// A receipt or invoice.
+	"vendor":         "the shop or company the receipt or invoice is from",
+	"total":          "the total amount to pay, tax included: digits with a dot and no currency, e.g. \"11.50\"",
+	"net":            "the total without tax: digits with a dot and no currency, e.g. \"9.66\"",
+	"vat_amount":     "the tax (VAT) amount: digits with a dot and no currency, e.g. \"1.84\"",
+	"vat_rate":       "the tax (VAT) rate in percent, digits only, e.g. \"19\"; several rates as \"7, 19\"",
+	"currency":       "the currency as a three-letter code, e.g. \"EUR\"",
+	"invoice_number": "the receipt or invoice number as printed",
 }
+
+// amountFields are money amounts: kept only when their digits are in the
+// card, so the AI can't add up, round or invent a sum for the books.
+var amountFields = map[string]bool{"total": true, "net": true, "vat_amount": true}
 
 // maxDetailChars caps one pulled-out value.
 const maxDetailChars = 300
 
 var (
-	emailRe = regexp.MustCompile(`^[^@\s<>"]+@[^@\s<>"]+\.[a-z]{2,}$`)
-	dateRe  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-	timeRe  = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
+	emailRe  = regexp.MustCompile(`^[^@\s<>"]+@[^@\s<>"]+\.[a-z]{2,}$`)
+	dateRe   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+	amountRe = regexp.MustCompile(`^\d{1,9}\.\d{1,3}$`)
+	timeRe   = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
 )
 
 // Extract is the Pull out details brick (think.extract): fills the chosen
@@ -152,7 +165,49 @@ func checkDetail(field, v string, c engine.Card) (string, bool) {
 	case "time":
 		return v, timeRe.MatchString(v)
 	}
+	if amountFields[field] {
+		return checkAmount(v, text)
+	}
 	return v, true
+}
+
+// checkAmount tidies a money amount to digits with a dot ("1.234,50 €" →
+// "1234.50") and keeps it only if the card shows it: as written, or without
+// the zeros a receipt may leave out ("12,-" for 12.00).
+func checkAmount(v, text string) (string, bool) {
+	v = strings.Map(func(r rune) rune {
+		if (r >= '0' && r <= '9') || r == '.' || r == ',' {
+			return r
+		}
+		return -1
+	}, v)
+	// The last dot or comma followed by one or two digits is the decimal
+	// mark; the others group thousands.
+	whole, cents := v, ""
+	if i := strings.LastIndexAny(v, ".,"); i >= 0 && len(v)-i-1 >= 1 && len(v)-i-1 <= 2 {
+		whole, cents = v[:i], v[i+1:]
+	}
+	whole = strings.TrimLeft(digitsOf(whole), "0")
+	if whole == "" {
+		whole = "0"
+	}
+	if !amountRe.MatchString(whole + "." + cents + "0") {
+		return "", false
+	}
+	if len(cents) == 1 {
+		cents += "0"
+	}
+	out := whole
+	if cents != "" {
+		out += "." + cents
+	}
+	digits := digitsOf(text)
+	for _, d := range []string{whole + cents, whole + strings.TrimRight(cents, "0")} {
+		if d != "" && d != "0" && strings.Contains(digits, d) {
+			return out, true
+		}
+	}
+	return "", false
 }
 
 // cardText is everything the card says, for checking pulled-out details.

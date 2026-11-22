@@ -20,6 +20,7 @@ export const ready = new Set([
 	'look.read_page',
 	'look.find_businesses',
 	'look.my_stuff',
+	'look.read_photo',
 	'think.summarize',
 	'think.keep',
 	'think.extract',

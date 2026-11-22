@@ -6,6 +6,7 @@ package llm
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,37 @@ import (
 type Message struct {
 	Role    string `json:"role"` // system, user, assistant
 	Content string `json:"content"`
+	// Images are pictures (JPEG) the model looks at with this message, e.g.
+	// a photo of a receipt. The model must be one that reads images
+	// (Mistral Small does).
+	Images [][]byte `json:"-"`
+}
+
+// MarshalJSON writes a message with pictures as the OpenAI-style list of
+// parts (text, then each picture as a data URL); one without stays a plain
+// string, as every provider expects.
+func (m Message) MarshalJSON() ([]byte, error) {
+	if len(m.Images) == 0 {
+		type plain Message
+		return json.Marshal(plain(m))
+	}
+	type imageURL struct {
+		URL string `json:"url"`
+	}
+	type part struct {
+		Type     string    `json:"type"`
+		Text     string    `json:"text,omitempty"`
+		ImageURL *imageURL `json:"image_url,omitempty"`
+	}
+	parts := []part{{Type: "text", Text: m.Content}}
+	for _, img := range m.Images {
+		parts = append(parts, part{Type: "image_url",
+			ImageURL: &imageURL{URL: "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(img)}})
+	}
+	return json.Marshal(struct {
+		Role    string `json:"role"`
+		Content []part `json:"content"`
+	}{m.Role, parts})
 }
 
 // Request is one chat completion.

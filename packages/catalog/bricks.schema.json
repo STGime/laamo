@@ -525,7 +525,8 @@
             "summary",
             "draft",
             "event",
-            "image"
+            "image",
+            "photo"
           ]
         },
         "needs": {

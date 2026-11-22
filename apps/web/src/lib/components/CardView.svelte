@@ -1,9 +1,9 @@
-<!-- One card from a pile (a search result, a business, a draft). With `edits`, text fields become editable. -->
+<!-- One card from a pile (a search result, a business, a draft, a photo of a receipt). With `edits`, text fields become editable. -->
 <script lang="ts">
 	import type { Schemas } from '#lib/api/client.ts';
-	import { t, type Key } from '#lib/i18n/index.svelte.ts';
+	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
 	import { mailto, safeURL } from '#lib/links.ts';
-	import { osmSource } from '#lib/lists.ts';
+	import { columnLabel, osmSource } from '#lib/lists.ts';
 	import MapThumb from './MapThumb.svelte';
 	import Picture from './Picture.svelte';
 
@@ -17,7 +17,28 @@
 		const v = card.fields[k];
 		return typeof v === 'string' ? v.trim() : '';
 	};
-	const heading = $derived(text('title') || text('name') || text('subject') || text('page_title'));
+	// A photo the helper read (Read the photo), e.g. a receipt: the details
+	// pulled out of it. All of them can be corrected or filled in, also the
+	// ones that weren't found.
+	const RECEIPT = [
+		'vendor',
+		'date',
+		'total',
+		'net',
+		'vat_rate',
+		'vat_amount',
+		'currency',
+		'invoice_number'
+	];
+	const photo = $derived(card.kind === 'photo');
+	const details = $derived(photo ? RECEIPT.filter((k) => k in card.fields) : []);
+	const heading = $derived(
+		text('title') ||
+			text('name') ||
+			text('subject') ||
+			text('page_title') ||
+			(photo ? text('vendor') || text('image_alt') : '')
+	);
 	const body = $derived(text('summary') || text('body') || text('snippet') || text('page_text'));
 	const email = $derived(text('email'));
 	const host = $derived.by(() => {
@@ -32,7 +53,12 @@
 	});
 	// Fields a person may change before something goes out.
 	const href = $derived(safeURL(text('url') || text('website')));
-	const editable = $derived(['email', 'subject', 'title', 'body'].filter((k) => text(k) !== ''));
+	const editable = $derived([
+		...['email', 'subject', 'title', 'body'].filter((k) => text(k) !== ''),
+		...details
+	]);
+	const label = (k: string) =>
+		RECEIPT.includes(k) ? columnLabel(k, i18n.lang) : t(`field.${k}` as Key);
 	const untrusted = (k: string) => card.trust[k] === 'untrusted';
 	// An email the helper received: who sent it, and whether Laamo could
 	// check the sender (anyone can write any From).
@@ -96,7 +122,7 @@
 	{#if editing}
 		{#each editable as k (k)}
 			<label>
-				<span>{t(`field.${k}` as Key)}</span>
+				<span>{label(k)}</span>
 				{#if k === 'body'}
 					<textarea rows="5" value={value(k)} oninput={(e) => set(k, e.currentTarget.value)}
 					></textarea>
@@ -110,7 +136,19 @@
 			</label>
 		{/each}
 	{:else}
-		{#if heading}<h3 class="display">{edits?.title ?? edits?.subject ?? heading}</h3>{/if}
+		{#if heading}<h3 class="display">
+				{edits?.title ?? edits?.subject ?? (photo ? edits?.vendor : undefined) ?? heading}
+			</h3>{/if}
+		{#if details.length}
+			<dl class="details">
+				{#each details as k (k)}
+					<div>
+						<dt>{label(k)}</dt>
+						<dd>{value(k) || '–'}</dd>
+					</div>
+				{/each}
+			</dl>
+		{/if}
 		{#if sender}
 			<p class="host">
 				✉️ {sender} · {t(senderChecked ? 'feed.senderChecked' : 'feed.senderNotChecked')}
@@ -210,6 +248,26 @@
 	.facts {
 		margin: var(--space-1) 0 0;
 		font-size: var(--text-sm);
+	}
+	.details {
+		display: grid;
+		gap: var(--space-1);
+		margin: var(--space-1) 0 0;
+	}
+	.details div {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+	.details dt {
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.details dd {
+		margin: 0;
+		font-weight: 600;
+		text-align: right;
+		overflow-wrap: anywhere;
 	}
 	.facts {
 		color: var(--muted);
