@@ -306,9 +306,12 @@ export const en = {
 	'tpl.justHereHint': 'Only this helper uses it; your About me stays as it is.',
 	'tpl.remember': 'I’ll remember this for all your helpers.',
 	'tpl.feedOnly': 'Just in my Feed',
-	'tpl.test': 'Try it now',
+	'tpl.test': 'Add and try it',
 	'tpl.testHint':
-		'A test run uses at most 3 results. Your chat gets them marked as a test; nothing goes to anyone else, and your lists stay as they are.',
+		'Adds the helper to your helpers and runs it once as a test. A test run uses at most 3 results. Your chat gets them marked as a test; nothing goes to anyone else, and your lists stay as they are.',
+	'tpl.add': 'Add this helper',
+	'tpl.addHint':
+		'Adds the helper to your helpers. Then take a photo on its page, or email one to its address.',
 	'tpl.failed': 'That didn’t work: {error}',
 	'helpers.runNow': 'Run now',
 	'helpers.started': 'Started. Results land in your Feed.',

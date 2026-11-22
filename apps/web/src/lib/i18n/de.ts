@@ -315,9 +315,12 @@ export const de: Record<Key, string> = {
 	'tpl.justHereHint': 'Nur dieser Helfer nutzt es; dein „Über mich“ bleibt, wie es ist.',
 	'tpl.remember': 'Das merke ich mir für alle deine Helfer.',
 	'tpl.feedOnly': 'Nur in meinem Feed',
-	'tpl.test': 'Jetzt ausprobieren',
+	'tpl.test': 'Hinzufügen und ausprobieren',
 	'tpl.testHint':
-		'Ein Testlauf nimmt höchstens 3 Ergebnisse. Dein Chat bekommt sie als Test markiert; an andere geht nichts raus, und deine Listen bleiben, wie sie sind.',
+		'Fügt den Helfer zu deinen Helfern hinzu und lässt ihn einmal als Test laufen. Ein Testlauf nimmt höchstens 3 Ergebnisse. Dein Chat bekommt sie als Test markiert; an andere geht nichts raus, und deine Listen bleiben, wie sie sind.',
+	'tpl.add': 'Diesen Helfer hinzufügen',
+	'tpl.addHint':
+		'Fügt den Helfer zu deinen Helfern hinzu. Mach dann auf seiner Seite ein Foto oder maile eins an seine Adresse.',
 	'tpl.failed': 'Das hat nicht geklappt: {error}',
 	'helpers.runNow': 'Jetzt ausführen',
 	'helpers.started': 'Läuft. Die Ergebnisse landen in deinem Feed.',
