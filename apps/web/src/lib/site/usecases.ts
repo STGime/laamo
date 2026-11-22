@@ -1,7 +1,8 @@
 // Use-case pages (/use-cases/<slug>): one page per thing a helper does,
 // written for people searching for that task. Customer Finder, Morning
-// Briefing and Weekend Scout are ready-made helpers on the Shelf; the others
-// are built from the same bricks. Same copy rules as copy.ts.
+// Briefing, Weekend Scout and Receipt Keeper are ready-made helpers on the
+// Shelf; the others are built from the same bricks. Same copy rules as
+// copy.ts.
 import type { Lang } from '#lib/i18n/index.svelte.ts';
 import type { Stack } from './copy.ts';
 
@@ -310,6 +311,76 @@ export const USE_CASES: UseCase[] = [
 				questions: ['Welche E-Mails sind dringend?', 'Wo soll ich dir Bescheid geben?'],
 				notes: [
 					'Der Helfer liest nur die E-Mails, die du an seine eigene Adresse weiterleitest. Auf dein Postfach hat er keinen Zugriff.'
+				]
+			}
+		}
+	},
+	{
+		slug: 'receipt-keeper',
+		avatar: '🧾',
+		text: {
+			en: {
+				name: 'Receipt Keeper',
+				title: 'Photograph a receipt, get it into a list for your bookkeeping.',
+				metaTitle: 'Scan receipts with your phone and export them as CSV · Laamo',
+				description:
+					'Take a photo of a receipt, or email it to your helper. It reads the vendor, date, total and VAT, you check them, and they land in a list you can download as a spreadsheet, with the photos.',
+				problem:
+					'Receipts pile up in a wallet, a glove box and a drawer. At the end of the quarter someone types them into a spreadsheet, one by one, and half of the thermal paper has faded.',
+				how: 'Open the helper on your phone and tap Take a photo. It reads what is printed on the receipt and pulls out the vendor, the date, the total, the VAT rate and amount and the receipt number. You see the photo next to the details and correct anything it misread. Then it becomes a row in your Receipts list. A long receipt can be taken in several photos, which are read as one.',
+				stack: [
+					{ group: 'when', text: 'When I take a photo or email one' },
+					{ group: 'look', text: 'Read the photos' },
+					{ group: 'think', text: 'Pull out vendor, date, total and VAT' },
+					{ group: 'ask', text: 'Check first' },
+					{ group: 'do', text: 'Save to my Receipts list' }
+				],
+				result: {
+					title: 'Receipt from a hardware store',
+					lines: [
+						'Date 20.11.2026 · Total 7.80 EUR',
+						'VAT 19 %: 1.25 · Receipt no. 06404 20 2747 0920',
+						'Approve · Edit · Skip'
+					]
+				},
+				questions: ['None. Add the helper and take your first photo.'],
+				notes: [
+					'An amount is only kept when its digits are on the receipt. If the helper can’t read one, the field stays empty for you to fill in.',
+					'Small print reads best close up. For a long receipt, take two or three photos from top to bottom.',
+					'The list downloads as a CSV file, or as a ZIP file with every photo, named to match its row. Laamo collects and prepares your receipts; the legal archive stays with you or your accounting software.',
+					'Receipts as PDF files are not read yet. Photos and pictures are.'
+				]
+			},
+			de: {
+				name: 'Belegsammler',
+				title: 'Beleg fotografieren, in einer Liste für die Buchhaltung haben.',
+				metaTitle: 'Belege mit dem Handy scannen und als CSV exportieren · Laamo',
+				description:
+					'Fotografiere einen Beleg oder maile ihn deinem Helfer. Er liest Händler, Datum, Summe und MwSt., du prüfst sie, und sie landen in einer Liste, die du als Tabelle herunterladen kannst, samt Fotos.',
+				problem:
+					'Belege sammeln sich im Portemonnaie, im Handschuhfach und in einer Schublade. Am Quartalsende tippt jemand sie einzeln in eine Tabelle, und die Hälfte des Thermopapiers ist verblasst.',
+				how: 'Öffne den Helfer am Handy und tippe auf „Foto aufnehmen“. Er liest, was auf dem Beleg steht, und zieht Händler, Datum, Summe, MwSt.-Satz und -Betrag sowie die Belegnummer heraus. Du siehst das Foto neben den Angaben und korrigierst, was er falsch gelesen hat. Dann wird daraus eine Zeile in deiner Belege-Liste. Einen langen Beleg kannst du in mehreren Fotos aufnehmen, die als eins gelesen werden.',
+				stack: [
+					{ group: 'when', text: 'Wenn ich ein Foto aufnehme oder maile' },
+					{ group: 'look', text: 'Die Fotos lesen' },
+					{ group: 'think', text: 'Händler, Datum, Summe und MwSt. herausziehen' },
+					{ group: 'ask', text: 'Erst prüfen' },
+					{ group: 'do', text: 'In meiner Belege-Liste speichern' }
+				],
+				result: {
+					title: 'Beleg aus dem Baumarkt',
+					lines: [
+						'Datum 20.11.2026 · Summe 7,80 EUR',
+						'MwSt. 19 %: 1,25 · Beleg-Nr. 06404 20 2747 0920',
+						'Freigeben · Ändern · Überspringen'
+					]
+				},
+				questions: ['Keine. Füg den Helfer hinzu und mach dein erstes Foto.'],
+				notes: [
+					'Ein Betrag wird nur übernommen, wenn seine Ziffern auf dem Beleg stehen. Kann der Helfer einen nicht lesen, bleibt das Feld leer, und du trägst ihn ein.',
+					'Kleine Schrift liest sich am besten aus der Nähe. Nimm einen langen Beleg in zwei oder drei Fotos auf, von oben nach unten.',
+					'Die Liste lädst du als CSV-Datei herunter oder als ZIP-Datei mit allen Fotos, passend zur Zeile benannt. Laamo sammelt deine Belege und bereitet sie vor; das rechtssichere Archiv bleibt bei dir oder deiner Buchhaltungssoftware.',
+					'Belege als PDF-Datei werden noch nicht gelesen. Fotos und Bilder schon.'
 				]
 			}
 		}
