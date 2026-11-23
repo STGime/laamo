@@ -12,9 +12,9 @@
 
 	// Screens that work signed out (and the dev ones). The public site
 	// (routes/(site)) has its own layout.
-	const OPEN = ['/try', '/start', '/auth/callback', '/signin', '/kit'];
+	const OPEN = ['/start', '/auth/callback', '/signin', '/kit'];
 	// Screens without the tab bar.
-	const BARE = ['/try', '/start', '/auth/callback', '/signin', '/welcome'];
+	const BARE = ['/start', '/auth/callback', '/signin', '/welcome'];
 	const path = $derived(page.url.pathname);
 	// A shared list is public too.
 	const shared = $derived(path.startsWith('/shared/'));

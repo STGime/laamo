@@ -4,19 +4,45 @@
 	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import Brick from '#lib/components/Brick.svelte';
 	import { copy, type Stack } from '#lib/site/copy.ts';
+	import { INDUSTRIES, INDUSTRY_UI } from '#lib/site/industries.ts';
 	import Seo from '#lib/site/Seo.svelte';
-	import { localPath, SITE_URL } from '#lib/site/site.ts';
+	import { jsonLD, localPath, organizationLD, pageURL, SITE_URL } from '#lib/site/site.ts';
 	import { UI, USE_CASES } from '#lib/site/usecases.ts';
 	import WaitlistForm from '#lib/site/WaitlistForm.svelte';
 
 	let { data } = $props();
 	const c = $derived(copy[data.lang]);
 
-	// FAQ as structured data, so search results can show the answers.
-	const faqLD = $derived(
-		JSON.stringify({
+	// Structured data: what Laamo is (an app for small businesses), who makes
+	// it, and the FAQ, so search engines and AI assistants can say it right.
+	const ld = $derived(
+		jsonLD({
 			'@context': 'https://schema.org',
 			'@graph': [
+				{
+					'@type': 'WebSite',
+					'@id': `${SITE_URL}/#website`,
+					name: 'Laamo',
+					alternateName: `Laamo: ${c.category}`,
+					url: pageURL('/', data.lang),
+					inLanguage: data.lang,
+					publisher: { '@id': `${SITE_URL}/#organization` }
+				},
+				{
+					'@type': 'SoftwareApplication',
+					'@id': `${SITE_URL}/#app`,
+					name: 'Laamo',
+					alternateName: `Laamo: ${c.category}`,
+					description: c.meta.description,
+					url: pageURL('/', data.lang),
+					applicationCategory: 'BusinessApplication',
+					operatingSystem: 'Web',
+					inLanguage: ['en', 'de'],
+					audience: { '@type': 'BusinessAudience', name: 'Small businesses' },
+					featureList: USE_CASES.filter((u) => !u.soon).map((u) => u.text[data.lang].name),
+					publisher: { '@id': `${SITE_URL}/#organization` }
+				},
+				organizationLD(),
 				{
 					'@type': 'FAQPage',
 					mainEntity: c.faq.items.map((i) => ({
@@ -24,22 +50,15 @@
 						name: i.q,
 						acceptedAnswer: { '@type': 'Answer', text: i.a }
 					}))
-				},
-				{
-					'@type': 'Organization',
-					name: 'Laamo',
-					url: SITE_URL,
-					logo: `${SITE_URL}/logo.png`,
-					parentOrganization: { '@type': 'Organization', name: 'Eurobase OÜ' }
 				}
 			]
-		}).replace(/</g, '\\u003c')
+		})
 	);
 </script>
 
 <Seo title={c.meta.title} description={c.meta.description} lang={data.lang} path="/" />
 <svelte:head>
-	{@html `<script type="application/ld+json">${faqLD}</script>`}
+	{@html `<script type="application/ld+json">${ld}</script>`}
 </svelte:head>
 
 {#snippet stack(s: Stack)}
@@ -142,12 +161,23 @@
 			</li>
 		{/each}
 	</ul>
+	<h3 class="kinds">{INDUSTRY_UI[data.lang].listTitle}</h3>
+	<ul class="cases">
+		{#each INDUSTRIES as ind (ind.slug)}
+			<li>
+				<a href={localPath(`/for/${ind.slug}`, data.lang)}
+					><HelperIcon avatar={ind.avatar} size={28} />
+					{ind.text[data.lang].name}</a
+				>
+			</li>
+		{/each}
+	</ul>
 </section>
 
 <section class="try">
 	<h2>{c.tryIt.title}</h2>
 	<p>{c.tryIt.body}</p>
-	<a class="btn wide" href="/try">{c.tryIt.button}</a>
+	<a class="btn wide" href={localPath('/try', data.lang)}>{c.tryIt.button}</a>
 </section>
 
 <section>
@@ -355,5 +385,9 @@
 	}
 	.end {
 		padding-bottom: var(--space-7);
+	}
+	.kinds {
+		margin: var(--space-5) 0 var(--space-2);
+		font-size: var(--text-lg);
 	}
 </style>

@@ -44,6 +44,56 @@
 			color: 'red',
 			d: 'M2.5 6.5h19V10a2 2 0 0 0 0 4v3.5h-19V14a2 2 0 0 0 0-4zM15 8h1.5v2H15zM15 11h1.5v2H15zM15 14h1.5v2H15z'
 		},
+		// Business List Builder: a list on a sheet
+		'📋': {
+			color: 'blue',
+			d: 'M5 3h14v18H5zM8 7h1.8v1.8H8zM11 7h5v1.8h-5zM8 11h1.8v1.8H8zM11 11h5v1.8h-5zM8 15h1.8v1.8H8zM11 15h5v1.8h-5z'
+		},
+		// Tender Finder: a public building
+		'🏛': {
+			color: 'purple',
+			d: 'M12 2.5 21.5 8v2h-19V8zM4.5 11.5h3v6h-3zM10.5 11.5h3v6h-3zM16.5 11.5h3v6h-3zM3 18.500h18v3H3z'
+		},
+		// Mention Watch: a speech bubble
+		'💬': {
+			color: 'yellow',
+			d: 'M3 4h18v12.5h-9.500L7 21v-4.500H3zM7 8.500h10v1.800H7zM7 12h7v1.800H7z'
+		},
+		// Price Checker: a price tag
+		'🏷': {
+			color: 'green',
+			d: 'M3 3h8.500L21 12.5 12.5 21 3 11.500zM7.5 5.800a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.400z'
+		},
+		// Reply Drafter: an envelope
+		'✉': {
+			color: 'blue',
+			d: 'M2.5 5h19v14h-19zM5.2 7.2 12 12.300l6.8-5.100v-.200H5.200zM4.7 9.300V16.800h14.600V9.300L12 14.800z'
+		},
+		// Trade Fair Scout: a tent
+		'🎪': {
+			color: 'red',
+			d: 'M12 2.5 22 20.500H2zM12 9.5 9.3 18.300h5.400z'
+		},
+		// Cafés and restaurants: a cup
+		'☕': {
+			color: 'yellow',
+			d: 'M4 8h13v2h1.5a3 3 0 0 1 0 6H17v.5a3.5 3.5 0 0 1-3.5 3.5h-6A3.5 3.5 0 0 1 4 16.5zM17 12v2h1.5a1 1 0 0 0 0-2zM7 3h1.8v3.5H7zM11 3h1.8v3.5H11z'
+		},
+		// Trades and crafts: a wrench
+		'🔧': {
+			color: 'blue',
+			d: 'M14.5 3a5.5 5.5 0 0 1 5.3 7l-3.3-.900-1.6-1.6-.900-3.300L17 3.200A5.5 5.5 0 0 0 14.5 3zM13.2 3.200l.900 3.3-2.4 2.400L4 16.6 7.4 20l7.7-7.7 2.4-2.4 3.3.900a5.5 5.5 0 0 1-7.1 3.900L7.4 21 3 16.600l6.3-6.300a5.5 5.5 0 0 1 3.9-7.100z'
+		},
+		// Freelancers: a briefcase
+		'💼': {
+			color: 'purple',
+			d: 'M9 3h6l1.5 3H21v14H3V6h4.500zM10.2 5l-.5 1h4.600l-.5-1zM5 11.500h14v-1.800H5zM10.5 13h3v2h-3z'
+		},
+		// Shops: a shopping bag
+		'🛍': {
+			color: 'green',
+			d: 'M5 8h14l1.5 13h-17zM8 8a4 4 0 0 1 8 0h-1.800a2.2 2.2 0 0 0-4.4 0zM8 11h1.800v2H8zM14.2 11H16v2h-1.800z'
+		},
 		// Any helper without a picture: three bricks
 		'🧱': {
 			color: 'gray',

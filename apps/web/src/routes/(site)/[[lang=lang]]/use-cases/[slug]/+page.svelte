@@ -4,7 +4,7 @@
 	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { copy } from '#lib/site/copy.ts';
 	import Seo from '#lib/site/Seo.svelte';
-	import { localPath } from '#lib/site/site.ts';
+	import { jsonLD, localPath, organizationLD, pageURL } from '#lib/site/site.ts';
 	import Stack from '#lib/site/Stack.svelte';
 	import { UI, USE_CASES } from '#lib/site/usecases.ts';
 	import WaitlistForm from '#lib/site/WaitlistForm.svelte';
@@ -14,9 +14,62 @@
 	const t = $derived(u.text[data.lang]);
 	const ui = $derived(UI[data.lang]);
 	const others = $derived(USE_CASES.filter((o) => o.slug !== u.slug));
+
+	// Structured data: where the page sits in the site, and the helper's steps
+	// as a how-to (its bricks, one sentence each).
+	const ld = $derived(
+		jsonLD({
+			'@context': 'https://schema.org',
+			'@graph': [
+				{
+					'@type': 'BreadcrumbList',
+					itemListElement: [
+						{ '@type': 'ListItem', position: 1, name: 'Laamo', item: pageURL('/', data.lang) },
+						{
+							'@type': 'ListItem',
+							position: 2,
+							name: ui.all,
+							item: pageURL('/use-cases', data.lang)
+						},
+						{
+							'@type': 'ListItem',
+							position: 3,
+							name: t.name,
+							item: pageURL(`/use-cases/${u.slug}`, data.lang)
+						}
+					]
+				},
+				{
+					'@type': 'HowTo',
+					name: t.title,
+					description: t.description,
+					inLanguage: data.lang,
+					tool: { '@type': 'HowToTool', name: `Laamo (${copy[data.lang].category})` },
+					step: t.stack.map((b, i) => ({ '@type': 'HowToStep', position: i + 1, text: b.text })),
+					publisher: { '@id': organizationLD()['@id'] }
+				},
+				organizationLD(),
+				...(t.faq?.length
+					? [
+							{
+								'@type': 'FAQPage',
+								mainEntity: t.faq.map((i) => ({
+									'@type': 'Question',
+									name: i.q,
+									acceptedAnswer: { '@type': 'Answer', text: i.a }
+								}))
+							}
+						]
+					: [])
+			]
+		})
+	);
 </script>
 
 <Seo title={t.metaTitle} description={t.description} lang={data.lang} path="/use-cases/{u.slug}" />
+<svelte:head>
+	{@html `<script type="application/ld+json">${ld}</script>`}
+</svelte:head>
 
 <section class="top">
 	<p class="crumb"><a href={localPath('/use-cases', data.lang)}>{ui.all}</a></p>
@@ -48,8 +101,20 @@
 		{#each t.questions as q, i (i)}<li>{q}</li>{/each}
 	</ol>
 	{#each t.notes as n, i (i)}<p class="note">{n}</p>{/each}
-	{#if u.demo}<a class="btn wide outline" href="/try">{ui.tryIt}</a>{/if}
+	{#if u.demo}<a class="btn wide outline" href={localPath('/try', data.lang)}>{ui.tryIt}</a>{/if}
 </section>
+
+{#if t.faq?.length}
+	<section>
+		<h2>{ui.faq}</h2>
+		<dl class="faq">
+			{#each t.faq as f (f.q)}
+				<dt>{f.q}</dt>
+				<dd>{f.a}</dd>
+			{/each}
+		</dl>
+	</section>
+{/if}
 
 <section>
 	<h2>{ui.join}</h2>
@@ -163,5 +228,15 @@
 		color: var(--ink);
 		font-weight: 700;
 		text-decoration: none;
+	}
+	.faq {
+		margin: 0;
+	}
+	.faq dt {
+		margin-top: var(--space-4);
+		font-weight: 700;
+	}
+	.faq dd {
+		margin: var(--space-1) 0 0;
 	}
 </style>

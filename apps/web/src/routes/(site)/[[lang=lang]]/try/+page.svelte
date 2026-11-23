@@ -1,13 +1,24 @@
-<!-- Try before sign-up (#75): one sample helper, a real result in about 15 seconds, then keep it. -->
+<!-- Try before sign-up (#75): one sample helper, a real result in about 15 seconds, then keep it.
+     A page of the public site (prerendered, /try and /de/try), so people and
+     search engines can read what it is before anything runs. -->
 <script lang="ts">
 	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { goto } from '$app/navigation';
 	import { api, type Schemas } from '#lib/api/client.ts';
 	import { guessCity, savePending, solve, type DemoTemplate } from '#lib/demo.ts';
-	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
+	import { t as translate, type Key } from '#lib/i18n/index.svelte.ts';
 	import { hostOf, safeURL } from '#lib/links.ts';
 	import { cities } from '#lib/cities.ts';
+	import { copy } from '#lib/site/copy.ts';
+	import Seo from '#lib/site/Seo.svelte';
 	import { localPath } from '#lib/site/site.ts';
+
+	let { data } = $props();
+	// The page's language is the URL's (/try or /de/try), like the rest of the site.
+	const lang = $derived(data.lang);
+	const t = (key: Key, params: Record<string, string | number> = {}) =>
+		translate(key, params, lang);
+	const meta = $derived(copy[lang].tryPage);
 
 	const choices: { slug: DemoTemplate; avatar: string; name: Key; what: Key }[] = [
 		{ slug: 'morning-briefing', avatar: '📰', name: 'landing.ex1.name', what: 'try.mb' },
@@ -16,7 +27,12 @@
 
 	let template = $state<DemoTemplate>('morning-briefing');
 	let business = $state('');
-	let city = $state(guessCity());
+	let city = $state('');
+	// A first guess from the visitor's time zone (in the browser only: the
+	// page itself is built ahead of time).
+	$effect(() => {
+		if (!city) city = guessCity();
+	});
 	let busy = $state(false);
 	let seconds = $state(0);
 	let error = $state<Key | ''>('');
@@ -44,7 +60,7 @@
 			const { data, response } = await api.POST('/demo/runs', {
 				body: {
 					template,
-					lang: i18n.lang,
+					lang,
 					city: city.trim(),
 					business: needsBusiness ? business.trim() : undefined,
 					timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -76,7 +92,7 @@
 		});
 		// Invite-only: the waiting list. Signing in on this device later
 		// still makes the helper.
-		goto(localPath('/', i18n.lang));
+		goto(localPath('/', lang));
 	}
 
 	const links = $derived(
@@ -88,9 +104,9 @@
 	const cards = $derived((result?.cards ?? []).filter((c) => c.title));
 </script>
 
-<div class="wrap">
-	<a class="logo display" href="/">Laamo</a>
+<Seo title={meta.title} description={meta.description} {lang} path="/try" />
 
+<div class="wrap">
 	{#if result}
 		<article class="card">
 			<p class="who">
@@ -186,7 +202,15 @@
 					})}{:else}{t('try.go')}{/if}
 			</button>
 		</form>
-		<a class="signup" href={localPath('/', i18n.lang)}>{t('try.skip')}</a>
+		<a class="signup" href={localPath('/', lang)}>{t('try.skip')}</a>
+		<!-- What happens, in words: for people who read first, and for search. -->
+		<section class="about">
+			<h2>{meta.howTitle}</h2>
+			<ol>
+				{#each meta.steps as step, i (i)}<li>{step}</li>{/each}
+			</ol>
+			{#each meta.notes as note, i (i)}<p>{note}</p>{/each}
+		</section>
 		<datalist id="cities">
 			{#each cities as c (c)}<option value={c}></option>{/each}
 		</datalist>
@@ -197,12 +221,26 @@
 	.wrap {
 		padding: var(--space-6) var(--gutter) var(--space-7);
 	}
-	.logo {
-		display: inline-block;
-		margin-bottom: var(--space-6);
-		color: var(--accent);
-		font-size: var(--text-h2);
-		text-decoration: none;
+	.about {
+		margin-top: var(--space-6);
+		padding-top: var(--space-5);
+		border-top: var(--border);
+		color: var(--muted);
+	}
+	.about h2 {
+		margin: 0 0 var(--space-3);
+		color: var(--ink);
+		font-size: var(--text-lg);
+	}
+	.about ol {
+		margin: 0 0 var(--space-3);
+		padding-left: var(--space-5);
+	}
+	.about li {
+		margin-bottom: var(--space-1);
+	}
+	.about p {
+		margin: 0 0 var(--space-2);
 	}
 	.lead {
 		margin: var(--space-3) 0 var(--space-5);

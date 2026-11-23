@@ -2,6 +2,7 @@
 <script lang="ts">
 	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { copy } from '#lib/site/copy.ts';
+	import { INDUSTRIES, INDUSTRY_UI } from '#lib/site/industries.ts';
 	import Seo from '#lib/site/Seo.svelte';
 	import { localPath } from '#lib/site/site.ts';
 	import { UI, USE_CASES } from '#lib/site/usecases.ts';
@@ -33,6 +34,29 @@
 	{/each}
 </ul>
 
+<section class="kinds">
+	<h2>{INDUSTRY_UI[data.lang].listTitle}</h2>
+	<ul class="list plain">
+		{#each INDUSTRIES as ind (ind.slug)}
+			{@const it = ind.text[data.lang]}
+			<li>
+				<a href={localPath(`/for/${ind.slug}`, data.lang)}>
+					<HelperIcon avatar={ind.avatar} size={40} />
+					<span>
+						<b>{it.name}</b>
+						<span class="desc">{it.description}</span>
+					</span>
+				</a>
+			</li>
+		{/each}
+	</ul>
+</section>
+
+<section class="what">
+	<h2>{ui.whatTitle}</h2>
+	{#each ui.what as p, i (i)}<p>{p}</p>{/each}
+</section>
+
 <style>
 	section {
 		padding: var(--space-5) var(--gutter) var(--space-4);
@@ -47,7 +71,7 @@
 	}
 	.list {
 		list-style: none;
-		margin: 0 0 var(--space-7);
+		margin: 0 0 var(--space-5);
 		padding: 0;
 		border-top: var(--border);
 	}
@@ -67,6 +91,26 @@
 		display: block;
 		margin-top: var(--space-1);
 		color: var(--muted);
+	}
+	.kinds {
+		padding-left: 0;
+		padding-right: 0;
+	}
+	.kinds h2 {
+		margin: 0 0 var(--space-4);
+		padding: 0 var(--gutter);
+	}
+	.list.plain {
+		margin-bottom: 0;
+	}
+	.what {
+		padding-bottom: var(--space-7);
+	}
+	.what h2 {
+		margin: 0 0 var(--space-3);
+	}
+	.what p {
+		margin: 0 0 var(--space-3);
 	}
 	.soon {
 		margin-left: var(--space-2);

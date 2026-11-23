@@ -5,6 +5,7 @@
 // copy.ts.
 import type { Lang } from '#lib/i18n/index.svelte.ts';
 import type { Stack } from './copy.ts';
+import { TASK_USE_CASES } from './usecases-tasks.ts';
 
 export interface UseCaseText {
 	/** Short name in lists and links. */
@@ -21,6 +22,8 @@ export interface UseCaseText {
 	/** What you answer when you set it up. */
 	questions: string[];
 	notes: string[];
+	/** Questions people ask about this task, with short answers. */
+	faq?: { q: string; a: string }[];
 }
 
 export interface UseCase {
@@ -516,7 +519,8 @@ export const USE_CASES: UseCase[] = [
 				notes: ['Probier es jetzt ohne Konto aus: Wähle den Wochenend-Scout auf der Demo-Seite.']
 			}
 		}
-	}
+	},
+	...TASK_USE_CASES
 ];
 
 export function useCase(slug: string): UseCase | undefined {
@@ -530,10 +534,14 @@ export const UI: Record<
 		listTitle: string;
 		listMeta: string;
 		listLead: string;
+		/** What a helper is, in a few paragraphs (the list page). */
+		whatTitle: string;
+		what: string[];
 		problem: string;
 		how: string;
 		result: string;
 		setup: string;
+		faq: string;
 		others: string;
 		join: string;
 		joinBody: string;
@@ -547,10 +555,17 @@ export const UI: Record<
 			'Helpers for small businesses: find customers, watch competitors, sum up news and emails · Laamo',
 		listLead:
 			'Each helper is a short stack of bricks you can change. Start with one of these, or describe your own.',
+		whatTitle: 'What is a helper?',
+		what: [
+			'A helper is a small AI agent for one recurring task. It is a short stack of bricks: when it runs, where it looks, what it thinks about, what it does with the result, and when it asks you first.',
+			'You don’t write prompts or connect tools. You pick a helper, answer up to three questions in your own words, and it runs on its schedule. The result lands in your Feed, in your chat or in a list you can download.',
+			'Every brick can be changed, and you can stack your own from nothing. Anything a helper wants to send to someone else waits for your OK.'
+		],
 		problem: 'The problem',
 		how: 'How the helper does it',
 		result: 'What lands in your Feed',
 		setup: 'You set it up with',
+		faq: 'Questions',
 		others: 'More helpers',
 		join: 'Get your invite',
 		joinBody: "Join the waiting list and we'll write when it's your turn.",
@@ -563,10 +578,17 @@ export const UI: Record<
 			'Helfer für kleine Unternehmen: Kunden finden, Mitbewerber beobachten, Nachrichten und E-Mails zusammenfassen · Laamo',
 		listLead:
 			'Jeder Helfer ist ein kurzer Stapel Bausteine, den du ändern kannst. Fang mit einem davon an oder beschreib deinen eigenen.',
+		whatTitle: 'Was ist ein Helfer?',
+		what: [
+			'Ein Helfer ist ein kleiner KI-Agent für eine wiederkehrende Aufgabe. Er ist ein kurzer Stapel Bausteine: wann er läuft, wo er nachsieht, worüber er nachdenkt, was er mit dem Ergebnis tut und wann er dich erst fragt.',
+			'Du schreibst keine Prompts und verbindest keine Werkzeuge. Du suchst dir einen Helfer aus, beantwortest bis zu drei Fragen in deinen eigenen Worten, und er läuft nach seinem Zeitplan. Das Ergebnis landet in deinem Feed, in deinem Chat oder in einer Liste zum Herunterladen.',
+			'Jeder Baustein lässt sich ändern, und du kannst deinen eigenen Stapel von null aufbauen. Alles, was ein Helfer an jemand anderen schicken will, wartet auf dein OK.'
+		],
 		problem: 'Das Problem',
 		how: 'So macht es der Helfer',
 		result: 'Was in deinem Feed landet',
 		setup: 'Du richtest ihn ein mit',
+		faq: 'Fragen',
 		others: 'Weitere Helfer',
 		join: 'Hol dir deine Einladung',
 		joinBody: 'Trag dich in die Warteliste ein, und wir schreiben dir, wenn du dran bist.',

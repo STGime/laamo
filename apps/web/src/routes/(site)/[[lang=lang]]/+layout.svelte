@@ -1,6 +1,7 @@
 <!-- The public site's frame: logo, language switch, sign-in; footer with who runs it. -->
 <script lang="ts">
 	import { t } from '#lib/i18n/index.svelte.ts';
+	import { copy } from '#lib/site/copy.ts';
 	import { localPath } from '#lib/site/site.ts';
 	import { LEGAL, LEGAL_SLUGS } from '#lib/site/legal.ts';
 	import { UI } from '#lib/site/usecases.ts';
@@ -42,7 +43,11 @@
 	</main>
 
 	<footer>
-		<p><a href={localPath('/use-cases', lang)}>{UI[lang].all}</a></p>
+		<p class="what"><strong>Laamo</strong>: {copy[lang].category}.</p>
+		<p>
+			<a href={localPath('/use-cases', lang)}>{UI[lang].all}</a>
+			<a href={localPath('/try', lang)}>{copy[lang].tryIt.button}</a>
+		</p>
 		<p class="legal">
 			{#each LEGAL_SLUGS as s (s)}<a href={localPath(`/${s}`, lang)}>{LEGAL[lang][s].title}</a
 				>{/each}
@@ -108,6 +113,12 @@
 	footer a {
 		color: var(--ink);
 		font-weight: 700;
+	}
+	footer a + a {
+		margin-left: var(--space-4);
+	}
+	.legal a + a {
+		margin-left: 0;
 	}
 	.legal {
 		display: flex;
