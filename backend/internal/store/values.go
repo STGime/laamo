@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -99,4 +100,21 @@ func toMap(v any) (map[string]json.RawMessage, error) {
 	m := map[string]json.RawMessage{}
 	err = json.Unmarshal(b, &m)
 	return m, err
+}
+
+// zoneName: a time zone as a place ("Europe/Berlin",
+// "America/Argentina/Buenos_Aires") or UTC. The same pattern as
+// create_workspace (migrations/0020): no abbreviations ("CET") or POSIX
+// strings ("UTC+3"), which don't follow a place's summer time.
+var zoneName = regexp.MustCompile(`^(UTC|[A-Za-z_]+(/[A-Za-z0-9_+-]+)+)$`)
+
+// ValidTimezone reports whether tz is a time zone a workspace can have: a
+// place the time zone database knows, or UTC. The database function, the
+// API and the test stores all use this rule.
+func ValidTimezone(tz string) bool {
+	if !zoneName.MatchString(tz) {
+		return false
+	}
+	_, err := time.LoadLocation(tz)
+	return err == nil
 }

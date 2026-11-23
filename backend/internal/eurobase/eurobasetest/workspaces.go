@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/STGime/laamo/backend/internal/store"
 )
 
 // createWorkspace mirrors create_workspace (migrations/0008). It runs with
@@ -26,7 +28,7 @@ func createWorkspace(f *Fake, args map[string]json.RawMessage) (any, error) {
 	if locale != "en" && locale != "de" {
 		return bad("22023", "locale must be en or de")
 	}
-	if _, err := time.LoadLocation(tz); err != nil || tz == "" || tz == "Local" {
+	if !store.ValidTimezone(tz) {
 		return bad("22023", "unknown timezone "+tz)
 	}
 	owned := 0

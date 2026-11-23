@@ -1,4 +1,4 @@
--- Tests for create_workspace (0008). Runs as tenant_func.
+-- Tests for create_workspace (0008, time zone check from 0020). Runs as tenant_func.
 \set ON_ERROR_STOP on
 \o /dev/null
 SET search_path = tenant_test, public;
@@ -71,3 +71,38 @@ BEGIN
 END $$;
 
 \echo 'Workspace tests passed'
+
+-- Time zones (0020): a place PostgreSQL knows, or UTC. Checked without the
+-- system catalogs, which Eurobase closes to project SQL.
+SELECT pg_temp.act('service', NULL);
+DO $$
+DECLARE
+  wid uuid; tz text; owner uuid := 'bbbbbbbb-0000-0000-0000-000000000002';
+BEGIN
+  FOREACH tz IN ARRAY ARRAY['Europe/Berlin', 'America/Argentina/Buenos_Aires', 'UTC', 'Etc/GMT+3', 'Asia/Ho_Chi_Minh'] LOOP
+    wid := (create_workspace(owner, 'tz ok', tz)->>'id')::uuid;
+    ASSERT (SELECT timezone FROM workspaces WHERE id = wid) = tz, 'kept ' || tz;
+    DELETE FROM workspaces WHERE id = wid; -- stay under the 5 per owner
+  END LOOP;
+
+  -- Refused: places that don't exist, abbreviations and POSIX strings (AT
+  -- TIME ZONE alone would take those), and anything that isn't a name.
+  FOREACH tz IN ARRAY ARRAY['Mars/Base', 'Europe/Atlantis', 'CET', 'EST5EDT', 'UTC+3', 'utc', 'GMT', 'Europe/', '/Berlin',
+                            'Europe/Berlin; DROP TABLE workspaces', 'Europe/Ber lin', '+02:00', ''] LOOP
+    BEGIN
+      PERFORM create_workspace(owner, 'tz bad', tz);
+      RAISE EXCEPTION 'time zone % accepted', tz USING ERRCODE = 'assert_failure';
+    EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  END LOOP;
+  BEGIN
+    PERFORM create_workspace(owner, 'tz null', NULL);
+    RAISE EXCEPTION 'NULL time zone accepted' USING ERRCODE = 'assert_failure';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  ASSERT (SELECT count(*) FROM workspaces WHERE name LIKE 'tz %') = 0, 'nothing left behind';
+END $$;
+
+-- The function itself no longer reads a system catalog.
+DO $$ BEGIN
+  ASSERT (SELECT count(*) FROM pg_proc p WHERE p.proname = 'create_workspace' AND p.prosrc ~* 'pg_timezone|pg_catalog|information_schema') = 0,
+    'create_workspace still reads a system catalog';
+END $$;

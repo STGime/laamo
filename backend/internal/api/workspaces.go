@@ -7,7 +7,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -167,7 +166,7 @@ func (s *Server) UpdateWorkspace(ctx context.Context, req UpdateWorkspaceRequest
 		p.Name = &name
 	}
 	if b.Timezone != nil {
-		if !validTimezone(*b.Timezone) {
+		if !store.ValidTimezone(*b.Timezone) {
 			return bad("unknown timezone " + *b.Timezone)
 		}
 		p.Timezone = b.Timezone
@@ -239,14 +238,6 @@ func mergeProfile(cur map[string]any, changes map[string]string) (map[string]any
 		}
 	}
 	return out, ""
-}
-
-func validTimezone(tz string) bool {
-	if tz == "" || tz == "Local" {
-		return false
-	}
-	_, err := time.LoadLocation(tz)
-	return err == nil
 }
 
 // invalidMsg strips the "store: invalid: " prefix for the user.

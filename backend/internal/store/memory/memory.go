@@ -153,7 +153,7 @@ func (s *Store) CreateWorkspace(_ context.Context, nw store.NewWorkspace) (store
 		return invalid("name must be 1 to 80 characters")
 	case locale != "en" && locale != "de":
 		return invalid("locale must be en or de")
-	case !validTimezone(tz):
+	case !store.ValidTimezone(tz):
 		return invalid("unknown timezone " + tz)
 	}
 	s.mu.Lock()
@@ -175,14 +175,6 @@ func (s *Store) CreateWorkspace(_ context.Context, nw store.NewWorkspace) (store
 	s.members[m.ID] = m
 	s.brains[w.ID] = newBrain(w.ID, nw.OwnerID, now)
 	return w, nil
-}
-
-func validTimezone(tz string) bool {
-	if tz == "" || tz == "Local" {
-		return false
-	}
-	_, err := time.LoadLocation(tz)
-	return err == nil
 }
 
 func (s *Store) UpdateWorkspace(_ context.Context, id string, p store.WorkspacePatch) (store.Workspace, error) {
