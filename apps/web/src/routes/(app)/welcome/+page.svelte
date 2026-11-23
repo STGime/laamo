@@ -1,5 +1,6 @@
 <!-- Onboarding after the first sign-in: a name, then up to 3 needs. Creates the workspace. -->
 <script lang="ts">
+	import { workspaceTimezone } from '#lib/timezone.ts';
 	import { goto } from '$app/navigation';
 	import type { Schemas } from '#lib/api/client.ts';
 	import { i18n, t, type Key } from '#lib/i18n/index.svelte.ts';
@@ -32,7 +33,7 @@
 	async function finish() {
 		busy = true;
 		failed = false;
-		const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin';
+		const timezone = workspaceTimezone();
 		const { data } = await api.POST('/workspaces', {
 			body: {
 				name: business.trim() || name.trim(),
