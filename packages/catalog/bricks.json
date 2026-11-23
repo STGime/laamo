@@ -392,6 +392,76 @@
       }
     },
     {
+      "key": "more_images",
+      "label": {
+        "en": "More pictures",
+        "de": "Weitere Bilder"
+      }
+    },
+    {
+      "key": "photo_text",
+      "label": {
+        "en": "Text in the photo",
+        "de": "Text auf dem Foto"
+      }
+    },
+    {
+      "key": "vendor",
+      "label": {
+        "en": "Vendor",
+        "de": "Händler"
+      },
+      "pick": true
+    },
+    {
+      "key": "total",
+      "label": {
+        "en": "Total",
+        "de": "Summe"
+      },
+      "pick": true
+    },
+    {
+      "key": "net",
+      "label": {
+        "en": "Net amount",
+        "de": "Nettobetrag"
+      },
+      "pick": true
+    },
+    {
+      "key": "vat_rate",
+      "label": {
+        "en": "VAT rate",
+        "de": "MwSt.-Satz"
+      },
+      "pick": true
+    },
+    {
+      "key": "vat_amount",
+      "label": {
+        "en": "VAT amount",
+        "de": "MwSt.-Betrag"
+      },
+      "pick": true
+    },
+    {
+      "key": "currency",
+      "label": {
+        "en": "Currency",
+        "de": "Währung"
+      },
+      "pick": true
+    },
+    {
+      "key": "invoice_number",
+      "label": {
+        "en": "Receipt number",
+        "de": "Belegnummer"
+      },
+      "pick": true
+    },
+    {
       "key": "score",
       "label": {
         "en": "Score",
@@ -529,6 +599,70 @@
         "timeout_h": 48,
         "on_timeout": "skip"
       }
+    },
+    "vendor": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "vendor",
+          "date",
+          "total"
+        ]
+      }
+    },
+    "total": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "vendor",
+          "date",
+          "total"
+        ]
+      }
+    },
+    "net": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "net"
+        ]
+      }
+    },
+    "vat_rate": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "vat_rate"
+        ]
+      }
+    },
+    "vat_amount": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "vat_amount"
+        ]
+      }
+    },
+    "currency": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "currency"
+        ]
+      }
+    },
+    "invoice_number": {
+      "brick": "think.extract",
+      "config": {
+        "fields": [
+          "invoice_number"
+        ]
+      }
+    },
+    "photo_text": {
+      "brick": "look.read_photo",
+      "config": {}
     }
   },
   "bricks": [
@@ -1406,6 +1540,39 @@
           },
           "open": true
         }
+      ]
+    },
+    {
+      "id": "look.read_photo",
+      "group": "look",
+      "shape": "expand",
+      "status": "mvp",
+      "requires": {
+        "brain": true
+      },
+      "title": {
+        "en": "Read the photo",
+        "de": "Foto lesen"
+      },
+      "does": {
+        "en": "Reads the photos you take in the app or email to this helper, e.g. a receipt. Each photo becomes a card with its picture and the text on it; a long receipt taken in several photos becomes one card.",
+        "de": "Liest die Fotos, die du in der App aufnimmst oder diesem Helfer mailst, z. B. einen Beleg. Jedes Foto wird zu einer Karte mit dem Bild und dem Text darauf; ein langer Beleg in mehreren Fotos wird zu einer Karte."
+      },
+      "sentence": [
+        {
+          "text": {
+            "en": "Read the photos",
+            "de": "Die Fotos lesen"
+          }
+        }
+      ],
+      "settings": [],
+      "card_kind": "photo",
+      "adds": [
+        "image",
+        "image_alt",
+        "more_images",
+        "photo_text"
       ]
     },
     {

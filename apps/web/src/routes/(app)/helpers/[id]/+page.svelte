@@ -1,4 +1,4 @@
-<!-- S11 Helper page: on/off, rename, run now, its bricks, recent runs, delete. -->
+<!-- S11 Helper page: on/off, rename, run now (or with a photo), its bricks, recent runs, delete. -->
 <script lang="ts">
 	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { goto } from '$app/navigation';
@@ -12,6 +12,7 @@
 	import RunTicker from '#lib/components/RunTicker.svelte';
 	import HelperAddress from '#lib/components/HelperAddress.svelte';
 	import { api, session } from '#lib/session.svelte.ts';
+	import { shrink } from '#lib/photo.ts';
 	import { ago, when } from '#lib/time.ts';
 
 	let detail = $state<Schemas['HelperDetail'] | null>(null);
@@ -20,7 +21,10 @@
 	let name = $state('');
 	let confirmDelete = $state(false);
 	let busy = $state(false);
-	let started = $state(false);
+	// A run started from this page: first "starting" (until the page has
+	// loaded it), then we follow it and say how it ended.
+	let after = $state<'none' | 'starting' | 'following'>('none');
+	let startedRun = $state('');
 	let forgetting = $state(false);
 	let forgot = $state(false);
 
@@ -61,6 +65,13 @@
 		)
 	);
 	const bricks = $derived(view.items as StackItem[]);
+	// How the run started here ended ('' while it's going or unknown).
+	const ended = $derived.by(() => {
+		if (after !== 'following' || running(run)) return '';
+		if (run?.id === startedRun) return 'waiting'; // not running, so it waits for the user
+		const status = detail?.runs.find((r) => r.id === startedRun)?.status;
+		return status === 'done' || status === 'failed' || status === 'stopped' ? status : '';
+	});
 	const current = $derived(view.current);
 
 	async function patch(body: { name?: string; status?: 'active' | 'paused' }) {
@@ -80,9 +91,88 @@
 			body: {}
 		});
 		busy = false;
-		if (data) {
-			started = true;
-			load();
+		if (data) follow(data.run_id);
+	}
+
+	async function follow(runId: string) {
+		startedRun = runId;
+		after = 'starting';
+		await load();
+		after = 'following';
+	}
+
+	// The camera button (helpers with Read the photo): a photo is shrunk
+	// here and uploaded, and the run starts with it. A long receipt can be
+	// taken in several photos (parts), which are read as one.
+	const MAX_PARTS = 5;
+	let photoState = $state<'idle' | 'sending' | 'failed'>('idle');
+	let several = $state(false);
+	let parts = $state<{ path: string; url: string }[]>([]);
+
+	async function upload(file: Blob): Promise<{ path: string; url: string }> {
+		const jpeg = await shrink(file);
+		const up = await api.POST('/helpers/{helperId}/photos', {
+			params: { path: { helperId: id } },
+			body: jpeg as unknown as string,
+			bodySerializer: (b) => b,
+			headers: { 'Content-Type': 'image/jpeg' }
+		});
+		if (!up.data) throw new Error('upload');
+		return { path: up.data.path, url: URL.createObjectURL(jpeg) };
+	}
+
+	async function startWith(paths: string[]) {
+		const { data } = await api.POST('/helpers/{helperId}/runs', {
+			params: { path: { helperId: id } },
+			body: { photos: paths, photos_one: paths.length > 1 }
+		});
+		if (!data) throw new Error('start');
+		follow(data.run_id);
+	}
+
+	function dropParts() {
+		for (const p of parts) URL.revokeObjectURL(p.url);
+		parts = [];
+		several = false;
+	}
+
+	// One photo: taken, sent, and the run starts. In "several" mode the
+	// photos pile up as parts until Read it.
+	async function photosPicked(e: Event & { currentTarget: HTMLInputElement }) {
+		const input = e.currentTarget;
+		const files = [...(input.files ?? [])].slice(0, MAX_PARTS - parts.length);
+		input.value = ''; // the same picture can be picked again
+		if (!files.length) return;
+		photoState = 'sending';
+		busy = true;
+		try {
+			for (const file of files) {
+				const part = await upload(file);
+				if (several) parts = [...parts, part];
+				else {
+					URL.revokeObjectURL(part.url);
+					await startWith([part.path]);
+				}
+			}
+			photoState = 'idle';
+		} catch {
+			photoState = 'failed';
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function readParts() {
+		photoState = 'sending';
+		busy = true;
+		try {
+			await startWith(parts.map((p) => p.path));
+			dropParts();
+			photoState = 'idle';
+		} catch {
+			photoState = 'failed';
+		} finally {
+			busy = false;
 		}
 	}
 
@@ -165,19 +255,127 @@
 				forward={helper.forward_address}
 				helperId={helper.id}
 			/>{/if}
-		<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
-			>{#if run}<RunTicker
-					{run}
-					retrying={retrying(
-						run,
-						detail?.steps,
-						(detail?.bricks ?? []).map((b) => b.id)
-					)}
-				/>{:else}{t('helpers.runNow')}{/if}</button
-		>
-		{#if started && !run}<p class="started">
-				{t('helpers.started')} <a href="/feed">{t('tab.feed')} →</a>
-			</p>{/if}
+		{#if detail?.takes_photos}
+			{@const off = busy || running(run)}
+			{#snippet camera()}
+				<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
+					><path
+						fill="currentColor"
+						fill-rule="evenodd"
+						d="M8.5 4h7l1.5 2.5H21V20H3V6.5h4zM12 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 11a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"
+					/></svg
+				>
+			{/snippet}
+			{#if run && running(run)}
+				<!-- A photo is this helper's input: the camera comes first. -->
+				<div class="btn primary wide off">
+					<RunTicker
+						{run}
+						retrying={retrying(
+							run,
+							detail?.steps,
+							(detail?.bricks ?? []).map((b) => b.id)
+						)}
+					/>
+				</div>
+			{:else if photoState === 'sending' || after === 'starting'}
+				<div class="btn primary wide off">
+					<RunTicker waiting={photoState === 'sending' ? t('photo.sending') : ''} />
+				</div>
+			{:else if several}
+				<!-- A long receipt, part by part. -->
+				<p class="hint">{t('photo.partsHow', { n: MAX_PARTS })}</p>
+				{#if parts.length}
+					<ol class="parts">
+						{#each parts as p, i (p.path)}
+							<li><img src={p.url} alt={t('photo.part', { n: i + 1 })} /></li>
+						{/each}
+					</ol>
+				{/if}
+				{#if parts.length < MAX_PARTS}
+					<label class="btn wide photo" class:primary={!parts.length}>
+						<input
+							type="file"
+							accept="image/*"
+							capture="environment"
+							class="visually-hidden"
+							onchange={photosPicked}
+						/>
+						{@render camera()}
+						{t('photo.takePart', { n: parts.length + 1 })}
+					</label>
+					<label class="choose">
+						<input
+							type="file"
+							accept="image/*"
+							multiple
+							class="visually-hidden"
+							onchange={photosPicked}
+						/>
+						{t('photo.chooseParts')}
+					</label>
+				{/if}
+				{#if parts.length}
+					<button class="btn primary wide" onclick={readParts}
+						>{t(parts.length > 1 ? 'photo.readParts' : 'photo.readOne', {
+							n: parts.length
+						})}</button
+					>
+				{/if}
+				<button class="choose plain" onclick={dropParts}>{t('helper.cancel')}</button>
+			{:else}
+				<label class="btn primary wide photo" class:off>
+					<input
+						type="file"
+						accept="image/*"
+						capture="environment"
+						class="visually-hidden"
+						disabled={off}
+						onchange={photosPicked}
+					/>
+					{@render camera()}
+					{t('photo.take')}
+				</label>
+				<label class="choose" class:off>
+					<input
+						type="file"
+						accept="image/*"
+						class="visually-hidden"
+						disabled={off}
+						onchange={photosPicked}
+					/>
+					{t('photo.choose')}
+				</label>
+				<!-- Small print reads best close up: a long receipt in parts. -->
+				<p class="hint">
+					{t('photo.longHint')}
+					<button class="link" disabled={off} onclick={() => (several = true)}
+						>{t('photo.several')}</button
+					>
+				</p>
+			{/if}
+			{#if photoState === 'failed'}<p class="started" role="alert">{t('photo.failed')}</p>{/if}
+		{:else}
+			<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
+				>{#if run}<RunTicker
+						{run}
+						retrying={retrying(
+							run,
+							detail?.steps,
+							(detail?.bricks ?? []).map((b) => b.id)
+						)}
+					/>{:else if after === 'starting'}<RunTicker />{:else}{t('helpers.runNow')}{/if}</button
+			>
+		{/if}
+		{#if ended === 'waiting'}
+			<p class="started">{t('helpers.waiting')}. <a href="/feed">{t('tab.feed')} →</a></p>
+		{:else if ended === 'done'}
+			<p class="started">{t('helpers.finished')} <a href="/feed">{t('tab.feed')} →</a></p>
+		{:else if ended}
+			<p class="started failed" role="alert">
+				{t('helpers.runFailed')} <a href="/feed">{t('tab.feed')} →</a>
+			</p>
+		{/if}
 	</header>
 
 	<section>
@@ -289,6 +487,52 @@
 		align-items: center;
 		gap: var(--space-3);
 	}
+	/* The camera button and "choose a picture" are labels around a file input. */
+	.photo,
+	.choose {
+		cursor: pointer;
+	}
+	.photo:focus-within,
+	.choose:focus-within {
+		outline: 3px solid var(--focus);
+		outline-offset: 2px;
+	}
+	.choose {
+		align-self: center;
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--tap-min);
+		font-weight: 600;
+		text-decoration: underline;
+	}
+	.off {
+		opacity: 0.5;
+		cursor: default;
+		pointer-events: none;
+	}
+	.choose.plain {
+		border: 0;
+		background: none;
+		font: inherit;
+		font-weight: 600;
+		color: inherit;
+	}
+	.parts {
+		display: flex;
+		gap: var(--space-2);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		overflow-x: auto;
+	}
+	.parts img {
+		display: block;
+		width: 72px;
+		height: 96px;
+		object-fit: cover;
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+	}
 	.switch {
 		display: inline-flex;
 		align-items: center;
@@ -320,6 +564,9 @@
 	.started {
 		margin: 0;
 		font-weight: 600;
+	}
+	.failed {
+		color: var(--danger);
 	}
 	section {
 		padding: var(--space-4) var(--gutter);

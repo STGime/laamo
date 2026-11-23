@@ -6,7 +6,17 @@
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import { i18n, t } from '#lib/i18n/index.svelte.ts';
-	import { cellHref, cellText, columnLabel, csvName, osmSource, rowHeading } from '#lib/lists.ts';
+	import {
+		cellHref,
+		cellText,
+		columnLabel,
+		csvName,
+		osmSource,
+		morePictures,
+		rowHeading,
+		rowPicture
+	} from '#lib/lists.ts';
+	import Picture from '#lib/components/Picture.svelte';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { ago } from '#lib/time.ts';
 
@@ -80,9 +90,13 @@
 		}
 	}
 
-	async function exportCsv() {
+	// Rows whose picture is open.
+	let opened = $state<Record<string, boolean>>({});
+
+	// The CSV alone, or (zip) with the rows' pictures, e.g. receipt photos.
+	async function exportCsv(ext: 'csv' | 'zip' = 'csv') {
 		busy = true;
-		const { data } = await api.GET('/lists/{listId}/csv', {
+		const { data } = await api.GET(ext === 'zip' ? '/lists/{listId}/zip' : '/lists/{listId}/csv', {
 			params: { path: { listId: id } },
 			parseAs: 'blob'
 		});
@@ -90,7 +104,7 @@
 		if (!data || !list) return;
 		const a = document.createElement('a');
 		a.href = URL.createObjectURL(data as Blob);
-		a.download = csvName(list.name);
+		a.download = csvName(list.name, ext);
 		a.click();
 		URL.revokeObjectURL(a.href);
 	}
@@ -183,12 +197,15 @@
 		<ul class="rows">
 			{#each detail.rows as r (r.id)}
 				{@const heading = rowHeading(r.data)}
+				{@const picture = rowPicture(r.data)}
 				<li>
 					<div class="cells">
 						{#if heading}<strong>{heading}</strong>{/if}
 						<dl>
 							{#each columns as c (c)}
-								{#if r.data[c] != null && r.data[c] !== '' && r.data[c] !== heading}
+								{#if c === 'image' || c === 'image_alt' || c === 'more_images'}
+									<!-- shown as the picture below -->
+								{:else if r.data[c] != null && r.data[c] !== '' && r.data[c] !== heading}
 									{@const href = cellHref(c, r.data[c])}
 									<dt>{columnLabel(c, i18n.lang)}</dt>
 									<dd>
@@ -199,6 +216,22 @@
 								{/if}
 							{/each}
 						</dl>
+						{#if picture}
+							<!-- Loaded only when opened: a long list has many pictures. -->
+							<details
+								class="picture"
+								ontoggle={(e) => (opened = { ...opened, [r.id]: e.currentTarget.open })}
+							>
+								<summary>{t('lists.showPicture')}</summary>
+								{#if opened[r.id]}
+									<Picture
+										path={picture}
+										alt={typeof r.data.image_alt === 'string' ? r.data.image_alt : ''}
+									/>
+									{#each morePictures(r.data) as more (more)}<Picture path={more} />{/each}
+								{/if}
+							</details>
+						{/if}
 						<span class="when">{t('lists.saved', { when: ago(r.created_at) })}</span>
 					</div>
 					{#if confirmRow === r.id}
@@ -238,9 +271,14 @@
 		<button class="btn primary wide" disabled={busy || !list.rows} onclick={useInHelper}
 			>{t('lists.useInHelper')}</button
 		>
-		<button class="btn wide" disabled={busy || !list.rows} onclick={exportCsv}
+		<button class="btn wide" disabled={busy || !list.rows} onclick={() => exportCsv()}
 			>{t('lists.export')}</button
 		>
+		{#if columns.includes('image')}
+			<button class="btn wide" disabled={busy || !list.rows} onclick={() => exportCsv('zip')}
+				>{t('lists.exportZip')}</button
+			>
+		{/if}
 		{#if owner}
 			{#if list.share_token}
 				<div class="share">
@@ -357,6 +395,16 @@
 		margin-top: var(--space-1);
 		color: var(--muted);
 		font-size: var(--text-sm);
+	}
+	.picture {
+		margin-top: var(--space-1);
+	}
+	.picture summary {
+		min-height: var(--tap-min);
+		display: flex;
+		align-items: center;
+		cursor: pointer;
+		font-weight: 600;
 	}
 	.remove {
 		min-width: var(--tap-min);

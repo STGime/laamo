@@ -308,6 +308,16 @@ func (s *Server) StartRun(ctx context.Context, req StartRunRequestObject) (Start
 		if req.Body.Answer != nil && *req.Body.Answer != "" {
 			data["answer"] = *req.Body.Answer
 		}
+		if req.Body.Photos != nil && len(*req.Body.Photos) > 0 {
+			photos, ok := runPhotos(h.WorkspaceID, *req.Body.Photos)
+			if !ok {
+				return StartRun400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "photos must be up to 5 paths from uploadPhoto"))}, nil
+			}
+			data["photos"] = photos
+			if req.Body.PhotosOne != nil && *req.Body.PhotosOne && len(*req.Body.Photos) > 1 {
+				data["photos_one"] = "yes"
+			}
+		}
 	}
 	runID, err := s.startRun(ctx, h.ID, "", trigger, data)
 	if errors.Is(err, engine.ErrNotRunnable) {
@@ -464,6 +474,9 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 		}
 		var stack catalog.Stack
 		if json.Unmarshal(v.Stack, &stack) == nil {
+			if takesPhotos(stack) {
+				out.TakesPhotos = new(true)
+			}
 			// Post to chat names its chat, and Save to a list its list, not their ids.
 			names := map[string]string{}
 			if ps, err := s.store.ListPlaces(ctx, w.ID); err == nil {

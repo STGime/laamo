@@ -230,6 +230,25 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/lists/{listId}/zip': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		/** All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file */
+		get: operations['exportListZip'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/lists/{listId}/share': {
 		parameters: {
 			query?: never;
@@ -257,7 +276,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces */
+		/** A picture Draw a picture made, or a photo a helper read (JPEG). Signed in, and only from your own workspaces */
 		get: operations['getImage'];
 		put?: never;
 		post?: never;
@@ -538,6 +557,25 @@ export interface paths {
 		put?: never;
 		/** Run a helper now (Tap Go, or a test run with at most 3 cards) */
 		post: operations['startRun'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/helpers/{helperId}/photos': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Upload a photo for the helper's next run (the camera button). Start the run with the returned path in photos */
+		post: operations['uploadPhoto'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -1146,6 +1184,8 @@ export interface components {
 			helper: components['schemas']['Helper'];
 			/** @description How many Let me pick swipes the helper learns from (0 when it doesn't learn) */
 			learned: number;
+			/** @description The helper has a Read the photo brick, so a run can start with photos (the camera button) */
+			takes_photos?: boolean;
 			bricks: components['schemas']['BrickPreview'][];
 			/** @description The last 10 runs, newest first */
 			runs: components['schemas']['RunSummary'][];
@@ -1672,6 +1712,29 @@ export interface operations {
 				};
 				content: {
 					'text/csv': string;
+				};
+			};
+			404: components['responses']['NotFound'];
+		};
+	};
+	exportListZip: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				listId: components['parameters']['ListId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description The ZIP file */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/zip': string;
 				};
 			};
 			404: components['responses']['NotFound'];
@@ -2204,6 +2267,10 @@ export interface operations {
 					test?: boolean;
 					/** @description The answer to Tap Go's question ({answer}) */
 					answer?: string;
+					/** @description Photos for Read the photo, each the path uploadPhoto returned */
+					photos?: string[];
+					/** @description The photos are parts of one thing, in order (a long receipt taken in several photos). They become one card instead of one each */
+					photos_one?: boolean;
 				};
 			};
 		};
@@ -2217,9 +2284,42 @@ export interface operations {
 					'application/json': components['schemas']['RunStarted'];
 				};
 			};
+			400: components['responses']['BadRequest'];
 			401: components['responses']['Unauthorized'];
 			404: components['responses']['NotFound'];
 			409: components['responses']['Conflict'];
+		};
+	};
+	uploadPhoto: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				helperId: components['parameters']['HelperId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'image/jpeg': string;
+			};
+		};
+		responses: {
+			/** @description Stored (upright, shrunk, as JPEG) */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						/** @description Where the photo is stored; also works with getImage */
+						path: string;
+					};
+				};
+			};
+			400: components['responses']['BadRequest'];
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
 		};
 	};
 	getHelperStack: {

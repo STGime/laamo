@@ -8,9 +8,9 @@ export function columnLabel(key: string, lang: 'en' | 'de'): string {
 	return catalog.fields.find((f) => f.key === key)?.label[lang] ?? key.replaceAll('_', ' ');
 }
 
-/** What a row is called: its name, title or subject. */
+/** What a row is called: its name, title, subject or (a receipt) vendor. */
 export function rowHeading(data: Record<string, unknown>): string {
-	for (const k of ['name', 'title', 'subject']) {
+	for (const k of ['name', 'title', 'subject', 'vendor']) {
 		const v = data[k];
 		if (typeof v === 'string' && v.trim()) return v;
 	}
@@ -49,14 +49,36 @@ export function cellHref(key: string, v: unknown): string | null {
 	return null;
 }
 
-/** "Leads (Leipzig)" → "leads-leipzig.csv" */
-export function csvName(name: string): string {
+/** "Leads (Leipzig)" → "leads-leipzig.csv" (or ".zip", with the pictures) */
+export function csvName(name: string, ext: 'csv' | 'zip' = 'csv'): string {
 	const base = name
 		.toLowerCase()
 		.normalize('NFKD')
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '');
-	return `${base || 'list'}.csv`;
+	return `${base || 'list'}.${ext}`;
+}
+
+/**
+ * A row's picture (a receipt photo, a drawn picture): its storage path, or
+ * null. The app shows it instead of the path; `image_alt` is its description.
+ */
+export function rowPicture(data: Record<string, unknown>): string | null {
+	const v = data.image;
+	return typeof v === 'string' && v.startsWith('images/') ? v : null;
+}
+
+/**
+ * The other pictures of the same thing (`more_images`): the further parts
+ * of a long receipt taken in several photos.
+ */
+export function morePictures(data: Record<string, unknown>): string[] {
+	const v = data.more_images;
+	if (typeof v !== 'string') return [];
+	return v
+		.split(',')
+		.map((p) => p.trim())
+		.filter((p) => p.startsWith('images/'));
 }
 
 /** An OpenStreetMap page this came from, or null. */

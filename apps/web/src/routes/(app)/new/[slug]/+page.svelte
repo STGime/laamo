@@ -1,4 +1,4 @@
-<!-- A template: its bricks in plain words, the questions still open, then a test run. -->
+<!-- A template: its bricks in plain words, the questions still open, then the button that adds the helper (and runs it once as a test). -->
 <script lang="ts">
 	import HelperIcon from '#lib/components/HelperIcon.svelte';
 	import { goto } from '$app/navigation';
@@ -21,7 +21,7 @@
 	let justHere = $state<string[]>([]);
 	let busy = $state(false);
 	let error = $state('');
-	// After Try it now: the new helper's first run, live.
+	// After Add and try it: the new helper's first run, live.
 	let helperId = $state<string | null>(null);
 	let detail = $state<Schemas['HelperDetail'] | null>(null);
 
@@ -99,6 +99,9 @@
 	});
 
 	const ready = $derived(!!tpl && tpl.questions.every((q) => (answers[q.key] ?? '').trim() !== ''));
+	// A helper that reads photos (Receipt Keeper) has nothing to test on yet:
+	// it's added without a test run, and its page has the camera button.
+	const takesPhotos = $derived(!!tpl?.bricks.some((b) => b.type === 'look.read_photo'));
 
 	async function tryIt() {
 		const ws = session.workspace;
@@ -107,14 +110,15 @@
 		error = '';
 		const { data, error: err } = await api.POST('/workspaces/{workspaceId}/helpers', {
 			params: { path: { workspaceId: ws.id } },
-			body: { template: tpl.slug, answers, run_test: true, just_this_helper: justHere }
+			body: { template: tpl.slug, answers, run_test: !takesPhotos, just_this_helper: justHere }
 		});
 		if (!data) {
 			busy = false;
 			error = t('tpl.failed', { error: (err as { error?: string } | undefined)?.error ?? '' });
 			return;
 		}
-		if (data.run_id) {
+		if (takesPhotos) goto(`/helpers/${data.helper.id}`);
+		else if (data.run_id) {
 			helperId = data.helper.id;
 			document.getElementById('how')?.scrollIntoView({ block: 'start' });
 		} else goto('/feed');
@@ -216,9 +220,9 @@
 						detail?.steps,
 						(detail?.bricks ?? []).map((b) => b.id)
 					)}
-				/>{:else}{t('tpl.test')}{/if}</button
+				/>{:else}{t(takesPhotos ? 'tpl.add' : 'tpl.test')}{/if}</button
 		>
-		<p class="hint">{t('tpl.testHint')}</p>
+		<p class="hint">{t(takesPhotos ? 'tpl.addHint' : 'tpl.testHint')}</p>
 	</div>
 {:else}
 	<p class="loading">{t('loading')}</p>

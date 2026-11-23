@@ -38,6 +38,11 @@ var Tap = engine.BrickFunc(func(_ context.Context, rc *engine.RunContext, _ []en
 var Email = engine.BrickFunc(func(_ context.Context, rc *engine.RunContext, _ []engine.Card, _ engine.Config) ([]engine.Card, error) {
 	from, _ := rc.Value("trigger.from")
 	if from == "" {
+		// Started with the camera button instead of an email: the photos
+		// are the run's input (Read the photo), and there's no email card.
+		if photos, _ := rc.Value("trigger.photos"); photos != "" {
+			return nil, nil
+		}
 		if rc.TestMode {
 			return []engine.Card{sampleEmail(rc)}, nil
 		}

@@ -362,6 +362,23 @@ paths:
                 type: string
         '404':
           $ref: '#/components/responses/NotFound'
+  /lists/{listId}/zip:
+    parameters:
+      - $ref: '#/components/parameters/ListId'
+    get:
+      operationId: exportListZip
+      summary: All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
+      tags: [lists]
+      responses:
+        '200':
+          description: The ZIP file
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
   /lists/{listId}/share:
     parameters:
       - $ref: '#/components/parameters/ListId'
@@ -394,7 +411,7 @@ paths:
   /images:
     get:
       operationId: getImage
-      summary: A picture Draw a picture made (JPEG). Signed in, and only from your own workspaces
+      summary: A picture Draw a picture made, or a photo a helper read (JPEG). Signed in, and only from your own workspaces
       tags: [lists]
       parameters:
         - name: path
@@ -829,6 +846,16 @@ paths:
                   type: string
                   maxLength: 500
                   description: The answer to Tap Go's question ({answer})
+                photos:
+                  type: array
+                  maxItems: 5
+                  description: Photos for Read the photo, each the path uploadPhoto returned
+                  items:
+                    type: string
+                    maxLength: 200
+                photos_one:
+                  type: boolean
+                  description: The photos are parts of one thing, in order (a long receipt taken in several photos). They become one card instead of one each
       responses:
         '202':
           description: Started; follow it in the Feed
@@ -836,12 +863,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RunStarted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /helpers/{helperId}/photos:
+    parameters:
+      - $ref: '#/components/parameters/HelperId'
+    post:
+      operationId: uploadPhoto
+      summary: Upload a photo for the helper's next run (the camera button). Start the run with the returned path in photos
+      tags: [helpers]
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Stored (upright, shrunk, as JPEG)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [path]
+                properties:
+                  path:
+                    type: string
+                    description: Where the photo is stored; also works with getImage
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /helpers/{helperId}/stack:
     parameters:
       - $ref: '#/components/parameters/HelperId'
@@ -1943,6 +2004,9 @@ components:
         learned:
           type: integer
           description: How many Let me pick swipes the helper learns from (0 when it doesn't learn)
+        takes_photos:
+          type: boolean
+          description: The helper has a Read the photo brick, so a run can start with photos (the camera button)
         bricks:
           type: array
           items:

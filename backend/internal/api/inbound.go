@@ -18,6 +18,7 @@ import (
 
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/images"
 	"github.com/STGime/laamo/backend/internal/mail"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/store"
@@ -188,9 +189,16 @@ func (s *Server) takeMail(ctx context.Context, to, tag string, raw []byte) (int,
 	if len(m.Attachments) > 0 {
 		names := make([]string, 0, len(m.Attachments))
 		for _, a := range m.Attachments {
-			names = append(names, a.Name)
+			if a.Name != "" {
+				names = append(names, a.Name)
+			}
 		}
 		data["attachments"] = strings.Join(names, ", ")
+	}
+	// The email's pictures, for Read the photo: stored like the pictures a
+	// helper draws, so cards and lists can show them.
+	if photos := s.keepPhotos(ctx, h, runID, m.Pictures()); len(photos) > 0 {
+		data["photos"] = strings.Join(photos, ",")
 	}
 	eng := &engine.Engine{Store: s.store, Catalog: catalog.Default(), Log: s.log}
 	run, err := eng.StartRun(ctx, engine.StartRequest{RunID: runID, HelperID: h.ID, TriggerType: store.TriggerEmail, TriggerData: data})
@@ -205,6 +213,33 @@ func (s *Server) takeMail(ctx context.Context, to, tag string, raw []byte) (int,
 		return 0, "", err
 	}
 	return http.StatusAccepted, "run_started", nil
+}
+
+// keepPhotos stores an email's pictures for the run (upright, shrunk, as
+// JPEG) and returns their paths. A picture that can't be read or stored is
+// left out: the email still starts its run.
+func (s *Server) keepPhotos(ctx context.Context, h store.Helper, runID string, pics []mail.Attachment) []string {
+	var paths []string
+	for i, a := range pics {
+		jpg, err := images.Photo(a.Data)
+		if err != nil {
+			s.log.Info("inbound mail: a picture was left out", "helper", h.ID, "name", a.Name, "err", err)
+			continue
+		}
+		path := photoPath(h.WorkspaceID, runID, i+1)
+		if err := s.blobs.Put(ctx, path, jpg); err != nil {
+			s.log.Warn("inbound mail: couldn't store a picture", "helper", h.ID, "err", err)
+			continue
+		}
+		paths = append(paths, path)
+	}
+	return paths
+}
+
+// photoPath is where a run's n-th photo is stored. GetImage serves
+// everything under images/<workspace>/ to that workspace's members.
+func photoPath(workspaceID, dir string, n int) string {
+	return fmt.Sprintf("images/%s/%s/p%d.jpg", workspaceID, dir, n)
 }
 
 // mailSenders is the Only from these senders list of a helper version.
