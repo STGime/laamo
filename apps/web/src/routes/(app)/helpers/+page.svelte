@@ -59,16 +59,32 @@
 								>
 							{/if}
 						{:else}
-							<span class="status">{t(`helpers.${h.status}` as Key)} ›</span>
+							<span class="status"
+								>{t(
+									`helpers.${h.status}` as Key
+								)}{#if h.starts_with === 'email' && h.status === 'active'}
+									· {t('helpers.byEmail')}{/if} ›</span
+							>
 						{/if}
 					</span>
 				</a>
-				<button
-					class="btn"
-					disabled={starting === h.id || running(h.run) || h.status === 'draft'}
-					onclick={() => runNow(h.id)}
-					>{running(h.run) ? t('helpers.busy') : t('helpers.runNow')}</button
-				>
+				<!-- Run now needs nothing but the helper. One that starts with a
+				     photo gets the camera on its page, one that starts with an email
+				     just waits for it. -->
+				{#if h.starts_with === 'photo' && h.status !== 'draft'}
+					<a class="btn" class:off={running(h.run)} href={`/helpers/${h.id}`}
+						>{running(h.run) ? t('helpers.busy') : t('helpers.photo')}</a
+					>
+				{:else if h.starts_with === 'email'}
+					{#if running(h.run)}<span class="btn off">{t('helpers.busy')}</span>{/if}
+				{:else}
+					<button
+						class="btn"
+						disabled={starting === h.id || running(h.run) || h.status === 'draft'}
+						onclick={() => runNow(h.id)}
+						>{running(h.run) ? t('helpers.busy') : t('helpers.runNow')}</button
+					>
+				{/if}
 			</li>
 		{/each}
 	</ul>
@@ -143,6 +159,10 @@
 		border-radius: 3px;
 		background: var(--gray-200);
 		overflow: hidden;
+	}
+	.off {
+		opacity: 0.5;
+		pointer-events: none;
 	}
 	.bar span {
 		display: block;

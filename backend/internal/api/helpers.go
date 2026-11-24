@@ -120,6 +120,7 @@ func (s *Server) ListHelpers(ctx context.Context, req ListHelpersRequestObject) 
 	for _, h := range hs {
 		ho := helperOut(h)
 		ho.Run, _ = s.activeRun(ctx, h)
+		ho.StartsWith = s.helperStartsWith(ctx, h)
 		out.Helpers = append(out.Helpers, ho)
 	}
 	return out, nil
@@ -319,6 +320,11 @@ func (s *Server) StartRun(ctx context.Context, req StartRunRequestObject) (Start
 			}
 		}
 	}
+	// A helper that starts with an email or a photo has nothing to work on
+	// without one (a test run gets a sample email).
+	if trigger == "manual" && data["photos"] == nil && s.helperStartsWith(ctx, h) != nil {
+		return StartRun409JSONResponse{ConflictJSONResponse(apiErr(ErrorCodeConflict, "this helper starts with an email or a photo"))}, nil
+	}
 	runID, err := s.startRun(ctx, h.ID, "", trigger, data)
 	if errors.Is(err, engine.ErrNotRunnable) {
 		return StartRun409JSONResponse{ConflictJSONResponse(apiErr(ErrorCodeConflict, "this helper can't run yet"))}, nil
@@ -477,6 +483,7 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 			if takesPhotos(stack) {
 				out.TakesPhotos = new(true)
 			}
+			out.Helper.StartsWith = startsWith(stack)
 			// Post to chat names its chat, and Save to a list its list, not their ids.
 			names := map[string]string{}
 			if ps, err := s.store.ListPlaces(ctx, w.ID); err == nil {

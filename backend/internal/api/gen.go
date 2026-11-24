@@ -330,6 +330,24 @@ func (e HealthEurobase) Valid() bool {
 	}
 }
 
+// Defines values for HelperStartsWith.
+const (
+	HelperStartsWithEmail HelperStartsWith = "email"
+	HelperStartsWithPhoto HelperStartsWith = "photo"
+)
+
+// Valid indicates whether the value is a known member of the HelperStartsWith enum.
+func (e HelperStartsWith) Valid() bool {
+	switch e {
+	case HelperStartsWithEmail:
+		return true
+	case HelperStartsWithPhoto:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HelperStatus.
 const (
 	HelperStatusActive HelperStatus = "active"
@@ -965,9 +983,15 @@ type Helper struct {
 	NextRunAt *time.Time `json:"next_run_at,omitempty"`
 
 	// Run The run going on now (queued, running or waiting for you)
-	Run    *RunProgress `json:"run,omitempty"`
-	Status HelperStatus `json:"status"`
+	Run *RunProgress `json:"run,omitempty"`
+
+	// StartsWith What a run needs to start. email is an email to the helper's address, photo is a photo from the camera button (or an email with one). Absent when Run now works on its own.
+	StartsWith *HelperStartsWith `json:"starts_with,omitempty"`
+	Status     HelperStatus      `json:"status"`
 }
+
+// HelperStartsWith What a run needs to start. email is an email to the helper's address, photo is a photo from the camera button (or an email with one). Absent when Run now works on its own.
+type HelperStartsWith string
 
 // HelperStatus defines model for Helper.Status.
 type HelperStatus string
