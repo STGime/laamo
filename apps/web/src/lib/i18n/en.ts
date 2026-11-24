@@ -314,6 +314,10 @@ export const en = {
 		'Adds the helper to your helpers. Then take a photo on its page, or email one to its address.',
 	'tpl.failed': 'That didn’t work: {error}',
 	'helpers.runNow': 'Run now',
+	'helpers.photo': 'Photo',
+	'helpers.byEmail': 'starts with an email',
+	'helpers.emailStarts':
+		'This helper starts when an email arrives at its address. There’s nothing to run until then.',
 	'helpers.finished': 'Done. The result is in your Feed.',
 	'helpers.runFailed': 'That run didn’t work. Your Feed says why.',
 	'photo.take': 'Take a photo',

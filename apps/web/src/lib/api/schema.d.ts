@@ -1157,6 +1157,11 @@ export interface components {
 			email_address?: string;
 			/** @description The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders. */
 			forward_address?: string;
+			/**
+			 * @description What a run needs to start. email is an email to the helper's address, photo is a photo from the camera button (or an email with one). Absent when Run now works on its own.
+			 * @enum {string}
+			 */
+			starts_with?: 'email' | 'photo';
 			run?: components['schemas']['RunProgress'];
 			/** Format: date-time */
 			created_at: string;

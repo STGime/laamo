@@ -323,6 +323,10 @@ export const de: Record<Key, string> = {
 		'Fügt den Helfer zu deinen Helfern hinzu. Mach dann auf seiner Seite ein Foto oder maile eins an seine Adresse.',
 	'tpl.failed': 'Das hat nicht geklappt: {error}',
 	'helpers.runNow': 'Jetzt ausführen',
+	'helpers.photo': 'Foto',
+	'helpers.byEmail': 'startet per E-Mail',
+	'helpers.emailStarts':
+		'Dieser Helfer startet, wenn eine E-Mail an seine Adresse kommt. Vorher gibt es nichts auszuführen.',
 	'helpers.finished': 'Fertig. Das Ergebnis ist in deinem Feed.',
 	'helpers.runFailed': 'Der Lauf hat nicht geklappt. Im Feed steht, warum.',
 	'photo.take': 'Foto aufnehmen',

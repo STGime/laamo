@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"regexp"
@@ -13,6 +14,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/bricks/look"
 	"github.com/STGime/laamo/backend/internal/catalog"
 	"github.com/STGime/laamo/backend/internal/images"
+	"github.com/STGime/laamo/backend/internal/store"
 )
 
 // uploadedPhoto matches the path UploadPhoto hands out, after
@@ -69,4 +71,34 @@ func runPhotos(workspaceID string, paths []string) (string, bool) {
 // the app shows the camera button.
 func takesPhotos(st catalog.Stack) bool {
 	return slices.ContainsFunc(st.Bricks, func(b catalog.StackBrick) bool { return b.Type == "look.read_photo" })
+}
+
+// startsWith reports what a run of this stack needs to start: a photo
+// (Read the photo), an email (Email this helper), or nothing. With an input
+// Run now has nothing to work on, so the app doesn't offer it.
+func startsWith(st catalog.Stack) *HelperStartsWith {
+	if takesPhotos(st) {
+		return new(HelperStartsWithPhoto)
+	}
+	if slices.ContainsFunc(st.Bricks, func(b catalog.StackBrick) bool { return b.Type == "when.email" }) {
+		return new(HelperStartsWithEmail)
+	}
+	return nil
+}
+
+// helperStartsWith is startsWith for a helper's current version.
+func (s *Server) helperStartsWith(ctx context.Context, h store.Helper) *HelperStartsWith {
+	if h.CurrentVersionID == nil {
+		return nil
+	}
+	v, err := s.store.GetHelperVersion(ctx, *h.CurrentVersionID)
+	if err != nil {
+		s.log.Warn("helper version", "helper", h.ID, "err", err)
+		return nil
+	}
+	var stack catalog.Stack
+	if json.Unmarshal(v.Stack, &stack) != nil {
+		return nil
+	}
+	return startsWith(stack)
 }

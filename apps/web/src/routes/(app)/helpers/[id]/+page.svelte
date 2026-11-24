@@ -355,6 +355,22 @@
 				</p>
 			{/if}
 			{#if photoState === 'failed'}<p class="started" role="alert">{t('photo.failed')}</p>{/if}
+		{:else if helper.starts_with === 'email'}
+			<!-- An email is this helper's input: there's nothing to run without one. -->
+			{#if run && running(run)}
+				<div class="btn primary wide off">
+					<RunTicker
+						{run}
+						retrying={retrying(
+							run,
+							detail?.steps,
+							(detail?.bricks ?? []).map((b) => b.id)
+						)}
+					/>
+				</div>
+			{:else}
+				<p class="hint">{t('helpers.emailStarts')}</p>
+			{/if}
 		{:else}
 			<button class="btn primary wide" disabled={busy || running(run)} onclick={runNow}
 				>{#if run}<RunTicker

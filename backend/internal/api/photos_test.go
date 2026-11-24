@@ -63,6 +63,37 @@ func TestPhotos(t *testing.T) {
 		t.Fatalf("takes_photos missing: %s", d.Body)
 	}
 
+	// Its input is a photo, in the helper list too, so Run now isn't offered
+	// and a run without one is refused. A test run still gets a sample.
+	if d := must(c.GetHelperWithResponse(ctx, uuidOf(h.ID))); d.JSON200.Helper.StartsWith == nil || *d.JSON200.Helper.StartsWith != api.HelperStartsWithPhoto {
+		t.Fatalf("starts_with: %s", d.Body)
+	}
+	mailOnly := st.PutHelper(store.Helper{WorkspaceID: ws.ID, UserID: anna.ID, Name: "Post", Status: "active"})
+	rawMail, _ := json.Marshal(catalog.Stack{Schema: 1, Bricks: []catalog.StackBrick{{ID: "b1", Type: "when.email"}}})
+	vm := st.PutHelperVersion(store.HelperVersion{WorkspaceID: ws.ID, UserID: anna.ID, HelperID: mailOnly.ID, Version: 1, Stack: rawMail})
+	mailOnly.CurrentVersionID = &vm.ID
+	st.PutHelper(mailOnly)
+	plain := st.PutHelper(store.Helper{WorkspaceID: ws.ID, UserID: anna.ID, Name: "Liste", Status: "active"})
+	list := must(c.ListHelpersWithResponse(ctx, uuidOf(ws.ID)))
+	if list.JSON200 == nil || len(list.JSON200.Helpers) != 3 {
+		t.Fatalf("list: %s", list.Body)
+	}
+	for _, lh := range list.JSON200.Helpers {
+		got := ""
+		if lh.StartsWith != nil {
+			got = string(*lh.StartsWith)
+		}
+		want := map[string]string{h.ID: "photo", mailOnly.ID: "email", plain.ID: ""}[lh.Id.String()]
+		if got != want {
+			t.Errorf("%s starts_with %q, want %q", lh.Name, got, want)
+		}
+	}
+	for _, id := range []string{h.ID, mailOnly.ID} {
+		if r := must(c.StartRunWithResponse(ctx, uuidOf(id), api.StartRunJSONRequestBody{})); r.StatusCode() != 409 {
+			t.Errorf("run now without an email or photo: %d, want 409", r.StatusCode())
+		}
+	}
+
 	// The camera button: upload, then start the run with the path.
 	up := must(c.UploadPhotoWithBodyWithResponse(ctx, uuidOf(h.ID), "image/jpeg", bytes.NewReader(photo(t, 2400, 1200))))
 	if up.StatusCode() != 201 || up.JSON201 == nil || !strings.HasPrefix(up.JSON201.Path, "images/"+ws.ID+"/in-") {
