@@ -1,0 +1,119 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "trade-fair-finder",
+  "name": {
+    "en": "Trade Fair Scout",
+    "de": "Messe-Scout"
+  },
+  "promise": {
+    "en": "Every Monday at 8:00, trade fairs and markets for your field that are new to you, with date and place, in your Feed and your Events list.",
+    "de": "Jeden Montag um 8:00 Messen und Märkte für dein Fach, die neu für dich sind, mit Datum und Ort, in deinem Feed und deiner Veranstaltungs-Liste."
+  },
+  "category": "plan_events",
+  "avatar": "🎪",
+  "sort_order": 60,
+  "setup_questions": [
+    {
+      "profile": "business"
+    },
+    {
+      "key": "reach",
+      "type": "text",
+      "question": {
+        "en": "How far would you travel? A town, a region or a country.",
+        "de": "Wie weit würdest du fahren? Ein Ort, eine Region oder ein Land."
+      },
+      "placeholder": {
+        "en": "northern Germany",
+        "de": "Norddeutschland"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "query",
+          "text": {
+            "en": "trade fair {my business} {value}",
+            "de": "Messe Fachmesse {my business} {value}"
+          }
+        },
+        {
+          "brick": "b3",
+          "setting": "criteria",
+          "text": {
+            "en": "are upcoming trade fairs, markets or industry meetups in {value} where a business like mine ({my business}) can exhibit, buy or meet others in the trade. Public festivals and travel tips don't count",
+            "de": "kommende Fachmessen, Märkte oder Branchentreffen in {value} sind, auf denen ein Betrieb wie meiner ({my business}) ausstellen, einkaufen oder Kollegen treffen kann. Volksfeste und Reisetipps zählen nicht"
+          }
+        }
+      ]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.every",
+        "config": {
+          "freq": "weekly",
+          "days": ["mon"],
+          "time": "08:00"
+        }
+      },
+      {
+        "id": "b2",
+        "type": "look.search",
+        "config": {
+          "query": "",
+          "count": 25,
+          "freshness": "any"
+        }
+      },
+      {
+        "id": "b3",
+        "type": "think.keep",
+        "config": {
+          "criteria": "",
+          "max": 8,
+          "sort": "best"
+        }
+      },
+      {
+        "id": "b4",
+        "type": "look.read_page",
+        "config": {
+          "source": "url",
+          "depth": "page"
+        }
+      },
+      {
+        "id": "b5",
+        "type": "think.extract",
+        "config": {
+          "fields": ["title", "date", "place"],
+          "only_found": false
+        }
+      },
+      {
+        "id": "b6",
+        "type": "do.list",
+        "config": {
+          "list": {
+            "en": "Events",
+            "de": "Termine"
+          },
+          "dedupe": "url",
+          "only_new": true
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 30,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.3
+    }
+  },
+  "required": {
+    "brain": true
+  }
+}

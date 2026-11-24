@@ -156,3 +156,42 @@ func TestShelfToFirstRun(t *testing.T) {
 		t.Fatalf("ben shelf: %d", r.StatusCode())
 	}
 }
+
+// A helper that starts with Tap Go and a question (Business List Builder)
+// has no answer to test with: it's added without a test run, says what it
+// asks, and a run needs the answer.
+func TestShelfHelperThatAsksFirst(t *testing.T) {
+	st := memory.New()
+	srv := httptest.NewServer(api.NewServer(api.Deps{Config: config.Config{}, Store: st,
+		Auth: fakeAuth{"anna": anna}, Queue: qmem.New()}).Handler())
+	t.Cleanup(srv.Close)
+	e := env{url: srv.URL, store: st}
+	ctx := context.Background()
+	ws := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Bäckerei Krause", Locale: "en", Timezone: "Europe/Berlin"})
+	st.PutMember(store.Member{WorkspaceID: ws.ID, UserID: anna.ID, Role: store.RoleOwner})
+	c := e.client(t, "anna")
+
+	res := must(c.CreateHelperWithResponse(ctx, wsID(ws.ID), api.NewHelper{Template: "business-list",
+		Answers: map[string]string{"kind": "dentists"}, RunTest: new(true)}))
+	if res.StatusCode() != 201 || res.JSON201.RunId != nil {
+		t.Fatalf("%d %s", res.StatusCode(), res.Body)
+	}
+	id := res.JSON201.Helper.Id
+	hs := must(c.ListHelpersWithResponse(ctx, wsID(ws.ID)))
+	if hs.JSON200 == nil || len(hs.JSON200.Helpers) != 1 || hs.JSON200.Helpers[0].Question == nil || !strings.HasPrefix(*hs.JSON200.Helpers[0].Question, "Where?") {
+		t.Fatalf("helpers %s", hs.Body)
+	}
+	if d := must(c.GetHelperWithResponse(ctx, id)); d.JSON200 == nil || d.JSON200.Helper.Question == nil {
+		t.Fatalf("detail %s", d.Body)
+	}
+	if r := must(c.StartRunWithResponse(ctx, id, api.StartRunJSONRequestBody{})); r.StatusCode() != 400 {
+		t.Fatalf("run without the answer: %d", r.StatusCode())
+	}
+	r := must(c.StartRunWithResponse(ctx, id, api.StartRunJSONRequestBody{Answer: new("Hanover")}))
+	if r.StatusCode() != 202 {
+		t.Fatalf("run with the answer: %d %s", r.StatusCode(), r.Body)
+	}
+	if run, err := st.GetRun(ctx, r.JSON202.RunId.String()); err != nil || run.TriggerData["answer"] != "Hanover" {
+		t.Fatalf("run %+v %v", run, err)
+	}
+}

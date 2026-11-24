@@ -86,19 +86,29 @@ func startsWith(st catalog.Stack) *HelperStartsWith {
 	return nil
 }
 
-// helperStartsWith is startsWith for a helper's current version.
-func (s *Server) helperStartsWith(ctx context.Context, h store.Helper) *HelperStartsWith {
+// tapQuestion is what Tap Go asks before a run ("" when it asks nothing).
+func tapQuestion(st catalog.Stack) string {
+	if len(st.Bricks) == 0 || st.Bricks[0].Type != "when.tap" {
+		return ""
+	}
+	q, _ := st.Bricks[0].Config["question"].(string)
+	return strings.TrimSpace(q)
+}
+
+// helperStart is what a run of the helper's current version needs to
+// start: an input (startsWith) or an answer to this question.
+func (s *Server) helperStart(ctx context.Context, h store.Helper) (*HelperStartsWith, string) {
 	if h.CurrentVersionID == nil {
-		return nil
+		return nil, ""
 	}
 	v, err := s.store.GetHelperVersion(ctx, *h.CurrentVersionID)
 	if err != nil {
 		s.log.Warn("helper version", "helper", h.ID, "err", err)
-		return nil
+		return nil, ""
 	}
 	var stack catalog.Stack
 	if json.Unmarshal(v.Stack, &stack) != nil {
-		return nil
+		return nil, ""
 	}
-	return startsWith(stack)
+	return startsWith(stack), tapQuestion(stack)
 }

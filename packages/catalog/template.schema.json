@@ -47,7 +47,14 @@
                   "type": "object",
                   "additionalProperties": false,
                   "required": ["brick", "setting"],
-                  "properties": { "brick": { "type": "string" }, "setting": { "$ref": "bricks.schema.json#/$defs/key" } }
+                  "properties": {
+                    "brick": { "type": "string" },
+                    "setting": { "$ref": "bricks.schema.json#/$defs/key" },
+                    "text": {
+                      "description": "Puts the answer into a longer setting: {value} is the answer. Without it the answer is the setting.",
+                      "$ref": "bricks.schema.json#/$defs/text"
+                    }
+                  }
                 }
               }
             }

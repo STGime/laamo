@@ -85,13 +85,30 @@
 		if (data && detail) detail = { ...detail, helper: data };
 	}
 
+	// A helper that starts with Tap Go and a question asks it before every
+	// run; the answer goes with the run. (?go=1 opens the question at once:
+	// the helper was just added, or Run now was tapped in the list.)
+	let asking = $state(false);
+	let answer = $state('');
+	let asked = false;
+	$effect(() => {
+		if (asked || !helper?.question || page.url.searchParams.get('go') !== '1') return;
+		asked = true;
+		if (!running(run)) asking = true;
+	});
+
 	async function runNow() {
+		if (helper?.question && !asking) {
+			asking = true;
+			return;
+		}
 		busy = true;
 		const { data } = await api.POST('/helpers/{helperId}/runs', {
 			params: { path: { helperId: id } },
-			body: {}
+			body: helper?.question ? { answer: answer.trim() } : {}
 		});
 		busy = false;
+		asking = false;
 		if (data) follow(data.run_id);
 	}
 
@@ -455,6 +472,22 @@
 		>
 	</section>
 
+	<BottomSheet bind:open={asking} title={helper?.name ?? ''}>
+		<form
+			class="ask"
+			onsubmit={(e) => {
+				e.preventDefault();
+				if (answer.trim()) runNow();
+			}}
+		>
+			<label for="run-answer">{helper?.question}</label>
+			<input id="run-answer" bind:value={answer} maxlength="500" autocomplete="off" />
+			<button type="submit" class="btn primary wide" disabled={busy || !answer.trim()}
+				>{t('helpers.runNow')}</button
+			>
+		</form>
+	</BottomSheet>
+
 	<BottomSheet bind:open={confirmDelete} title={t('helper.deleteTitle', { name: helper.name })}>
 		<p>{t('helper.deleteBody')}</p>
 		{#snippet footer()}
@@ -613,6 +646,21 @@
 	.ended .btn {
 		background: var(--white);
 		color: var(--ink);
+	}
+	.ask {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+	.ask label {
+		font-weight: 700;
+	}
+	.ask input {
+		min-height: 56px;
+		padding: 0 var(--space-4);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+		font: inherit;
 	}
 	.started {
 		margin: 0;

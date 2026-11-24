@@ -3,6 +3,8 @@ package look
 import (
 	"context"
 	"errors"
+	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/STGime/laamo/backend/internal/engine"
@@ -18,7 +20,7 @@ var rowUntrusted = map[string]bool{"title": true, "snippet": true, "text": true,
 // MyStuff is the Read my stuff brick (look.my_stuff): the rows of one of
 // the user's Lists as cards, up to the run's card limit (by default only
 // rows this helper hasn't used yet, oldest first; else the newest), or text
-// they pasted as one card.
+// they pasted as one card, or links they pasted as one card each.
 type MyStuff struct {
 	Lists store.ListStore
 }
@@ -32,6 +34,17 @@ func (m MyStuff) Run(ctx context.Context, rc *engine.RunContext, _ []engine.Card
 		c := engine.Card{Kind: "row"}
 		c.Set("text", text, engine.TrustUser) // typed (or pasted) by the user
 		return []engine.Card{c}, nil
+	}
+	// Pasted links: each is its own card, so Read the page can open it.
+	if cfg.String("source") == "links" {
+		links := pastedLinks(cfg.String("links"))
+		out := make([]engine.Card, 0, len(links))
+		for _, u := range links[:min(len(links), max(1, rc.Limits.MaxCards))] {
+			c := engine.Card{Kind: "row", Source: u}
+			c.Set("url", u, engine.TrustUser)
+			out = append(out, c)
+		}
+		return out, nil
 	}
 	if m.Lists == nil {
 		return nil, queue.Permanent(errors.New("lists aren't set up"))
@@ -72,4 +85,21 @@ func (m MyStuff) Run(ctx context.Context, rc *engine.RunContext, _ []engine.Card
 	}
 	rc.Log.Info("read list", "list", list.ID, "rows", len(out))
 	return out, nil
+}
+
+// pastedLinks returns the links in text (one per line, or with spaces
+// between), each once and in order. Words that aren't links are left out.
+func pastedLinks(text string) []string {
+	var out []string
+	for _, w := range strings.Fields(text) {
+		w = strings.TrimRight(w, ",;")
+		if !strings.HasPrefix(w, "https://") && !strings.HasPrefix(w, "http://") {
+			continue
+		}
+		if u, err := url.Parse(w); err != nil || u.Host == "" || slices.Contains(out, w) {
+			continue
+		}
+		out = append(out, w)
+	}
+	return out
 }

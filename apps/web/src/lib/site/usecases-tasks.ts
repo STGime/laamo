@@ -114,15 +114,16 @@ export const TASK_USE_CASES: UseCase[] = [
 				title: 'Find public tenders and grants that fit your business, every week.',
 				metaTitle: 'Find public tenders and grants for small businesses · Laamo',
 				description:
-					'A helper that searches the web every week for public tenders, calls and grants in your field and region, keeps the ones that fit and saves them to a list with their deadlines.',
+					'A helper that searches the web every week for public tenders, calls and grants in your field and region, keeps the ones that fit and saves them to a list with the date on the notice.',
 				problem:
 					'Public contracts and grants are published on dozens of sites. Small businesses miss most of them, because nobody has the time to check them all every week.',
-				how: 'Every Monday the helper searches for new tenders, calls for bids and funding programmes in your field and your region. It keeps the ones a business like yours could apply for, pulls out the deadline and saves each to your list with a link to the original notice. You get a short summary in your chat.',
+				how: 'Every Monday the helper searches for new tenders, calls for bids and funding programmes in your field and your region. It keeps the ones a business like yours could apply for, reads each notice for its date and saves each to your list with a link to the original notice. You get a short summary in your chat.',
 				stack: [
 					{ group: 'when', text: 'Every Monday at 7:00' },
 					{ group: 'look', text: 'Search tenders for painting work in Saxony' },
 					{ group: 'think', text: 'Keep the ones a small painting business can apply for' },
-					{ group: 'think', text: 'Pull out title and deadline' },
+					{ group: 'look', text: 'Read each notice' },
+					{ group: 'think', text: 'Pull out title and date' },
 					{ group: 'do', text: 'Save new ones to my Tenders list' },
 					{ group: 'think', text: 'Sum them up in a few lines' },
 					{ group: 'do', text: 'Post it to my chat' }
@@ -160,10 +161,10 @@ export const TASK_USE_CASES: UseCase[] = [
 				title: 'Öffentliche Ausschreibungen und Fördermittel finden, die zu deinem Betrieb passen.',
 				metaTitle: 'Öffentliche Ausschreibungen und Fördermittel finden · Laamo',
 				description:
-					'Ein Helfer, der jede Woche im Web nach öffentlichen Ausschreibungen, Aufrufen und Förderprogrammen in deinem Bereich und deiner Region sucht, die passenden behält und sie mit Frist in einer Liste speichert.',
+					'Ein Helfer, der jede Woche im Web nach öffentlichen Ausschreibungen, Aufrufen und Förderprogrammen in deinem Bereich und deiner Region sucht, die passenden behält und sie mit dem Datum der Bekanntmachung in einer Liste speichert.',
 				problem:
 					'Öffentliche Aufträge und Fördermittel werden auf Dutzenden Seiten veröffentlicht. Kleine Betriebe verpassen die meisten, weil niemand die Zeit hat, jede Woche alle durchzusehen.',
-				how: 'Jeden Montag sucht der Helfer nach neuen Ausschreibungen, Vergaben und Förderprogrammen in deinem Bereich und deiner Region. Er behält die, auf die sich ein Betrieb wie deiner bewerben kann, zieht die Frist heraus und speichert jede mit Link zur Originalbekanntmachung in deiner Liste. Du bekommst eine kurze Zusammenfassung in deinen Chat.',
+				how: 'Jeden Montag sucht der Helfer nach neuen Ausschreibungen, Vergaben und Förderprogrammen in deinem Bereich und deiner Region. Er behält die, auf die sich ein Betrieb wie deiner bewerben kann, liest in jeder Bekanntmachung das Datum nach und speichert jede mit Link zur Originalbekanntmachung in deiner Liste. Du bekommst eine kurze Zusammenfassung in deinen Chat.',
 				stack: [
 					{ group: 'when', text: 'Jeden Montag um 7:00' },
 					{ group: 'look', text: 'Ausschreibungen für Malerarbeiten in Sachsen suchen' },
@@ -171,7 +172,8 @@ export const TASK_USE_CASES: UseCase[] = [
 						group: 'think',
 						text: 'Die behalten, auf die sich ein kleiner Malerbetrieb bewerben kann'
 					},
-					{ group: 'think', text: 'Titel und Frist herausziehen' },
+					{ group: 'look', text: 'Jede Bekanntmachung lesen' },
+					{ group: 'think', text: 'Titel und Datum herausziehen' },
 					{ group: 'do', text: 'Neue in meiner Ausschreibungen-Liste speichern' },
 					{ group: 'think', text: 'In ein paar Zeilen zusammenfassen' },
 					{ group: 'do', text: 'In meinen Chat posten' }
@@ -314,10 +316,10 @@ export const TASK_USE_CASES: UseCase[] = [
 					'A helper that opens the product pages you name every week, reads the current price on each and saves it to a list, so you see who changed what without visiting ten shops.',
 				problem:
 					'You want to know what the shop down the road and the three online sellers charge for the same things you sell. Checking ten pages every week is exactly the kind of task that gets dropped.',
-				how: 'You put the pages to watch into a list once: one row per product page. Every Monday the helper opens each page, reads the price as it is shown and saves it with the date to your Prices list. Download the list as a spreadsheet to compare weeks.',
+				how: 'You paste the links to the product pages once, when you add the helper. Every Monday the helper opens each page, reads the price as it is shown and saves it with the date to your Prices list. Download the list as a spreadsheet to compare weeks.',
 				stack: [
 					{ group: 'when', text: 'Every Monday at 6:00' },
-					{ group: 'look', text: 'Read my Price pages list' },
+					{ group: 'look', text: 'Read my links' },
 					{ group: 'look', text: 'Read each page' },
 					{ group: 'think', text: 'Pull out the price' },
 					{ group: 'do', text: 'Save to my Prices list' }
@@ -330,9 +332,9 @@ export const TASK_USE_CASES: UseCase[] = [
 						'10 more rows in your Prices list'
 					]
 				},
-				questions: ['Which pages should I read? (your list of links)', 'How often?'],
+				questions: ['Which pages should I read? Paste the links to the product pages.'],
 				notes: [
-					'The helper reads prices that are on the page when it opens. Prices that only show after a login, or after choosing a size, stay hidden from it.',
+					'The helper reads prices that are on the page when it opens. Prices that only show after a login, or after choosing a size, stay hidden from it, and some shops don’t let helpers read their pages at all.',
 					'A helper that runs only when a page changes is coming soon.'
 				],
 				faq: [
@@ -354,10 +356,10 @@ export const TASK_USE_CASES: UseCase[] = [
 					'Ein Helfer, der jede Woche die Produktseiten öffnet, die du nennst, den aktuellen Preis liest und in einer Liste speichert. So siehst du, wer was geändert hat, ohne zehn Shops zu besuchen.',
 				problem:
 					'Du willst wissen, was der Laden um die Ecke und die drei Online-Händler für dieselben Sachen verlangen wie du. Jede Woche zehn Seiten durchzusehen ist genau die Aufgabe, die liegen bleibt.',
-				how: 'Du trägst die Seiten einmal in eine Liste ein: eine Zeile pro Produktseite. Jeden Montag öffnet der Helfer jede Seite, liest den Preis, wie er dort steht, und speichert ihn mit Datum in deiner Preise-Liste. Lade die Liste als Tabelle herunter, um Wochen zu vergleichen.',
+				how: 'Du fügst die Links zu den Produktseiten einmal ein, wenn du den Helfer hinzufügst. Jeden Montag öffnet der Helfer jede Seite, liest den Preis, wie er dort steht, und speichert ihn mit Datum in deiner Preise-Liste. Lade die Liste als Tabelle herunter, um Wochen zu vergleichen.',
 				stack: [
 					{ group: 'when', text: 'Jeden Montag um 6:00' },
-					{ group: 'look', text: 'Meine Liste „Preisseiten“ lesen' },
+					{ group: 'look', text: 'Meine Links lesen' },
 					{ group: 'look', text: 'Jede Seite lesen' },
 					{ group: 'think', text: 'Den Preis herausziehen' },
 					{ group: 'do', text: 'In meiner Preise-Liste speichern' }
@@ -370,9 +372,9 @@ export const TASK_USE_CASES: UseCase[] = [
 						'10 weitere Zeilen in deiner Preise-Liste'
 					]
 				},
-				questions: ['Welche Seiten soll ich lesen? (deine Liste mit Links)', 'Wie oft?'],
+				questions: ['Welche Seiten soll ich lesen? Füge die Links zu den Produktseiten ein.'],
 				notes: [
-					'Der Helfer liest Preise, die beim Öffnen auf der Seite stehen. Preise, die erst nach einer Anmeldung oder nach Wahl einer Größe erscheinen, bleiben ihm verborgen.',
+					'Der Helfer liest Preise, die beim Öffnen auf der Seite stehen. Preise, die erst nach einer Anmeldung oder nach Wahl einer Größe erscheinen, bleiben ihm verborgen, und manche Shops lassen Helfer ihre Seiten gar nicht lesen.',
 					'Ein Helfer, der nur läuft, wenn sich eine Seite ändert, kommt bald.'
 				],
 				faq: [
@@ -483,24 +485,24 @@ export const TASK_USE_CASES: UseCase[] = [
 				title: 'Find trade fairs and networking events for your industry.',
 				metaTitle: 'Find trade fairs and networking events for your industry · Laamo',
 				description:
-					'A helper that searches every week for trade fairs, markets and networking events in your industry and region. Swipe to keep the ones worth going to; they land in a list with date and place.',
+					'A helper that searches every week for trade fairs, markets and networking events in your industry and region. The ones that are new to you land in your Feed and in a list, with date and place.',
 				problem:
 					'The fair where your next three customers were standing took place last month, an hour away. You found out from someone’s photos.',
-				how: 'Every Monday the helper searches for newly announced trade fairs, markets, meetups and chamber events in your industry and within reach. It keeps the ones that fit a business like yours and shows them as cards. Swipe right to keep one: it goes into your Events list with its date, place and link.',
+				how: 'Every Monday the helper searches for newly announced trade fairs, markets, meetups and chamber events in your industry and within reach. It keeps the ones that fit a business like yours, reads each page for the date and place, and saves the ones you haven’t seen yet to your Events list with their link. Your Feed shows what is new.',
 				stack: [
 					{ group: 'when', text: 'Every Monday at 8:00' },
 					{ group: 'look', text: 'Search trade fairs for florists in northern Germany' },
 					{ group: 'think', text: 'Keep the ones worth a day’s trip' },
+					{ group: 'look', text: 'Read each page' },
 					{ group: 'think', text: 'Pull out date and place' },
-					{ group: 'ask', text: 'Let me pick' },
-					{ group: 'do', text: 'Save to my Events list' }
+					{ group: 'do', text: 'Save new ones to my Events list' }
 				],
 				result: {
 					title: '6 events to look at',
 					lines: [
 						'Regional flower and garden fair, Hamburg, 14–16 March',
 						'Wedding suppliers’ evening, Lübeck, 2 April',
-						'4 more to swipe through'
+						'4 more new rows in your Events list'
 					]
 				},
 				questions: [
@@ -509,7 +511,7 @@ export const TASK_USE_CASES: UseCase[] = [
 				],
 				notes: [
 					'Dates and places come from the events’ own pages. Check the organiser’s page before you book: events move.',
-					'The helper learns from your swipes: what you skip, it shows less of next time.'
+					'You hear of each event page once. A row you don’t need, you delete from the list.'
 				],
 				faq: [
 					{
@@ -523,24 +525,24 @@ export const TASK_USE_CASES: UseCase[] = [
 				title: 'Messen und Netzwerk-Treffen für deine Branche finden.',
 				metaTitle: 'Messen und Netzwerk-Veranstaltungen für deine Branche finden · Laamo',
 				description:
-					'Ein Helfer, der jede Woche nach Messen, Märkten und Netzwerk-Treffen in deiner Branche und Region sucht. Wisch dir die raus, die sich lohnen; sie landen mit Datum und Ort in einer Liste.',
+					'Ein Helfer, der jede Woche nach Messen, Märkten und Netzwerk-Treffen in deiner Branche und Region sucht. Die für dich neuen landen in deinem Feed und in einer Liste, mit Datum und Ort.',
 				problem:
 					'Die Messe, auf der deine nächsten drei Kunden standen, war letzten Monat, eine Stunde entfernt. Erfahren hast du es durch die Fotos von jemand anderem.',
-				how: 'Jeden Montag sucht der Helfer nach neu angekündigten Messen, Märkten, Stammtischen und Kammer-Veranstaltungen in deiner Branche und in Reichweite. Er behält die, die zu einem Betrieb wie deinem passen, und zeigt sie als Karten. Wisch nach rechts, um eine zu behalten: Sie kommt mit Datum, Ort und Link in deine Termine-Liste.',
+				how: 'Jeden Montag sucht der Helfer nach neu angekündigten Messen, Märkten, Stammtischen und Kammer-Veranstaltungen in deiner Branche und in Reichweite. Er behält die, die zu einem Betrieb wie deinem passen, liest auf jeder Seite Datum und Ort nach und speichert die, die du noch nicht kennst, mit Link in deiner Termine-Liste. Dein Feed zeigt, was neu ist.',
 				stack: [
 					{ group: 'when', text: 'Jeden Montag um 8:00' },
 					{ group: 'look', text: 'Messen für Floristen in Norddeutschland suchen' },
 					{ group: 'think', text: 'Die behalten, die eine Tagesreise wert sind' },
+					{ group: 'look', text: 'Jede Seite lesen' },
 					{ group: 'think', text: 'Datum und Ort herausziehen' },
-					{ group: 'ask', text: 'Lass mich wählen' },
-					{ group: 'do', text: 'In meiner Termine-Liste speichern' }
+					{ group: 'do', text: 'Neue in meiner Termine-Liste speichern' }
 				],
 				result: {
 					title: '6 Veranstaltungen zum Ansehen',
 					lines: [
 						'Regionale Blumen- und Gartenmesse, Hamburg, 14.–16. März',
 						'Abend der Hochzeitsdienstleister, Lübeck, 2. April',
-						'4 weitere zum Durchwischen'
+						'4 weitere neue Zeilen in deiner Termine-Liste'
 					]
 				},
 				questions: [
@@ -549,7 +551,7 @@ export const TASK_USE_CASES: UseCase[] = [
 				],
 				notes: [
 					'Datum und Ort kommen von den Seiten der Veranstaltungen. Schau vor dem Buchen auf die Seite des Veranstalters: Termine verschieben sich.',
-					'Der Helfer lernt aus deinem Wischen: Was du überspringst, zeigt er dir beim nächsten Mal seltener.'
+					'Von jeder Veranstaltungsseite hörst du einmal. Eine Zeile, die du nicht brauchst, löschst du aus der Liste.'
 				],
 				faq: [
 					{

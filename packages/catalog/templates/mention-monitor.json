@@ -1,0 +1,127 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "mention-monitor",
+  "name": {
+    "en": "Mention Watch",
+    "de": "Erwähnungs-Wächter"
+  },
+  "promise": {
+    "en": "Every Friday at 16:00, the pages that talk about your business and are new to you, summed up in your chat. You hear of each page once.",
+    "de": "Jeden Freitag um 16:00 die Seiten, die über dein Geschäft sprechen und neu für dich sind, zusammengefasst in deinem Chat. Von jeder Seite hörst du einmal."
+  },
+  "category": "stay_up_to_date",
+  "avatar": "💬",
+  "sort_order": 45,
+  "setup_questions": [
+    {
+      "key": "name",
+      "type": "text",
+      "question": {
+        "en": "What is your business called, and in which town?",
+        "de": "Wie heißt dein Geschäft, und in welchem Ort?"
+      },
+      "placeholder": {
+        "en": "Café Sonne Leipzig",
+        "de": "Café Sonne Leipzig"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "query"
+        },
+        {
+          "brick": "b3",
+          "setting": "criteria",
+          "text": {
+            "en": "name my business “{value}” and are about it. Pages that only share the town or the kind of business don't count, and neither does my own website",
+            "de": "mein Geschäft „{value}“ beim Namen nennen und von ihm handeln. Seiten, die nur denselben Ort oder dieselbe Branche haben, zählen nicht, meine eigene Website auch nicht"
+          }
+        }
+      ]
+    },
+    {
+      "key": "chat",
+      "type": "place",
+      "question": {
+        "en": "Where should I tell you?",
+        "de": "Wo soll ich dir Bescheid geben?"
+      },
+      "fills": [
+        {
+          "brick": "b6",
+          "setting": "place"
+        }
+      ]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.every",
+        "config": {
+          "freq": "weekly",
+          "days": ["fri"],
+          "time": "16:00"
+        }
+      },
+      {
+        "id": "b2",
+        "type": "look.search",
+        "config": {
+          "query": "",
+          "count": 25,
+          "freshness": "any"
+        }
+      },
+      {
+        "id": "b3",
+        "type": "think.keep",
+        "config": {
+          "criteria": "",
+          "max": 10,
+          "sort": "best"
+        }
+      },
+      {
+        "id": "b4",
+        "type": "do.list",
+        "config": {
+          "list": {
+            "en": "Mentions",
+            "de": "Erwähnungen"
+          },
+          "dedupe": "url",
+          "only_new": true
+        }
+      },
+      {
+        "id": "b5",
+        "type": "think.summarize",
+        "config": {
+          "length": "short",
+          "mode": "all",
+          "language": "auto"
+        }
+      },
+      {
+        "id": "b6",
+        "type": "do.chat",
+        "config": {
+          "mode": "one"
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 30,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.2
+    }
+  },
+  "required": {
+    "brain": true,
+    "places": ["discord", "slack", "teams", "telegram"]
+  }
+}

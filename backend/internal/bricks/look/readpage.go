@@ -121,6 +121,10 @@ func (b ReadPage) read(ctx context.Context, u, depth string) (title, text, final
 		return "", "", "", err
 	}
 	var sb strings.Builder
+	// A shop page's price is often only in its page data, not its text.
+	if p.Price != "" {
+		sb.WriteString("Price: " + p.Price + "\n\n")
+	}
 	sb.WriteString(p.Text)
 	emails, phones := p.Emails, p.Phones
 	if depth == "contact" {

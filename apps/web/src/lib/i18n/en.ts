@@ -312,6 +312,8 @@ export const en = {
 	'tpl.add': 'Add this helper',
 	'tpl.addHint':
 		'Adds the helper to your helpers. Then take a photo on its page, or email one to its address.',
+	'tpl.askHint':
+		'Adds the helper to your helpers. It asks you its question every time you run it, starting now.',
 	'tpl.failed': 'That didn’t work: {error}',
 	'helpers.runNow': 'Run now',
 	'helpers.photo': 'Photo',

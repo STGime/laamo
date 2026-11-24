@@ -75,6 +75,11 @@
 					<a class="btn" class:off={running(h.run)} href={`/helpers/${h.id}`}
 						>{running(h.run) ? t('helpers.busy') : t('helpers.photo')}</a
 					>
+				{:else if h.question && h.status !== 'draft'}
+					<!-- It asks a question first: its page does that. -->
+					<a class="btn" class:off={running(h.run)} href={`/helpers/${h.id}?go=1`}
+						>{running(h.run) ? t('helpers.busy') : t('helpers.runNow')}</a
+					>
 				{:else if h.starts_with === 'email'}
 					{#if running(h.run)}<span class="btn off">{t('helpers.busy')}</span>{/if}
 				{:else}

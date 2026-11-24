@@ -1,0 +1,130 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "competitor-research",
+  "name": {
+    "en": "Competitor Research",
+    "de": "Mitbewerber-Recherche"
+  },
+  "promise": {
+    "en": "Every Friday at 9:00, what your competitors have been up to, in a few lines in your chat.",
+    "de": "Jeden Freitag um 9:00, was deine Mitbewerber gemacht haben, in wenigen Zeilen in deinem Chat."
+  },
+  "category": "watch_competitors",
+  "avatar": "👀",
+  "sort_order": 30,
+  "setup_questions": [
+    {
+      "key": "competitors",
+      "type": "text",
+      "question": {
+        "en": "Which competitors should I watch? Names, with the town.",
+        "de": "Welche Mitbewerber soll ich beobachten? Namen, mit Ort."
+      },
+      "placeholder": {
+        "en": "Bike Hub Leipzig, Radwerk Leipzig",
+        "de": "Bike Hub Leipzig, Radwerk Leipzig"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "query"
+        }
+      ]
+    },
+    {
+      "key": "important",
+      "type": "text",
+      "question": {
+        "en": "What counts as important?",
+        "de": "Was ist wichtig?"
+      },
+      "placeholder": {
+        "en": "price changes, new offers, a new shop",
+        "de": "Preisänderungen, neue Angebote, ein neues Geschäft"
+      },
+      "fills": [
+        {
+          "brick": "b3",
+          "setting": "criteria",
+          "text": {
+            "en": "are news about these businesses that I should know as their competitor: {value}",
+            "de": "Neuigkeiten über diese Betriebe sind, die ich als Mitbewerber kennen sollte: {value}"
+          }
+        }
+      ]
+    },
+    {
+      "key": "chat",
+      "type": "place",
+      "question": {
+        "en": "Where should I tell you?",
+        "de": "Wo soll ich dir Bescheid geben?"
+      },
+      "fills": [
+        {
+          "brick": "b5",
+          "setting": "place"
+        }
+      ]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.every",
+        "config": {
+          "freq": "weekly",
+          "days": ["fri"],
+          "time": "09:00"
+        }
+      },
+      {
+        "id": "b2",
+        "type": "look.search",
+        "config": {
+          "query": "",
+          "count": 10,
+          "freshness": "week"
+        }
+      },
+      {
+        "id": "b3",
+        "type": "think.keep",
+        "config": {
+          "criteria": "",
+          "who": "competitors",
+          "max": 5,
+          "sort": "best"
+        }
+      },
+      {
+        "id": "b4",
+        "type": "think.summarize",
+        "config": {
+          "length": "short",
+          "mode": "all",
+          "language": "auto"
+        }
+      },
+      {
+        "id": "b5",
+        "type": "do.chat",
+        "config": {
+          "mode": "one"
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 30,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.2
+    }
+  },
+  "required": {
+    "brain": true,
+    "places": ["discord", "slack", "teams", "telegram"]
+  }
+}

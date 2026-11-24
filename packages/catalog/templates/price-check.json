@@ -1,0 +1,94 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "price-check",
+  "name": {
+    "en": "Price Checker",
+    "de": "Preis-Check"
+  },
+  "promise": {
+    "en": "Every Monday at 6:00, the prices on the pages you name, saved with the date to a list you can download.",
+    "de": "Jeden Montag um 6:00 die Preise auf den Seiten, die du nennst, mit Datum in einer Liste gespeichert, die du herunterladen kannst."
+  },
+  "category": "watch_competitors",
+  "avatar": "🏷️",
+  "sort_order": 50,
+  "setup_questions": [
+    {
+      "key": "pages",
+      "type": "text",
+      "question": {
+        "en": "Which pages should I read? Paste the links to the product pages.",
+        "de": "Welche Seiten soll ich lesen? Füge die Links zu den Produktseiten ein."
+      },
+      "placeholder": {
+        "en": "https://shop.example/bike-service",
+        "de": "https://shop.example/fahrrad-service"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "links"
+        }
+      ]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.every",
+        "config": {
+          "freq": "weekly",
+          "days": ["mon"],
+          "time": "06:00"
+        }
+      },
+      {
+        "id": "b2",
+        "type": "look.my_stuff",
+        "config": {
+          "source": "links",
+          "links": ""
+        }
+      },
+      {
+        "id": "b3",
+        "type": "look.read_page",
+        "config": {
+          "source": "url",
+          "depth": "page"
+        }
+      },
+      {
+        "id": "b4",
+        "type": "think.extract",
+        "config": {
+          "fields": ["title", "price"],
+          "only_found": true
+        }
+      },
+      {
+        "id": "b5",
+        "type": "do.list",
+        "config": {
+          "list": {
+            "en": "Prices",
+            "de": "Preise"
+          },
+          "dedupe": "none",
+          "only_new": false
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 30,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.2
+    }
+  },
+  "required": {
+    "brain": true
+  }
+}

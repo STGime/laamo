@@ -188,6 +188,10 @@ func Install(cat *catalog.Catalog, t catalog.Template, ws store.Workspace, answe
 			if stack.Bricks[i].Config == nil {
 				stack.Bricks[i].Config = map[string]any{}
 			}
+			if f.Text != nil {
+				stack.Bricks[i].Config[f.Setting] = strings.ReplaceAll(f.Text.In(ws.Locale), "{value}", v)
+				continue
+			}
 			stack.Bricks[i].Config[f.Setting] = v
 		}
 	}

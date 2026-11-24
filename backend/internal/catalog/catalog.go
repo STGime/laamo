@@ -358,6 +358,10 @@ type SetupQuestion struct {
 	Fills       []struct {
 		Brick   string `json:"brick"`
 		Setting string `json:"setting"`
+		// Text puts the answer into a longer setting: "{value}" is the
+		// answer ("tenders for {my business} in {value}"). Without it the
+		// answer is the setting.
+		Text *Text `json:"text,omitempty"`
 	} `json:"fills,omitempty"`
 }
 
