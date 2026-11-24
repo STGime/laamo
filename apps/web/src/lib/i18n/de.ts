@@ -329,6 +329,8 @@ export const de: Record<Key, string> = {
 		'Dieser Helfer startet, wenn eine E-Mail an seine Adresse kommt. Vorher gibt es nichts auszuführen.',
 	'helpers.finished': 'Fertig. Das Ergebnis ist in deinem Feed.',
 	'helpers.runFailed': 'Der Lauf hat nicht geklappt. Im Feed steht, warum.',
+	'helpers.needsYou': 'Bereit. Im Feed wartet es darauf, dass du es prüfst.',
+	'helpers.openFeed': 'Feed öffnen',
 	'photo.take': 'Foto aufnehmen',
 	'photo.choose': 'Oder ein Bild auswählen',
 	'photo.sending': 'Foto wird gesendet…',

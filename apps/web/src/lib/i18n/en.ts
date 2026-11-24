@@ -320,6 +320,8 @@ export const en = {
 		'This helper starts when an email arrives at its address. There’s nothing to run until then.',
 	'helpers.finished': 'Done. The result is in your Feed.',
 	'helpers.runFailed': 'That run didn’t work. Your Feed says why.',
+	'helpers.needsYou': 'Ready. It waits for you to check it in your Feed.',
+	'helpers.openFeed': 'Open the Feed',
 	'photo.take': 'Take a photo',
 	'photo.choose': 'Or choose a picture',
 	'photo.sending': 'Sending the photo…',

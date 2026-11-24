@@ -67,8 +67,9 @@
 	const bricks = $derived(view.items as StackItem[]);
 	// How the run started here ended ('' while it's going or unknown).
 	const ended = $derived.by(() => {
+		// A run that waits for the user says so, whoever started it.
+		if (run?.status === 'waiting') return 'waiting';
 		if (after !== 'following' || running(run)) return '';
-		if (run?.id === startedRun) return 'waiting'; // not running, so it waits for the user
 		const status = detail?.runs.find((r) => r.id === startedRun)?.status;
 		return status === 'done' || status === 'failed' || status === 'stopped' ? status : '';
 	});
@@ -255,6 +256,25 @@
 				forward={helper.forward_address}
 				helperId={helper.id}
 			/>{/if}
+		<!-- How the run ended, where it can't be missed: above the buttons. -->
+		{#if ended}
+			{@const bad = ended !== 'waiting' && ended !== 'done'}
+			<div
+				class="ended"
+				class:waiting={ended === 'waiting'}
+				class:bad
+				role={bad ? 'alert' : 'status'}
+			>
+				<p>
+					{ended === 'waiting'
+						? t('helpers.needsYou')
+						: ended === 'done'
+							? t('helpers.finished')
+							: t('helpers.runFailed')}
+				</p>
+				<a class="btn wide" href="/feed">{t('helpers.openFeed')} →</a>
+			</div>
+		{/if}
 		{#if detail?.takes_photos}
 			{@const off = busy || running(run)}
 			{#snippet camera()}
@@ -382,15 +402,6 @@
 						)}
 					/>{:else if after === 'starting'}<RunTicker />{:else}{t('helpers.runNow')}{/if}</button
 			>
-		{/if}
-		{#if ended === 'waiting'}
-			<p class="started">{t('helpers.waiting')}. <a href="/feed">{t('tab.feed')} →</a></p>
-		{:else if ended === 'done'}
-			<p class="started">{t('helpers.finished')} <a href="/feed">{t('tab.feed')} →</a></p>
-		{:else if ended}
-			<p class="started failed" role="alert">
-				{t('helpers.runFailed')} <a href="/feed">{t('tab.feed')} →</a>
-			</p>
 		{/if}
 	</header>
 
@@ -576,6 +587,32 @@
 		color: var(--muted);
 		font-size: var(--text-sm);
 		font-weight: 600;
+	}
+	.ended {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		border: var(--border);
+		border-radius: var(--radius-control);
+		background: var(--brick-green);
+		color: var(--on-green);
+	}
+	.ended.waiting {
+		background: var(--brick-yellow);
+		color: var(--on-yellow);
+	}
+	.ended.bad {
+		background: var(--brick-red);
+		color: var(--on-red);
+	}
+	.ended p {
+		margin: 0;
+		font-weight: 700;
+	}
+	.ended .btn {
+		background: var(--white);
+		color: var(--ink);
 	}
 	.started {
 		margin: 0;
