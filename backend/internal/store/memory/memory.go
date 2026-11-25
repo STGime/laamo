@@ -969,6 +969,17 @@ func (s *Store) GetOutboundByKey(_ context.Context, key string) (store.OutboundM
 	return store.OutboundMessage{}, store.ErrNotFound
 }
 
+func (s *Store) GetOutboundByProviderID(_ context.Context, workspaceID, channel, providerID string) (store.OutboundMessage, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, m := range s.outbound {
+		if m.WorkspaceID == workspaceID && m.Channel == channel && m.ProviderMessageID != nil && *m.ProviderMessageID == providerID {
+			return clone(m), nil
+		}
+	}
+	return store.OutboundMessage{}, store.ErrNotFound
+}
+
 func (s *Store) UpdateOutbound(_ context.Context, id string, p store.OutboundPatch) (store.OutboundMessage, error) {
 	return update(s, s.outbound, id, p)
 }

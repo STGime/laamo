@@ -524,6 +524,18 @@ func (s *Store) GetOutboundByKey(ctx context.Context, key string) (store.Outboun
 	return rows[0], nil
 }
 
+func (s *Store) GetOutboundByProviderID(ctx context.Context, workspaceID, channel, providerID string) (store.OutboundMessage, error) {
+	q := eb.NewQuery().Eq("workspace_id", workspaceID).Eq("channel", channel).Eq("provider_message_id", providerID)
+	rows, err := listRows[store.OutboundMessage](ctx, s, "outbound_messages", q, 1)
+	if err != nil {
+		return store.OutboundMessage{}, err
+	}
+	if len(rows) == 0 {
+		return store.OutboundMessage{}, store.ErrNotFound
+	}
+	return rows[0], nil
+}
+
 func (s *Store) UpdateOutbound(ctx context.Context, id string, p store.OutboundPatch) (store.OutboundMessage, error) {
 	return updateRow[store.OutboundMessage](ctx, s, "outbound_messages", id, p)
 }

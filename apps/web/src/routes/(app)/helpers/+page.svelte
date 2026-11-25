@@ -10,12 +10,19 @@
 	let helpers = $state<Schemas['Helper'][] | null>(null);
 	let starting = $state<string | null>(null);
 
+	// Runs seen going on this screen (or started here): when one ends, its
+	// helper says how, so a run doesn't just go quiet.
+	const watched = new Set<string>();
+	const ended = (h: Schemas['Helper']) =>
+		h.last_run && watched.has(h.last_run.id) ? h.last_run.status : '';
+
 	function load() {
 		const ws = session.workspace;
 		if (!ws) return;
 		api
 			.GET('/workspaces/{workspaceId}/helpers', { params: { path: { workspaceId: ws.id } } })
 			.then(({ data }) => {
+				for (const h of data?.helpers ?? []) if (h.run) watched.add(h.run.id);
 				helpers = data?.helpers ?? [];
 			});
 	}
@@ -29,7 +36,12 @@
 
 	async function runNow(id: string) {
 		starting = id;
-		await api.POST('/helpers/{helperId}/runs', { params: { path: { helperId: id } }, body: {} });
+		const { data } = await api.POST('/helpers/{helperId}/runs', {
+			params: { path: { helperId: id } },
+			body: {}
+		});
+		// A short run can be over before the list is read again.
+		if (data) watched.add(data.run_id);
 		load();
 		starting = null;
 	}
@@ -90,6 +102,12 @@
 						>{running(h.run) ? t('helpers.busy') : t('helpers.runNow')}</button
 					>
 				{/if}
+				{#if !h.run && ended(h)}
+					{@const bad = ended(h) !== 'done'}
+					<a class="ended" class:bad href="/feed" role={bad ? 'alert' : 'status'}
+						>{bad ? t('helpers.runFailed') : t('helpers.finished')} →</a
+					>
+				{/if}
 			</li>
 		{/each}
 	</ul>
@@ -112,10 +130,29 @@
 	}
 	.list li {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-3);
 		padding: var(--space-4) var(--gutter);
 		border-bottom: var(--border);
+	}
+	/* How the run ended: a line of its own under the helper, to the Feed. */
+	.ended {
+		flex-basis: 100%;
+		display: flex;
+		align-items: center;
+		min-height: var(--tap-min);
+		padding: var(--space-2) var(--space-4);
+		border: var(--border);
+		border-radius: var(--radius-control);
+		background: var(--brick-green);
+		color: var(--on-green);
+		font-weight: 700;
+		text-decoration: none;
+	}
+	.ended.bad {
+		background: var(--brick-red);
+		color: var(--on-red);
 	}
 	.open {
 		flex: 1;

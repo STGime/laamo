@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -30,6 +31,10 @@ type Social struct {
 	Store ChatStore
 	Keys  *crypto.Keyring
 	Posta *posta.Service
+	// HookURL is where Posta reports how a post did (the api's
+	// /api/posta/webhook, https). The place's id is added to it. Empty:
+	// nobody is told, and the Feed only says the post was handed over.
+	HookURL string
 }
 
 // MaxCaption is the longest text Posta takes.
@@ -116,6 +121,9 @@ func (s Social) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card
 		at = &t
 	}
 
+	if when != "draft" {
+		s.listen(ctx, rc, &place, user)
+	}
 	ids := make([]string, len(chosen))
 	for i, c := range chosen {
 		ids[i] = c.ID
@@ -135,6 +143,8 @@ func (s Social) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card
 		}
 		if sent {
 			card.Set("posted_at", now().UTC().Format(time.RFC3339), engine.TrustUser)
+			// What became of it, for the Feed.
+			card.Set("posted", outcome(when, at, chosen, now(), rc.Workspace.Timezone, de), engine.TrustUser)
 		}
 	}
 	return in, nil
@@ -237,6 +247,44 @@ func (s Social) finish(ctx context.Context, user *posta.User, m store.OutboundMe
 	return err == nil, err
 }
 
+// listen makes sure Posta tells Laamo how this account's posts did. It is
+// set up once per account, before its first post. Failing is no reason not
+// to post: the Feed then just doesn't hear about the result.
+func (s Social) listen(ctx context.Context, rc *engine.RunContext, place *store.Place, user *posta.User) {
+	if !strings.HasPrefix(s.HookURL, "https://") || place.Meta[posta.MetaHook] != nil {
+		return
+	}
+	hook, err := user.CreateWebhook(ctx, strings.TrimRight(s.HookURL, "/")+"/"+place.ID)
+	if err != nil {
+		rc.Log.Warn("posta: no webhook; post results won't show in the Feed", "place", place.ID, "err", err)
+		return
+	}
+	save := func() error {
+		env, err := s.Keys.Encrypt([]byte(hook.Secret), crypto.AAD("places", place.ID, posta.HookField))
+		if err != nil {
+			return err
+		}
+		meta := maps.Clone(place.Meta)
+		if meta == nil {
+			meta = map[string]any{}
+		}
+		meta[posta.MetaHook] = map[string]any{posta.MetaHookID: hook.ID, posta.MetaHookSecret: base64.StdEncoding.EncodeToString(env)}
+		p, err := s.Store.UpdatePlace(ctx, place.ID, store.PlacePatch{Meta: meta})
+		if err == nil {
+			*place = p
+		}
+		return err
+	}
+	if err := save(); err != nil {
+		// Without its secret the endpoint is of no use, and an account in
+		// its free days has room for one only.
+		rc.Log.Warn("posta: webhook not saved; removing it again", "place", place.ID, "err", err)
+		if hook.ID != "" {
+			_ = user.DeleteWebhook(ctx, hook.ID)
+		}
+	}
+}
+
 // upload hands a card's picture (from Draw a picture) to Posta.
 func (s Social) upload(ctx context.Context, rc *engine.RunContext, user *posta.User, path string) (string, error) {
 	// Only this workspace's own pictures: the path comes from a card.
@@ -314,6 +362,52 @@ func (s Social) explain(err error, de bool) error {
 		return pick("Posta refused the post: "+why, "Posta hat den Post abgelehnt: "+why)
 	}
 	return err
+}
+
+// outcome says in one line what became of a post: the Feed card's title.
+// "Now" is on its way, not out: the networks answer a little later (and
+// Posta then tells, see api/posta_hook.go).
+func outcome(when string, at *time.Time, chosen []posta.Channel, now time.Time, zone string, de bool) string {
+	var names []string
+	for _, c := range chosen {
+		if n := platform(c); !slices.Contains(names, n) {
+			names = append(names, n)
+		}
+	}
+	and := " and "
+	if de {
+		and = " und "
+	}
+	on := strings.Join(names, ", ")
+	if n := len(names); n > 1 {
+		on = strings.Join(names[:n-1], ", ") + and + names[n-1]
+	}
+	switch {
+	case when == "draft" && de:
+		return "Als Entwurf in Posta gespeichert"
+	case when == "draft":
+		return "Saved as a draft in Posta"
+	case at != nil:
+		loc, err := time.LoadLocation(zone)
+		if err != nil || zone == "" {
+			loc, _ = time.LoadLocation("Europe/Berlin")
+		}
+		clock := at.In(loc).Format("15:04")
+		if at.In(loc).YearDay() != now.In(loc).YearDay() {
+			if de {
+				clock = "morgen " + clock
+			} else {
+				clock = "tomorrow " + clock
+			}
+		}
+		if de {
+			return fmt.Sprintf("Geplant für %s auf %s", clock, on)
+		}
+		return fmt.Sprintf("Planned for %s on %s", clock, on)
+	case de:
+		return "Unterwegs zu " + on
+	}
+	return "On its way to " + on
 }
 
 // nextAt is the next time the clock shows hhmm in the workspace's time

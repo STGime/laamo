@@ -31,6 +31,7 @@ type socialEnv struct {
 	rc    *engine.RunContext
 	blobs *engine.MemoryBlobs
 	place store.Place
+	token string // the account's Posta token
 }
 
 // A workspace with social posting on (an account Laamo made), Bluesky and
@@ -77,7 +78,7 @@ func setupSocial(t *testing.T, own bool) *socialEnv {
 	if err := st.CreatePlace(ctx, &p); err != nil {
 		t.Fatal(err)
 	}
-	return &socialEnv{st: st, fake: fake, brick: do.Social{Store: st, Keys: keys, Posta: svc}, rc: rc, blobs: blobs, place: p}
+	return &socialEnv{st: st, fake: fake, brick: do.Social{Store: st, Keys: keys, Posta: svc}, rc: rc, blobs: blobs, place: p, token: token}
 }
 
 func (e *socialEnv) run(t *testing.T, in []engine.Card, cfg map[string]any) ([]engine.Card, error) {
@@ -132,8 +133,8 @@ func TestSocialPostsNow(t *testing.T) {
 		t.Fatalf("posts: %+v", posts)
 	}
 	for _, c := range out {
-		if c.Text("posted_at") == "" {
-			t.Fatalf("card %s has no posted_at", c.ID)
+		if c.Text("posted_at") == "" || c.Text("posted") != "On its way to Bluesky" {
+			t.Fatalf("card %s: posted_at %q, posted %q", c.ID, c.Text("posted_at"), c.Text("posted"))
 		}
 	}
 	m := e.outbound(t, "d0")
@@ -198,8 +199,13 @@ func TestSocialWithAPicture(t *testing.T) {
 func TestSocialAtATime(t *testing.T) {
 	e := setupSocial(t, false)
 	// The test clock: 10 November 2026, 08:00 UTC = 09:00 in Berlin.
-	if _, err := e.run(t, drafts(1), map[string]any{"when": "at", "time": "18:30"}); err != nil {
-		t.Fatal(err)
+	out, err := e.run(t, drafts(1), map[string]any{"when": "at", "time": "18:30", "channels": []any{"11", "12"}})
+	if err == nil || !strings.Contains(err.Error(), "Instagram") {
+		t.Fatalf("instagram without a picture: %v %v", out, err)
+	}
+	out, err = e.run(t, drafts(1), map[string]any{"when": "at", "time": "18:30"})
+	if err != nil || out[0].Text("posted") != "Planned for 18:30 on Bluesky" {
+		t.Fatalf("%v, posted %q", err, out[0].Text("posted"))
 	}
 	p := e.fake.Posts()[0]
 	if p.Status != "scheduled" || p.Publish != 0 || p.At == nil || !p.At.Equal(time.Date(2026, 11, 10, 17, 30, 0, 0, time.UTC)) {
@@ -210,8 +216,9 @@ func TestSocialAtATime(t *testing.T) {
 	}
 	// A time that has passed today means tomorrow.
 	e2 := setupSocial(t, false)
-	if _, err := e2.run(t, drafts(1), map[string]any{"when": "at", "time": "07:00"}); err != nil {
-		t.Fatal(err)
+	out, err = e2.run(t, drafts(1), map[string]any{"when": "at", "time": "07:00"})
+	if err != nil || out[0].Text("posted") != "Planned for tomorrow 07:00 on Bluesky" {
+		t.Fatalf("%v, posted %q", err, out[0].Text("posted"))
 	}
 	if p := e2.fake.Posts()[0]; !p.At.Equal(time.Date(2026, 11, 11, 6, 0, 0, 0, time.UTC)) {
 		t.Fatalf("tomorrow: %v", p.At)
@@ -221,8 +228,9 @@ func TestSocialAtATime(t *testing.T) {
 func TestSocialDraft(t *testing.T) {
 	// With your own Posta account, a draft waits for you in Posta.
 	e := setupSocial(t, true)
-	if _, err := e.run(t, drafts(1), map[string]any{"when": "draft"}); err != nil {
-		t.Fatal(err)
+	out, err := e.run(t, drafts(1), map[string]any{"when": "draft"})
+	if err != nil || out[0].Text("posted") != "Saved as a draft in Posta" {
+		t.Fatalf("%v, posted %q", err, out[0].Text("posted"))
 	}
 	if p := e.fake.Posts()[0]; p.Status != "draft" || p.Publish != 0 {
 		t.Fatalf("draft: %+v", p)
@@ -337,5 +345,79 @@ func TestSocialProblems(t *testing.T) {
 	e.fake.EndTrial(e.rc.Run.UserID)
 	if _, err := e.run(t, drafts(1), map[string]any{}); err == nil || !strings.Contains(err.Error(), "kostenlosen Tage") {
 		t.Fatalf("German: %v", err)
+	}
+}
+
+// Before an account's first post Laamo asks Posta to report results, once.
+func TestSocialListensForResults(t *testing.T) {
+	e := setupSocial(t, false)
+	e.brick.HookURL = "https://laamo.test/api/posta/webhook"
+	if _, err := e.run(t, drafts(1), map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	hooks := e.fake.Hooks()
+	if len(hooks) != 1 || hooks[0].URL != "https://laamo.test/api/posta/webhook/"+e.place.ID {
+		t.Fatalf("hooks: %+v", hooks)
+	}
+	p, _ := e.st.GetPlace(context.Background(), e.place.ID)
+	hook, _ := p.Meta[posta.MetaHook].(map[string]any)
+	env, err := base64.StdEncoding.DecodeString(fmt.Sprint(hook[posta.MetaHookSecret]))
+	if err != nil || hook[posta.MetaHookID] != hooks[0].ID || p.Meta["source"] != "issued" {
+		t.Fatalf("meta: %v %+v", err, p.Meta)
+	}
+	// The secret is stored encrypted, never as it came.
+	if secret, err := e.brick.Keys.Decrypt(env, crypto.AAD("places", p.ID, posta.HookField)); err != nil || string(secret) != hooks[0].Secret {
+		t.Fatalf("secret: %v", err)
+	}
+	if strings.Contains(fmt.Sprint(p.Meta), hooks[0].Secret) {
+		t.Fatal("the secret is readable in meta")
+	}
+
+	// The next run finds it there.
+	e.rc.Run.ID = store.NewID()
+	if _, err := e.run(t, drafts(1), map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.fake.Hooks()); n != 1 {
+		t.Fatalf("%d hooks after a second run", n)
+	}
+	if n := len(e.fake.Posts()); n != 2 {
+		t.Fatalf("%d posts", n)
+	}
+}
+
+// Posta refusing the webhook is no reason not to post; a draft needs none;
+// and on a plain http address (a developer's machine) nothing is asked.
+func TestSocialPostsWithoutAWebhook(t *testing.T) {
+	e := setupSocial(t, true)
+	e.brick.HookURL = "https://laamo.test/api/posta/webhook"
+	if _, err := e.run(t, drafts(1), map[string]any{"when": "draft"}); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.fake.Hooks()); n != 0 {
+		t.Fatalf("a draft registered %d hooks", n)
+	}
+	// Someone else's endpoint takes the account's only place.
+	if _, err := e.brick.Posta.As(e.token).CreateWebhook(context.Background(), "https://elsewhere.test/hook"); err != nil {
+		t.Fatal(err)
+	}
+	e.rc.Run.ID = store.NewID()
+	if _, err := e.run(t, drafts(1), map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	if posts := e.fake.Posts(); len(posts) != 2 || posts[1].Status != "processing" {
+		t.Fatalf("posts: %+v", posts)
+	}
+	if p, _ := e.st.GetPlace(context.Background(), e.place.ID); p.Meta[posta.MetaHook] != nil {
+		t.Fatalf("meta: %+v", p.Meta)
+	}
+
+	local := setupSocial(t, false)
+	local.brick.HookURL = "http://localhost:5173/api/posta/webhook"
+	if _, err := local.run(t, drafts(1), map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(local.fake.Hooks()); n != 0 {
+		t.Fatalf("%d hooks for a local address", n)
 	}
 }

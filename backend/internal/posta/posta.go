@@ -12,6 +12,9 @@ package posta
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -625,3 +628,93 @@ func (u *User) GetPost(ctx context.Context, postID string) (Post, error) {
 	_, err := u.call().do(ctx, http.MethodGet, "/posts/"+url.PathEscape(postID), nil, &out)
 	return out, err
 }
+
+// Webhook is an address Posta calls when a post went out or failed.
+type Webhook struct {
+	ID     string
+	Secret string // shown once, when the endpoint is made
+}
+
+// HookEvents are the results every account may be told about, also during
+// the free days. (Partly failed posts are for paid plans only.)
+var HookEvents = []string{"post.published", "post.failed"}
+
+// CreateWebhook registers address (https) for HookEvents. The secret in
+// the answer signs every call and can't be read again.
+func (u *User) CreateWebhook(ctx context.Context, address string) (Webhook, error) {
+	var raw map[string]any
+	if _, err := u.call().do(ctx, http.MethodPost, "/webhook-endpoints",
+		map[string]any{"url": address, "events": HookEvents}, &raw); err != nil {
+		return Webhook{}, err
+	}
+	// The endpoint may come bare or wrapped in a field.
+	for _, m := range []any{raw, raw["endpoint"], raw["webhook"], raw["data"]} {
+		if o, ok := m.(map[string]any); ok && text(o["secret"]) != "" {
+			return Webhook{ID: text(o["id"]), Secret: text(o["secret"])}, nil
+		}
+	}
+	return Webhook{}, fmt.Errorf("posta: the webhook was made, but no secret came back (fields: %s)", keysOf(raw))
+}
+
+// DeleteWebhook removes an endpoint.
+func (u *User) DeleteWebhook(ctx context.Context, id string) error {
+	_, err := u.call().do(ctx, http.MethodDelete, "/webhook-endpoints/"+url.PathEscape(id), nil, nil)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	return err
+}
+
+// Signature is what Posta puts in X-Posta-Signature: the hex HMAC-SHA256
+// of "<X-Posta-Timestamp>.<body>" with the endpoint's secret.
+func Signature(secret, timestamp string, body []byte) string {
+	m := hmac.New(sha256.New, []byte(secret))
+	_, _ = io.WriteString(m, timestamp+".")
+	_, _ = m.Write(body)
+	return hex.EncodeToString(m.Sum(nil))
+}
+
+// Signed checks a call's signature.
+func Signed(secret, timestamp, signature string, body []byte) bool {
+	got, err := hex.DecodeString(strings.TrimPrefix(strings.TrimSpace(signature), "sha256="))
+	if err != nil || secret == "" || timestamp == "" {
+		return false
+	}
+	want, _ := hex.DecodeString(Signature(secret, timestamp, body))
+	return hmac.Equal(got, want)
+}
+
+// Delivery is one call from Posta.
+type Delivery struct {
+	ID    string `json:"id"`
+	Event string `json:"event"` // post.published, post.failed, ping, …
+	Data  struct {
+		Post struct {
+			ID          string     `json:"id"`
+			Status      string     `json:"status"`
+			PublishedAt *time.Time `json:"published_at"`
+		} `json:"post"`
+		Results []Result `json:"results"`
+	} `json:"data"`
+}
+
+// Result is how a post did on one network.
+type Result struct {
+	Platform     string `json:"platform"`
+	Status       string `json:"status"` // success or failed
+	ErrorCode    string `json:"error_code"`
+	ErrorMessage string `json:"error_message"`
+}
+
+// HookPath is where Laamo's api takes Posta's calls; the place's id follows.
+const HookPath = "/api/posta/webhook"
+
+// Where a Posta place keeps its webhook: meta[MetaHook] holds the
+// endpoint's id (MetaHookID) and its secret (MetaHookSecret), the secret
+// encrypted like the token, with the field name HookField.
+const (
+	MetaHook       = "webhook"
+	MetaHookID     = "id"
+	MetaHookSecret = "secret"
+	HookField      = "webhook"
+)

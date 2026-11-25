@@ -1040,7 +1040,10 @@ type Helper struct {
 	// ForwardAddress The helper's private address for automatic forwarding rules, e.g. meetings.x7k2qa+k3m9p2q8r4s7@in.laamo.app. Mail to it skips Only from these senders.
 	ForwardAddress *string            `json:"forward_address,omitempty"`
 	Id             openapi_types.UUID `json:"id"`
-	Name           string             `json:"name"`
+
+	// LastRun How the helper's latest run ended (missing while one is going, or before the first)
+	LastRun *LastRun `json:"last_run,omitempty"`
+	Name    string   `json:"name"`
 
 	// NextRunAt When its schedule runs next (only when on and scheduled)
 	NextRunAt *time.Time `json:"next_run_at,omitempty"`
@@ -1110,6 +1113,15 @@ type HelperStack struct {
 	// Stack A stack as in packages/catalog (schema 1); checked against bricks.json
 	Stack   Stack `json:"stack"`
 	Version int   `json:"version"`
+}
+
+// LastRun How the helper's latest run ended (missing while one is going, or before the first)
+type LastRun struct {
+	FinishedAt *time.Time         `json:"finished_at,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+
+	// Status done, failed or stopped
+	Status string `json:"status"`
 }
 
 // ListColumn defines model for ListColumn.

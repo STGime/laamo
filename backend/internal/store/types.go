@@ -315,6 +315,8 @@ type Place struct {
 type PlacePatch struct {
 	Label      *string    `json:"label,omitempty"`
 	VerifiedAt *time.Time `json:"verified_at,omitempty"`
+	// Meta replaces the whole of meta: send what was there plus the change.
+	Meta map[string]any `json:"meta,omitempty"`
 }
 
 // Brain is a workspace's AI: the included model with a monthly allowance,

@@ -2345,7 +2345,23 @@ components:
           description: Tap Go asks this before every run (stacks that start with Tap Go and a question). Send the answer with startRun.
         run:
           $ref: '#/components/schemas/RunProgress'
+        last_run:
+          $ref: '#/components/schemas/LastRun'
         created_at:
+          type: string
+          format: date-time
+    LastRun:
+      type: object
+      description: How the helper's latest run ended (missing while one is going, or before the first)
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          description: done, failed or stopped
+        finished_at:
           type: string
           format: date-time
     RunProgress:

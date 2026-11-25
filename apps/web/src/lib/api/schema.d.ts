@@ -1349,8 +1349,18 @@ export interface components {
 			/** @description Tap Go asks this before every run (stacks that start with Tap Go and a question). Send the answer with startRun. */
 			question?: string;
 			run?: components['schemas']['RunProgress'];
+			last_run?: components['schemas']['LastRun'];
 			/** Format: date-time */
 			created_at: string;
+		};
+		/** @description How the helper's latest run ended (missing while one is going, or before the first) */
+		LastRun: {
+			/** Format: uuid */
+			id: string;
+			/** @description done, failed or stopped */
+			status: string;
+			/** Format: date-time */
+			finished_at?: string;
 		};
 		/** @description The run going on now (queued, running or waiting for you) */
 		RunProgress: {

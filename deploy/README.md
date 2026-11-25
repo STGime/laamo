@@ -117,6 +117,12 @@ social posting on (Me → Social media), and delete it when they switch it off.
   go run ./cmd/posta plan <laamo user id> starter 30
   ```
 
+- **Results come back by webhook.** Before an account's first post the
+  worker registers `SITE_URL/api/posta/webhook/<place id>` at Posta, and
+  Posta calls it when a post went out or failed (a Feed card and a
+  notification). `SITE_URL` must be https, so local dev registers nothing.
+  All environments share the database: whichever posts first for an
+  account registers its own address, and that one keeps getting the calls.
 - **People with their own Posta account** paste its API key instead. Their
   plan and channels stay with Posta, and the partner key can't touch them.
 - The key is all-powerful for the accounts Laamo created. It never goes into

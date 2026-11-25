@@ -3,6 +3,7 @@ import type { Key } from './en';
 // Deutsch. Du-Form, kurz und konkret.
 export const de: Record<Key, string> = {
 	'tab.feed': 'Feed',
+	'tab.feedNew': 'Neues im Feed',
 	'tab.helpers': 'Helfer',
 	'tab.new': 'Neuer Helfer',
 	'tab.lists': 'Listen',

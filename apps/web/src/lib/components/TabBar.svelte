@@ -3,7 +3,9 @@
 	import { page } from '$app/state';
 	import { t, type Key } from '#lib/i18n/index.svelte.ts';
 
-	let { needsMe = 0 }: { needsMe?: number } = $props();
+	// needsMe: cards waiting for an answer (a number). fresh: something new in
+	// the Feed since it was last open (a dot, when there is no number).
+	let { needsMe = 0, fresh = false }: { needsMe?: number; fresh?: boolean } = $props();
 
 	const tabs: { href: string; key: Key; icon: string }[] = [
 		{ href: '/feed', key: 'tab.feed', icon: 'M4 6h16M4 12h16M4 18h10' },
@@ -34,7 +36,10 @@
 						stroke-linejoin="round"
 					/>
 				</svg>
-				{#if tab.href === '/feed' && needsMe > 0}<span class="badge">{needsMe}</span>{/if}
+				{#if tab.href === '/feed' && needsMe > 0}<span class="badge">{needsMe}</span
+					>{:else if tab.href === '/feed' && fresh}<span class="badge dot"
+						><span class="visually-hidden">{t('tab.feedNew')}</span></span
+					>{/if}
 			</span>
 			<span class:visually-hidden={tab.href === '/new'}>{t(tab.key)}</span>
 		</a>
@@ -105,5 +110,17 @@
 		font-weight: 800;
 		line-height: 18px;
 		text-align: center;
+	}
+	/* Something new, nothing to answer: a plain red dot. */
+	.badge.dot {
+		top: -3px;
+		right: -6px;
+		min-width: 0;
+		width: 12px;
+		height: 12px;
+		padding: 0;
+		border: 2px solid var(--white);
+		border-radius: 50%;
+		background: var(--brick-red);
 	}
 </style>

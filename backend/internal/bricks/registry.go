@@ -28,6 +28,8 @@ type Deps struct {
 	Businesses look.BusinessFinder
 	// Post to social (with Store and Keys): nil without a partner key.
 	Posta *posta.Service
+	// Where Posta reports how posts did (see do.Social.HookURL).
+	PostaHookURL string
 	// Draw a picture (images.Client in production).
 	Images think.Drawer
 }
@@ -48,7 +50,7 @@ func All(d Deps) map[string]engine.Brick {
 		m["do.chat"] = do.Chat{Store: d.Store, Keys: d.Keys, Sender: d.Chat}
 	}
 	if d.Store != nil && d.Keys != nil && d.Posta != nil {
-		m["do.social"] = do.Social{Store: d.Store, Keys: d.Keys, Posta: d.Posta}
+		m["do.social"] = do.Social{Store: d.Store, Keys: d.Keys, Posta: d.Posta, HookURL: d.PostaHookURL}
 	}
 	if ls, ok := d.Store.(store.ListStore); ok {
 		m["do.list"] = do.List{Store: ls}

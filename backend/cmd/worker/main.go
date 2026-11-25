@@ -121,7 +121,8 @@ func serveHealth(ctx context.Context, addr string, log *slog.Logger) {
 
 func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps {
 	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}, Pages: &web.Fetcher{},
-		Businesses: businessFinder(cfg), Posta: posta.New(cfg.PostaPartnerKey, cfg.PostaURL)}
+		Businesses: businessFinder(cfg), Posta: posta.New(cfg.PostaPartnerKey, cfg.PostaURL),
+		PostaHookURL: cfg.SiteURL + posta.HookPath}
 	if d.Posta == nil {
 		log.Warn("no POSTA_PARTNER_KEY: Post to social is off")
 	}
