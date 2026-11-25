@@ -132,6 +132,22 @@ func TestWriteAllCasual(t *testing.T) {
 	}
 }
 
+// One in total with no cards before it (When I tap Go → Write it) still
+// writes; one per card has nothing to do.
+func TestWriteAllNoCards(t *testing.T) {
+	m := &model{f: func(string, []string, int) string { return `{"subject":"","body":"Laamo does the boring work."}` }}
+	out, err := think.Write.Run(context.Background(), runCtx(t, "think.write", m), nil,
+		engine.Config{"what": "a post about Laamo", "tone": 0.5, "mode": "all", "signature": true})
+	if err != nil || len(out) != 1 || out[0].Kind != "draft" || out[0].Text("body") != "Laamo does the boring work." {
+		t.Fatalf("draft %v %+v", err, out)
+	}
+	none, err := think.Write.Run(context.Background(), runCtx(t, "think.write", m), nil,
+		engine.Config{"what": "a post about Laamo", "tone": 0.5, "mode": "each", "signature": true})
+	if err != nil || len(none) != 0 || len(m.reqs) != 1 {
+		t.Fatalf("each: %v %+v, %d calls", err, none, len(m.reqs))
+	}
+}
+
 // One card whose draft stays unusable gets none; the others go on. The
 // model is told who signs, so it has no reason to leave a gap.
 func TestWriteOneBadDraft(t *testing.T) {

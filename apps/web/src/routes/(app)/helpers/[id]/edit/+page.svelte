@@ -13,7 +13,7 @@
 	import Brick, { type BrickState } from '#lib/components/Brick.svelte';
 	import { listen } from '#lib/feed.svelte.ts';
 	import { brickProgress, retrying } from '#lib/progress.ts';
-	import { settingFix, starved } from '#lib/builder.ts';
+	import { alone, settingFix, starved } from '#lib/builder.ts';
 	import RunTicker from '#lib/components/RunTicker.svelte';
 	import BrickSheet, { type Pill } from '#lib/components/BrickSheet.svelte';
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
@@ -529,6 +529,21 @@
 											(bricks = bricks.map((x) =>
 												x.id === b.id ? { ...x, config: { ...x.config, [sf.key]: sf.value } } : x
 											))}>{t('builder.useOption', { option: sf.label[lang] })}</button
+									>
+								{/if}
+							{/if}
+							{#if issue.code === 'no_cards' && alone.has(b.type)}
+								{@const one = brick(b.type)
+									?.settings.find((x) => x.key === 'mode')
+									?.options?.find((o) => o.value === 'all')}
+								{#if one}
+									<button
+										type="button"
+										class="fix"
+										onclick={() =>
+											(bricks = bricks.map((x) =>
+												x.id === b.id ? { ...x, config: { ...x.config, mode: 'all' } } : x
+											))}>{t('builder.useOption', { option: one.label[lang] })}</button
 									>
 								{/if}
 							{/if}
