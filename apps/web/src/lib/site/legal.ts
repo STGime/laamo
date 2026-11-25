@@ -58,7 +58,7 @@ const en: Record<LegalSlug, LegalDoc> = {
 		title: 'Privacy policy',
 		description:
 			'What Laamo collects, why, how long we keep it, which services we use and your rights.',
-		updated: 'Last updated: 17 November 2026',
+		updated: 'Last updated: 25 November 2026',
 		sections: [
 			{
 				h: '1. Who is responsible',
@@ -120,6 +120,8 @@ const en: Record<LegalSlug, LegalDoc> = {
 							'Brave Search (USA): receives the search terms of Search the web.',
 							'OpenStreetMap Foundation (United Kingdom): receives place names and the kind of business when a helper finds businesses.',
 							'Geoapify (Germany): draws small maps on business cards from their coordinates.',
+							'Posta (getposta.app), a service of our own company Eurobase OÜ (Estonia): posts to social media for you, once you switch on social posting. It receives your email address, the posts your helpers make, and access to the social accounts you connect. The social networks you post to then receive those posts.',
+							'The push services of browser makers (Google, Apple, Mozilla, Microsoft; USA): deliver notifications to your device, once you turn them on. The text is encrypted, so they cannot read it; they see that Laamo sent your device something, and when.',
 							'Chat services you connect: receive the messages your helpers post there.',
 							'Websites your helpers read are fetched by our servers; those websites see our servers, not you.'
 						]
@@ -276,7 +278,7 @@ const de: Record<LegalSlug, LegalDoc> = {
 		title: 'Datenschutzerklärung',
 		description:
 			'Was Laamo erhebt, wozu, wie lange wir es speichern, welche Dienste wir nutzen und welche Rechte du hast.',
-		updated: 'Stand: 17. November 2026',
+		updated: 'Stand: 25. November 2026',
 		sections: [
 			{
 				h: '1. Wer verantwortlich ist',
@@ -338,6 +340,8 @@ const de: Record<LegalSlug, LegalDoc> = {
 							'Brave Search (USA): erhält die Suchbegriffe von „Im Web suchen“.',
 							'OpenStreetMap Foundation (Vereinigtes Königreich): erhält Ortsnamen und die Art des Betriebs, wenn ein Helfer Betriebe sucht.',
 							'Geoapify (Deutschland): zeichnet aus deren Koordinaten kleine Karten auf Betriebs-Karten.',
+							'Posta (getposta.app), ein Dienst unseres eigenen Unternehmens Eurobase OÜ (Estland): postet für dich auf Social Media, sobald du Social-Media-Posten einschaltest. Es erhält deine E-Mail-Adresse, die Posts deiner Helfer und Zugriff auf die Social-Media-Konten, die du verbindest. Die sozialen Netzwerke, auf denen du postest, erhalten dann diese Posts.',
+							'Die Push-Dienste der Browser-Hersteller (Google, Apple, Mozilla, Microsoft; USA): stellen Mitteilungen auf dein Gerät zu, sobald du sie einschaltest. Der Text ist verschlüsselt, sie können ihn also nicht lesen; sie sehen, dass Laamo deinem Gerät etwas geschickt hat, und wann.',
 							'Chat-Dienste, die du verbindest: erhalten die Nachrichten, die deine Helfer dort posten.',
 							'Websites, die deine Helfer lesen, werden von unseren Servern abgerufen; diese Websites sehen unsere Server, nicht dich.'
 						]

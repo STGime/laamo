@@ -501,6 +501,57 @@ export const en = {
 	'push.nudge.title': 'Hear from your helpers',
 	'push.nudge.body':
 		'Get a notification when a helper found something or needs your OK. You don’t have to keep looking in.',
+	'social.title': 'Social media',
+	'social.lead': 'Let a helper post to your Instagram, Facebook, LinkedIn and other accounts.',
+	'social.entry': 'Social media',
+	'social.unavailable': 'Posting to social media isn’t available here yet.',
+	'social.elsewhere':
+		'Social posting is on in your workspace “{name}”. It works in one workspace at a time: switch it off there to use it here.',
+	'social.ownerOnly': 'Only the owner of this workspace can switch on social posting.',
+	'social.point.1': '5 days free, no card needed.',
+	'social.point.2': 'Nothing is posted without your OK: helpers show you each post first.',
+	'social.point.3': 'Switch it off any time. That deletes the account and everything in it.',
+	'social.consent.1':
+		'Posting to social media runs on Posta. A Posta account is created for {email}. I accept Posta’s',
+	'social.consent.terms': 'terms',
+	'social.consent.and': 'and',
+	'social.consent.privacy': 'privacy policy',
+	'social.consent.2':
+		'. What I post to social media is not necessarily stored in the EU, because the social networks themselves are outside the EU.',
+	'social.turnOn': 'Switch on social posting',
+	'social.turnOff': 'Switch off',
+	'social.haveOwn': 'I already have a Posta account',
+	'social.own.lead': 'Use your own Posta account. Your plan and your channels stay with Posta.',
+	'social.own.1': 'In Posta, open Settings, then API Tokens.',
+	'social.own.2': 'Create a token and paste it here.',
+	'social.own.key': 'Posta API key',
+	'social.own.note': 'The key is stored encrypted and never shown again.',
+	'social.own.connect': 'Connect my Posta account',
+	'social.own.back': 'I don’t have a Posta account',
+	'social.status': 'Social posting',
+	'social.on': 'On',
+	'social.plan': 'Plan',
+	'social.plan.trial': '{n} free days left',
+	'social.plan.trial.one': '1 free day left',
+	'social.plan.trialOver': 'Your 5 free days are over',
+	'social.plan.paused': 'Paused',
+	'social.plan.until': 'Active until {when}',
+	'social.plan.on': 'Active',
+	'social.channels': 'Connected accounts',
+	'social.of': 'of {n}',
+	'social.ownHint':
+		'This is your own Posta account. Add or remove social accounts in Posta; your plan is with Posta too.',
+	'social.pausedHint':
+		'Helpers can’t post right now. Laamo has no paid plans yet: write to us and we’ll switch it back on.',
+	'social.offTitle': 'Switch off social posting?',
+	'social.offBody':
+		'This deletes your Posta account with its connected social accounts and scheduled posts. Posts already published stay on the networks. The free days don’t start again.',
+	'social.offBodyOwn':
+		'Laamo forgets your Posta API key. Your Posta account and everything in it stay as they are.',
+	'social.err.exists':
+		'This email address already has a Posta account. Paste its API key to use it here.',
+	'social.err.key': 'Posta doesn’t know this key. Copy it again from Posta, Settings, API Tokens.',
+	'social.err.down': 'That didn’t work. Try again in a moment.',
 	loading: 'Loading…'
 } as const;
 

@@ -44,6 +44,12 @@ type Config struct {
 	VAPIDPublicKey  string
 	VAPIDPrivateKey string
 	VAPIDSubject    string
+	// Posting to social media (Posta): the partner key creates and manages
+	// our users' Posta accounts. Server side only. There is no sandbox:
+	// every environment talks to the real Posta. Without it social posting
+	// is off.
+	PostaPartnerKey string
+	PostaURL        string // "" = posta.DefaultURL
 	// SiteURL: the public site; links in emails point here.
 	SiteURL    string
 	FalKey     string // Draw a picture (fal.ai); the LLM key when that is fal's
@@ -96,6 +102,8 @@ func Load() (Config, error) {
 		ResendAPIKey:      os.Getenv("RESEND_API_KEY"),
 		MailFrom:          getenv("MAIL_FROM", "Laamo <hello@notify.laamo.app>"),
 		SiteURL:           getenv("SITE_URL", "http://localhost:5173"),
+		PostaPartnerKey:   os.Getenv("POSTA_PARTNER_KEY"),
+		PostaURL:          os.Getenv("POSTA_API_URL"),
 		VAPIDPublicKey:    os.Getenv("VAPID_PUBLIC_KEY"),
 		VAPIDPrivateKey:   os.Getenv("VAPID_PRIVATE_KEY"),
 		VAPIDSubject:      getenv("VAPID_SUBJECT", "https://laamo.app"),

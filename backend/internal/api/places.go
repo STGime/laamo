@@ -43,6 +43,9 @@ func (s *Server) ListPlaces(ctx context.Context, req ListPlacesRequestObject) (L
 	}
 	out := ListPlaces200JSONResponse{Places: make([]Place, 0, len(ps))}
 	for _, p := range ps {
+		if p.Type == "posta" {
+			continue // not a chat: it has its own screen (social.go)
+		}
 		po := placeOut(p)
 		po.UsedBy = new(use[p.ID])
 		out.Places = append(out.Places, po)

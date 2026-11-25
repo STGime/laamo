@@ -117,6 +117,9 @@ const (
 	ErrorCodeInternal           ErrorCode = "internal"
 	ErrorCodeNotFound           ErrorCode = "not_found"
 	ErrorCodeNotInvited         ErrorCode = "not_invited"
+	ErrorCodePostaAccountExists ErrorCode = "posta_account_exists"
+	ErrorCodePostaElsewhere     ErrorCode = "posta_elsewhere"
+	ErrorCodePostaKeyInvalid    ErrorCode = "posta_key_invalid"
 	ErrorCodeRateLimited        ErrorCode = "rate_limited"
 	ErrorCodeUnauthorized       ErrorCode = "unauthorized"
 	ErrorCodeUnavailable        ErrorCode = "unavailable"
@@ -142,6 +145,12 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeNotFound:
 		return true
 	case ErrorCodeNotInvited:
+		return true
+	case ErrorCodePostaAccountExists:
+		return true
+	case ErrorCodePostaElsewhere:
+		return true
+	case ErrorCodePostaKeyInvalid:
 		return true
 	case ErrorCodeRateLimited:
 		return true
@@ -579,6 +588,48 @@ func (e SetupQuestionKind) Valid() bool {
 	case SetupQuestionKindText:
 		return true
 	case SetupQuestionKindTime:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SocialPostingSource.
+const (
+	Issued SocialPostingSource = "issued"
+	Pasted SocialPostingSource = "pasted"
+)
+
+// Valid indicates whether the value is a known member of the SocialPostingSource enum.
+func (e SocialPostingSource) Valid() bool {
+	switch e {
+	case Issued:
+		return true
+	case Pasted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SocialPostingState.
+const (
+	SocialPostingStateElsewhere   SocialPostingState = "elsewhere"
+	SocialPostingStateOff         SocialPostingState = "off"
+	SocialPostingStateOn          SocialPostingState = "on"
+	SocialPostingStateUnavailable SocialPostingState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the SocialPostingState enum.
+func (e SocialPostingState) Valid() bool {
+	switch e {
+	case SocialPostingStateElsewhere:
+		return true
+	case SocialPostingStateOff:
+		return true
+	case SocialPostingStateOn:
+		return true
+	case SocialPostingStateUnavailable:
 		return true
 	default:
 		return false
@@ -1308,6 +1359,43 @@ type ShelfTemplate struct {
 	Slug string `json:"slug"`
 }
 
+// SocialPlan Only for accounts Laamo created; your own Posta account's plan is Posta's business
+type SocialPlan struct {
+	Active   bool       `json:"active"`
+	DaysLeft *int       `json:"days_left,omitempty"`
+	EndsAt   *time.Time `json:"ends_at,omitempty"`
+
+	// MaxChannels Left out when there is no limit
+	MaxChannels *int `json:"max_channels,omitempty"`
+
+	// Type trial, starter, professional or none
+	Type string `json:"type"`
+}
+
+// SocialPosting defines model for SocialPosting.
+type SocialPosting struct {
+	// Channels How many social accounts are connected
+	Channels *int `json:"channels,omitempty"`
+
+	// Elsewhere The name of the workspace it is on in (state elsewhere)
+	Elsewhere *string `json:"elsewhere,omitempty"`
+
+	// Plan Only for accounts Laamo created; your own Posta account's plan is Posta's business
+	Plan *SocialPlan `json:"plan,omitempty"`
+
+	// Source issued = Laamo created the Posta account; pasted = your own Posta account
+	Source *SocialPostingSource `json:"source,omitempty"`
+
+	// State off; on; elsewhere (on in another of your workspaces); unavailable (this server has no Posta partner key)
+	State SocialPostingState `json:"state"`
+}
+
+// SocialPostingSource issued = Laamo created the Posta account; pasted = your own Posta account
+type SocialPostingSource string
+
+// SocialPostingState off; on; elsewhere (on in another of your workspaces); unavailable (this server has no Posta partner key)
+type SocialPostingState string
+
 // Stack A stack as in packages/catalog (schema 1); checked against bricks.json
 type Stack struct {
 	Bricks               []StackBrick            `json:"bricks"`
@@ -1582,6 +1670,14 @@ type ListFeedParams struct {
 // ListFeedParamsFilter defines parameters for ListFeed.
 type ListFeedParamsFilter string
 
+// EnableSocialJSONBody defines parameters for EnableSocial.
+type EnableSocialJSONBody struct {
+	AcceptTerms *bool `json:"accept_terms,omitempty"`
+
+	// ApiKey Your own Posta API key (Posta, Settings, API Tokens)
+	ApiKey *string `json:"api_key,omitempty"`
+}
+
 // RunDemoJSONRequestBody defines body for RunDemo for application/json ContentType.
 type RunDemoJSONRequestBody = DemoRequest
 
@@ -1632,6 +1728,9 @@ type CreateListJSONRequestBody = NewList
 
 // CreatePlaceJSONRequestBody defines body for CreatePlace for application/json ContentType.
 type CreatePlaceJSONRequestBody = NewPlace
+
+// EnableSocialJSONRequestBody defines body for EnableSocial for application/json ContentType.
+type EnableSocialJSONRequestBody EnableSocialJSONBody
 
 // Getter for additional properties for Stack. Returns the specified
 // element and whether it was found
@@ -2248,6 +2347,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
 	CreatePlace(ctx context.Context, workspaceId WorkspaceId, body CreatePlaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DisableSocial Switch off posting to social media (owner only)
+	//
+	// An account Laamo created is deleted at Posta, with its channels and posts. Your own Posta account is only disconnected.
+	//
+	// Corresponds with DELETE /workspaces/{workspaceId}/social (the `DisableSocial` operationId).
+	DisableSocial(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetSocial Whether posting to social media is on, and what the plan allows
+	//
+	// Posting to social media runs on Posta (getposta.app). Laamo creates a Posta account for you when you switch it on, or uses your own Posta API key. One Posta account per person, used in one workspace.
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/social (the `GetSocial` operationId).
+	GetSocial(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EnableSocialWithBody Switch on posting to social media (owner only)
+	//
+	// Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
+	EnableSocialWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EnableSocial Switch on posting to social media (owner only)
+	//
+	// Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
+	EnableSocial(ctx context.Context, workspaceId WorkspaceId, body EnableSocialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	//
@@ -3336,6 +3467,78 @@ func (c *Client) CreatePlaceWithBody(ctx context.Context, workspaceId WorkspaceI
 // Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
 func (c *Client) CreatePlace(ctx context.Context, workspaceId WorkspaceId, body CreatePlaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreatePlaceRequest(c.Server, workspaceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DisableSocial Switch off posting to social media (owner only)
+//
+// An account Laamo created is deleted at Posta, with its channels and posts. Your own Posta account is only disconnected.
+//
+// Corresponds with DELETE /workspaces/{workspaceId}/social (the `DisableSocial` operationId).
+func (c *Client) DisableSocial(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisableSocialRequest(c.Server, workspaceId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetSocial Whether posting to social media is on, and what the plan allows
+//
+// Posting to social media runs on Posta (getposta.app). Laamo creates a Posta account for you when you switch it on, or uses your own Posta API key. One Posta account per person, used in one workspace.
+//
+// Corresponds with GET /workspaces/{workspaceId}/social (the `GetSocial` operationId).
+func (c *Client) GetSocial(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetSocialRequest(c.Server, workspaceId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// EnableSocialWithBody Switch on posting to social media (owner only)
+//
+// Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
+func (c *Client) EnableSocialWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEnableSocialRequestWithBody(c.Server, workspaceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// EnableSocial Switch on posting to social media (owner only)
+//
+// Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
+func (c *Client) EnableSocial(ctx context.Context, workspaceId WorkspaceId, body EnableSocialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEnableSocialRequest(c.Server, workspaceId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -5338,6 +5541,121 @@ func NewCreatePlaceRequestWithBody(server string, workspaceId WorkspaceId, conte
 	return req, nil
 }
 
+// NewDisableSocialRequest constructs an http.Request for the DisableSocial method
+func NewDisableSocialRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/social", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetSocialRequest constructs an http.Request for the GetSocial method
+func NewGetSocialRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/social", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewEnableSocialRequest calls the generic EnableSocial builder with application/json body
+func NewEnableSocialRequest(server string, workspaceId WorkspaceId, body EnableSocialJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewEnableSocialRequestWithBody(server, workspaceId, "application/json", bodyReader)
+}
+
+// NewEnableSocialRequestWithBody constructs an http.Request for the EnableSocial method, with any body, and a specified content type
+func NewEnableSocialRequestWithBody(server string, workspaceId WorkspaceId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/social", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListTemplatesRequest constructs an http.Request for the ListTemplates method
 func NewListTemplatesRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
 	var err error
@@ -5908,6 +6226,42 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /workspaces/{workspaceId}/places (the `CreatePlace` operationId).
 	CreatePlaceWithResponse(ctx context.Context, workspaceId WorkspaceId, body CreatePlaceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePlaceResponse, error)
+
+	// DisableSocialWithResponse Switch off posting to social media (owner only)
+	//
+	// An account Laamo created is deleted at Posta, with its channels and posts. Your own Posta account is only disconnected.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /workspaces/{workspaceId}/social (the `DisableSocial` operationId).
+	DisableSocialWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*DisableSocialResponse, error)
+
+	// GetSocialWithResponse Whether posting to social media is on, and what the plan allows
+	//
+	// Posting to social media runs on Posta (getposta.app). Laamo creates a Posta account for you when you switch it on, or uses your own Posta API key. One Posta account per person, used in one workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/social (the `GetSocial` operationId).
+	GetSocialWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*GetSocialResponse, error)
+
+	// EnableSocialWithBodyWithResponse Switch on posting to social media (owner only)
+	//
+	// Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
+	EnableSocialWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EnableSocialResponse, error)
+
+	// EnableSocialWithResponse Switch on posting to social media (owner only)
+	//
+	// Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
+	EnableSocialWithResponse(ctx context.Context, workspaceId WorkspaceId, body EnableSocialJSONRequestBody, reqEditors ...RequestEditorFn) (*EnableSocialResponse, error)
 
 	// ListTemplatesWithResponse The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	//
@@ -8608,6 +8962,185 @@ func (r CreatePlaceResponse) ContentType() string {
 	return ""
 }
 
+type DisableSocialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DisableSocialResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DisableSocialResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DisableSocialResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DisableSocialResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DisableSocialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DisableSocialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DisableSocialResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetSocialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SocialPosting
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetSocialResponse) GetJSON200() *SocialPosting {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetSocialResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSocialResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetSocialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetSocialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSocialResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type EnableSocialResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SocialPosting
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r EnableSocialResponse) GetJSON200() *SocialPosting {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r EnableSocialResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r EnableSocialResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r EnableSocialResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r EnableSocialResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r EnableSocialResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r EnableSocialResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r EnableSocialResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r EnableSocialResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r EnableSocialResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTemplatesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -9554,6 +10087,66 @@ func (c *ClientWithResponses) CreatePlaceWithResponse(ctx context.Context, works
 		return nil, err
 	}
 	return ParseCreatePlaceResponse(rsp)
+}
+
+// DisableSocialWithResponse Switch off posting to social media (owner only)
+//
+// An account Laamo created is deleted at Posta, with its channels and posts. Your own Posta account is only disconnected.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /workspaces/{workspaceId}/social (the `DisableSocial` operationId).
+func (c *ClientWithResponses) DisableSocialWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*DisableSocialResponse, error) {
+	rsp, err := c.DisableSocial(ctx, workspaceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDisableSocialResponse(rsp)
+}
+
+// GetSocialWithResponse Whether posting to social media is on, and what the plan allows
+//
+// Posting to social media runs on Posta (getposta.app). Laamo creates a Posta account for you when you switch it on, or uses your own Posta API key. One Posta account per person, used in one workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /workspaces/{workspaceId}/social (the `GetSocial` operationId).
+func (c *ClientWithResponses) GetSocialWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*GetSocialResponse, error) {
+	rsp, err := c.GetSocial(ctx, workspaceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetSocialResponse(rsp)
+}
+
+// EnableSocialWithBodyWithResponse Switch on posting to social media (owner only)
+//
+// Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
+func (c *ClientWithResponses) EnableSocialWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EnableSocialResponse, error) {
+	rsp, err := c.EnableSocialWithBody(ctx, workspaceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEnableSocialResponse(rsp)
+}
+
+// EnableSocialWithResponse Switch on posting to social media (owner only)
+//
+// Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
+func (c *ClientWithResponses) EnableSocialWithResponse(ctx context.Context, workspaceId WorkspaceId, body EnableSocialJSONRequestBody, reqEditors ...RequestEditorFn) (*EnableSocialResponse, error) {
+	rsp, err := c.EnableSocial(ctx, workspaceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEnableSocialResponse(rsp)
 }
 
 // ListTemplatesWithResponse The Shelf, sorted by your needs, in your language, with known About me facts filled in
@@ -11562,6 +12155,143 @@ func ParseCreatePlaceResponse(rsp *http.Response) (*CreatePlaceResponse, error) 
 	return response, nil
 }
 
+// ParseDisableSocialResponse parses an HTTP response from a DisableSocialWithResponse call
+func ParseDisableSocialResponse(rsp *http.Response) (*DisableSocialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DisableSocialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetSocialResponse parses an HTTP response from a GetSocialWithResponse call
+func ParseGetSocialResponse(rsp *http.Response) (*GetSocialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetSocialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SocialPosting
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseEnableSocialResponse parses an HTTP response from a EnableSocialWithResponse call
+func ParseEnableSocialResponse(rsp *http.Response) (*EnableSocialResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EnableSocialResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SocialPosting
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTemplatesResponse parses an HTTP response from a ListTemplatesWithResponse call
 func ParseListTemplatesResponse(rsp *http.Response) (*ListTemplatesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -11753,6 +12483,15 @@ type ServerInterface interface {
 	// CreatePlace Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
 	// (POST /workspaces/{workspaceId}/places)
 	CreatePlace(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// DisableSocial Switch off posting to social media (owner only)
+	// (DELETE /workspaces/{workspaceId}/social)
+	DisableSocial(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// GetSocial Whether posting to social media is on, and what the plan allows
+	// (GET /workspaces/{workspaceId}/social)
+	GetSocial(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// EnableSocial Switch on posting to social media (owner only)
+	// (PUT /workspaces/{workspaceId}/social)
+	EnableSocial(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	// (GET /workspaces/{workspaceId}/templates)
 	ListTemplates(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -13036,6 +13775,84 @@ func (siw *ServerInterfaceWrapper) CreatePlace(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// DisableSocial operation middleware
+func (siw *ServerInterfaceWrapper) DisableSocial(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableSocial(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSocial operation middleware
+func (siw *ServerInterfaceWrapper) GetSocial(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSocial(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableSocial operation middleware
+func (siw *ServerInterfaceWrapper) EnableSocial(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableSocial(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListTemplates(w http.ResponseWriter, r *http.Request) {
 
@@ -13188,6 +14005,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/waitlist/challenge", wrapper.GetWaitlistChallenge)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/waitlist", wrapper.JoinWaitlist)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/waitlist/confirm", wrapper.ConfirmWaitlist)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/workspaces/{workspaceId}/social", wrapper.DisableSocial)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/social", wrapper.GetSocial)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/workspaces/{workspaceId}/social", wrapper.EnableSocial)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.ListPlaces)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.CreatePlace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/lists", wrapper.ListLists)
@@ -15835,6 +16655,193 @@ func (response CreatePlace503JSONResponse) VisitCreatePlaceResponse(w http.Respo
 	return err
 }
 
+type DisableSocialRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type DisableSocialResponseObject interface {
+	VisitDisableSocialResponse(w http.ResponseWriter) error
+}
+
+type DisableSocial204Response struct {
+}
+
+func (response DisableSocial204Response) VisitDisableSocialResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DisableSocial403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DisableSocial403JSONResponse) VisitDisableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableSocial404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DisableSocial404JSONResponse) VisitDisableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableSocial503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response DisableSocial503JSONResponse) VisitDisableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSocialRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type GetSocialResponseObject interface {
+	VisitGetSocialResponse(w http.ResponseWriter) error
+}
+
+type GetSocial200JSONResponse SocialPosting
+
+func (response GetSocial200JSONResponse) VisitGetSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSocial404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetSocial404JSONResponse) VisitGetSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableSocialRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Body        *EnableSocialJSONRequestBody
+}
+
+type EnableSocialResponseObject interface {
+	VisitEnableSocialResponse(w http.ResponseWriter) error
+}
+
+type EnableSocial200JSONResponse SocialPosting
+
+func (response EnableSocial200JSONResponse) VisitEnableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableSocial400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response EnableSocial400JSONResponse) VisitEnableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableSocial403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response EnableSocial403JSONResponse) VisitEnableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableSocial404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response EnableSocial404JSONResponse) VisitEnableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableSocial409JSONResponse Error
+
+func (response EnableSocial409JSONResponse) VisitEnableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableSocial503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response EnableSocial503JSONResponse) VisitEnableSocialResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTemplatesRequestObject struct {
 	WorkspaceId WorkspaceId `json:"workspaceId"`
 }
@@ -16036,6 +17043,15 @@ type StrictServerInterface interface {
 	// CreatePlace Connect a chat. Sends a test message first; only a chat that got it is saved (owner only)
 	// (POST /workspaces/{workspaceId}/places)
 	CreatePlace(ctx context.Context, request CreatePlaceRequestObject) (CreatePlaceResponseObject, error)
+	// DisableSocial Switch off posting to social media (owner only)
+	// (DELETE /workspaces/{workspaceId}/social)
+	DisableSocial(ctx context.Context, request DisableSocialRequestObject) (DisableSocialResponseObject, error)
+	// GetSocial Whether posting to social media is on, and what the plan allows
+	// (GET /workspaces/{workspaceId}/social)
+	GetSocial(ctx context.Context, request GetSocialRequestObject) (GetSocialResponseObject, error)
+	// EnableSocial Switch on posting to social media (owner only)
+	// (PUT /workspaces/{workspaceId}/social)
+	EnableSocial(ctx context.Context, request EnableSocialRequestObject) (EnableSocialResponseObject, error)
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	// (GET /workspaces/{workspaceId}/templates)
 	ListTemplates(ctx context.Context, request ListTemplatesRequestObject) (ListTemplatesResponseObject, error)
@@ -17452,6 +18468,91 @@ func (sh *strictHandler) CreatePlace(w http.ResponseWriter, r *http.Request, wor
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreatePlaceResponseObject); ok {
 		if err := validResponse.VisitCreatePlaceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DisableSocial operation middleware
+func (sh *strictHandler) DisableSocial(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request DisableSocialRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DisableSocial(ctx, request.(DisableSocialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DisableSocial")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DisableSocialResponseObject); ok {
+		if err := validResponse.VisitDisableSocialResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSocial operation middleware
+func (sh *strictHandler) GetSocial(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request GetSocialRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSocial(ctx, request.(GetSocialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSocial")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSocialResponseObject); ok {
+		if err := validResponse.VisitGetSocialResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EnableSocial operation middleware
+func (sh *strictHandler) EnableSocial(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request EnableSocialRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	var body EnableSocialJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EnableSocial(ctx, request.(EnableSocialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EnableSocial")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EnableSocialResponseObject); ok {
+		if err := validResponse.VisitEnableSocialResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

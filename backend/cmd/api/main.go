@@ -25,6 +25,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/mail"
 	"github.com/STGime/laamo/backend/internal/osm"
+	"github.com/STGime/laamo/backend/internal/posta"
 	"github.com/STGime/laamo/backend/internal/push"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	"github.com/STGime/laamo/backend/internal/realtime"
@@ -81,6 +82,7 @@ func main() {
 		Maps:     mapMaker(cfg),
 		Blobs:    eb.Blobs{Client: client, Prefix: "laamo/"},
 		Push:     notifier,
+		Posta:    postaService(cfg, log),
 		Waitlist: &waitlist.Service{Store: st, Mail: mailSender(cfg, log), SiteURL: cfg.SiteURL, Log: log},
 	})
 
@@ -104,6 +106,15 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
+}
+
+// postaService posts to social media, when there is a partner key.
+func postaService(cfg config.Config, log *slog.Logger) *posta.Service {
+	svc := posta.New(cfg.PostaPartnerKey, cfg.PostaURL)
+	if svc == nil {
+		log.Warn("no POSTA_PARTNER_KEY: posting to social media is off")
+	}
+	return svc
 }
 
 // mailSender sends through Resend, or into the log when there's no key (dev).
