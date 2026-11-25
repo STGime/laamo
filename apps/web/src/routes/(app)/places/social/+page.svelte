@@ -14,6 +14,8 @@
 	let key = $state('');
 	let busy = $state(false);
 	let problem = $state<Key | null>(null);
+	// What the server said, shown small under a failure: it names the cause.
+	let detail = $state('');
 	let confirmOff = $state(false);
 	const owner = $derived(session.workspace?.role === 'owner');
 
@@ -33,7 +35,7 @@
 		if (!ws || busy) return;
 		busy = true;
 		problem = null;
-		const { data, error } = await api.PUT('/workspaces/{workspaceId}/social', {
+		const { data, error, response } = await api.PUT('/workspaces/{workspaceId}/social', {
 			params: { path: { workspaceId: ws.id } },
 			body
 		});
@@ -44,6 +46,7 @@
 			return;
 		}
 		const code = (error as { code?: string } | undefined)?.code;
+		detail = (error as { error?: string } | undefined)?.error ?? `HTTP ${response.status}`;
 		if (code === 'posta_account_exists') {
 			// Their email has a Posta account: only they can hand over its key.
 			own = true;
@@ -156,7 +159,8 @@
 			maxlength="300"
 		/>
 		<p class="small">{t('social.own.note')}</p>
-		{#if problem}<p class="bad" role="alert">{t(problem)}</p>{/if}
+		{#if problem}<p class="bad" role="alert">{t(problem)}</p>
+			{#if problem === 'social.err.down' && detail}<p class="small">{detail}</p>{/if}{/if}
 		<button class="btn primary wide" disabled={busy || key.trim().length < 8}
 			>{t('social.own.connect')}</button
 		>
@@ -191,7 +195,8 @@
 				>{t('social.consent.2')}
 			</span>
 		</label>
-		{#if problem}<p class="bad" role="alert">{t(problem)}</p>{/if}
+		{#if problem}<p class="bad" role="alert">{t(problem)}</p>
+			{#if problem === 'social.err.down' && detail}<p class="small">{detail}</p>{/if}{/if}
 		<button class="btn primary wide" disabled={busy || !accepted}>{t('social.turnOn')}</button>
 		<button type="button" class="link" onclick={() => ((own = true), (problem = null))}
 			>{t('social.haveOwn')}</button

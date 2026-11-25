@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -172,7 +173,7 @@ func (s *Server) EnableSocial(ctx context.Context, req EnableSocialRequestObject
 	}
 	down := func(what string, err error) (EnableSocialResponseObject, error) {
 		s.log.Error("posta: "+what, "workspace", w.ID, "err", err)
-		return EnableSocial503JSONResponse{UnavailableJSONResponse(apiErr(ErrorCodeUnavailable, "Posta didn't answer; try again in a moment"))}, nil
+		return EnableSocial503JSONResponse{UnavailableJSONResponse(apiErr(ErrorCodeUnavailable, postaSaid(err)))}, nil
 	}
 
 	now := time.Now().UTC()
@@ -256,4 +257,28 @@ func (s *Server) DisableSocial(ctx context.Context, req DisableSocialRequestObje
 		return nil, err
 	}
 	return DisableSocial204Response{}, nil
+}
+
+// postaSaid says what went wrong at Posta, for the person at the screen:
+// Posta's own status, code and message when it answered (no keys in
+// there), else that it couldn't be reached.
+func postaSaid(err error) string {
+	var pe *posta.Error
+	if errors.As(err, &pe) {
+		msg := "Posta answered " + strconv.Itoa(pe.Status)
+		if pe.Code != "" {
+			msg += " " + pe.Code
+		}
+		if pe.Reason != "" {
+			msg += " (" + pe.Reason + ")"
+		}
+		if pe.Message != "" {
+			msg += ": " + cutRunes(pe.Message, 200)
+		}
+		return msg
+	}
+	if strings.Contains(err.Error(), "answer not understood") {
+		return "Posta answered in a form Laamo doesn't understand"
+	}
+	return "Posta couldn't be reached; try again in a moment"
 }
