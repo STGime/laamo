@@ -1,0 +1,75 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "social-poster",
+  "name": { "en": "Social Poster", "de": "Social-Poster" },
+  "promise": {
+    "en": "Every Monday morning a new post with a picture waits in your Feed. You check it, and it goes out on your social accounts.",
+    "de": "Jeden Montagmorgen wartet ein neuer Post mit Bild in deinem Feed. Du prüfst ihn, und er geht auf deinen Social-Media-Konten raus."
+  },
+  "category": "post_social",
+  "avatar": "📣",
+  "sort_order": 35,
+  "setup_questions": [
+    { "profile": "business" },
+    {
+      "key": "topic",
+      "type": "text",
+      "question": {
+        "en": "What should the posts be about?",
+        "de": "Worum sollen die Posts gehen?"
+      },
+      "placeholder": {
+        "en": "our bread of the week and why it is worth a visit",
+        "de": "unser Brot der Woche und warum sich ein Besuch lohnt"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "what",
+          "text": {
+            "en": "a short social media post for {my business} about: {value}. Two or three sentences, friendly and concrete, a new angle each time, at most two hashtags at the end.",
+            "de": "einen kurzen Social-Media-Post für {my business} über: {value}. Zwei bis drei Sätze, freundlich und konkret, jedes Mal ein neuer Blickwinkel, höchstens zwei Hashtags am Ende."
+          }
+        }
+      ]
+    },
+    {
+      "key": "accounts",
+      "type": "channels",
+      "question": {
+        "en": "Which accounts should it post to?",
+        "de": "Auf welchen Konten soll er posten?"
+      },
+      "fills": [{ "brick": "b5", "setting": "channels" }]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.every",
+        "config": { "freq": "weekly", "days": ["mon"], "time": "08:00" }
+      },
+      {
+        "id": "b2",
+        "type": "think.write",
+        "config": { "tone": 0.3, "mode": "all", "signature": false }
+      },
+      {
+        "id": "b3",
+        "type": "think.draw",
+        "config": { "style": "photo", "shape": "square", "mode": "each" }
+      },
+      {
+        "id": "b4",
+        "type": "ask.check",
+        "config": { "timeout_h": 72, "on_timeout": "skip" }
+      },
+      { "id": "b5", "type": "do.social", "config": { "when": "now", "mode": "each" } }
+    ],
+    "limits": { "max_cards": 5, "max_external_emails": 0, "max_cost_eur": 0.2 }
+  },
+  "required": { "brain": true }
+}

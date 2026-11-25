@@ -160,6 +160,8 @@ func TestInstallAll(t *testing.T) {
 				answers[q.Profile] = "Bäckerei"
 			case q.Type == "place":
 				answers[q.Key] = shelf.FeedOnly
+			case q.Type == "channels":
+				answers[q.Key] = "11, 12"
 			case q.Key == "pages":
 				answers[q.Key] = "https://shop.example/a https://shop.example/b"
 			default:
@@ -170,6 +172,34 @@ func TestInstallAll(t *testing.T) {
 			if _, _, err := shelf.Install(cat, tp, store.Workspace{ID: "w1", Locale: lang}, answers, nil, nil); err != nil {
 				t.Errorf("%s (%s): %v", tp.Slug, lang, err)
 			}
+		}
+	}
+}
+
+// Social Poster: the accounts picked become the brick's channels, the topic
+// goes into what to write, and anything but account ids is refused.
+func TestInstallSocialPoster(t *testing.T) {
+	ws := store.Workspace{ID: "w1", Locale: "en", Profile: map[string]any{"business": "Bakery Krause"}}
+	answers := map[string]string{"topic": "our bread of the week", "accounts": "11, 12"}
+	stack, _, err := shelf.Install(cat, tpl(t, "social-poster"), ws, answers, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := stack.Bricks[len(stack.Bricks)-1]
+	if ids, _ := last.Config["channels"].([]any); last.Type != "do.social" || len(ids) != 2 || ids[0] != "11" || ids[1] != "12" {
+		t.Fatalf("channels %+v", last.Config)
+	}
+	if what, _ := stack.Bricks[1].Config["what"].(string); !strings.Contains(what, "about: our bread of the week.") {
+		t.Fatalf("what %q", what)
+	}
+	// It asks before it posts.
+	if stack.Bricks[len(stack.Bricks)-2].Type != "ask.check" {
+		t.Fatalf("no check before the post: %+v", stack.Bricks)
+	}
+	for _, bad := range []string{"", "abc", "11;drop", "11,x"} {
+		answers["accounts"] = bad
+		if _, _, err := shelf.Install(cat, tpl(t, "social-poster"), ws, answers, nil, nil); err == nil {
+			t.Errorf("accounts %q was taken", bad)
 		}
 	}
 }

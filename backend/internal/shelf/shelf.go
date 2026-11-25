@@ -192,6 +192,20 @@ func Install(cat *catalog.Catalog, t catalog.Template, ws store.Workspace, answe
 				stack.Bricks[i].Config[f.Setting] = strings.ReplaceAll(f.Text.In(ws.Locale), "{value}", v)
 				continue
 			}
+			if q.Type == "channels" {
+				// Social accounts: their ids, comma separated. Whether they are
+				// (still) connected is the brick's to find out when it posts.
+				var ids []any
+				for id := range strings.SplitSeq(v, ",") {
+					id = strings.TrimSpace(id)
+					if id == "" || len(id) > 40 || strings.ContainsFunc(id, func(r rune) bool { return r < '0' || r > '9' }) {
+						return stack, nil, bad("unknown social account")
+					}
+					ids = append(ids, id)
+				}
+				stack.Bricks[i].Config[f.Setting] = ids
+				continue
+			}
 			stack.Bricks[i].Config[f.Setting] = v
 		}
 	}

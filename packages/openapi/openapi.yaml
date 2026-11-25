@@ -2274,7 +2274,8 @@ components:
           type: string
         kind:
           type: string
-          enum: [text, select, place, list, time]
+          enum: [text, select, place, list, time, channels]
+          description: "channels: the social accounts to post to; answer with their ids, comma separated"
         profile:
           type: boolean
           description: An About me fact (remembered for all helpers)

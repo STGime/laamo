@@ -391,25 +391,22 @@ export const USE_CASES: UseCase[] = [
 	{
 		slug: 'social-poster',
 		avatar: '📣',
-		soon: true,
 		text: {
 			en: {
 				name: 'Social Poster',
-				title: 'Social posts for your business, written and scheduled for you.',
-				metaTitle: 'Write and schedule social media posts for your business · Laamo',
+				title: 'Social posts for your business, written and posted for you.',
+				metaTitle: 'Write and publish social media posts for your business · Laamo',
 				description:
-					'A helper that finds something worth sharing, writes a post in your tone, draws a picture for it and, after your OK, publishes it to your social accounts with Posta.',
+					'A helper that writes a post about your business every week, makes a picture for it and, after your OK, publishes it to your social accounts with Posta.',
 				problem:
 					'Posting regularly keeps your business visible, but finding a topic, writing the text and making a picture eats an evening every week.',
-				how: 'Twice a week the Social Poster looks for news in your field, writes a post in your tone with fitting hashtags and draws a picture for it. You check the post in your Feed, change what you like, and Posta publishes it to your social accounts at the time you pick.',
+				how: 'Every Monday morning the Social Poster writes a short post about the topic you gave it, with a new angle each time, and makes a picture for it. You check the post in your Feed and change what you like. After your OK, Posta publishes it to the social accounts you picked.',
 				stack: [
-					{ group: 'when', text: 'Every Tuesday and Friday at 10:00' },
-					{ group: 'look', text: 'Search news in my field' },
-					{ group: 'think', text: 'Keep the best one' },
-					{ group: 'think', text: 'Write a post in my tone' },
+					{ group: 'when', text: 'Every Monday at 8:00' },
+					{ group: 'think', text: 'Write a post about my topic' },
 					{ group: 'think', text: 'Draw a picture for it' },
 					{ group: 'ask', text: 'Check first' },
-					{ group: 'do', text: 'Post with Posta at 12:00' }
+					{ group: 'do', text: 'Post to my social accounts' }
 				],
 				result: {
 					title: 'A post is ready for you to check',
@@ -420,28 +417,29 @@ export const USE_CASES: UseCase[] = [
 				},
 				questions: [
 					'What is your business about? (remembered)',
-					'Which social accounts?',
-					'When should posts go out?'
+					'What should the posts be about?',
+					'Which social accounts?'
 				],
-				notes: ['Writing posts and pictures works today; publishing with Posta is coming soon.']
+				notes: [
+					'Posting runs on Posta, a service of our own company. You switch it on in Laamo and connect your social accounts there.',
+					'Nothing goes out before you have checked it. You can change the day, the time and the bricks afterwards, for example to post at a set time.'
+				]
 			},
 			de: {
 				name: 'Social-Poster',
-				title: 'Social-Media-Beiträge für dein Geschäft, geschrieben und geplant.',
-				metaTitle: 'Social-Media-Beiträge für dein Geschäft schreiben und planen · Laamo',
+				title: 'Social-Media-Beiträge für dein Geschäft, geschrieben und gepostet.',
+				metaTitle: 'Social-Media-Beiträge für dein Geschäft schreiben und posten · Laamo',
 				description:
-					'Ein Helfer, der etwas Teilenswertes findet, einen Beitrag in deinem Ton schreibt, ein Bild dazu zeichnet und ihn nach deinem OK mit Posta auf deinen Social-Media-Konten veröffentlicht.',
+					'Ein Helfer, der jede Woche einen Beitrag über dein Geschäft schreibt, ein Bild dazu macht und ihn nach deinem OK mit Posta auf deinen Social-Media-Konten veröffentlicht.',
 				problem:
 					'Regelmäßig posten hält dein Geschäft sichtbar, aber Thema finden, Text schreiben und Bild machen kostet jede Woche einen Abend.',
-				how: 'Zweimal pro Woche sucht der Social-Poster Neuigkeiten aus deiner Branche, schreibt einen Beitrag in deinem Ton mit passenden Hashtags und zeichnet ein Bild dazu. Du prüfst den Beitrag in deinem Feed, änderst, was du willst, und Posta veröffentlicht ihn zur gewählten Zeit auf deinen Konten.',
+				how: 'Jeden Montagmorgen schreibt der Social-Poster einen kurzen Beitrag zu dem Thema, das du ihm gegeben hast, jedes Mal mit einem neuen Blickwinkel, und macht ein Bild dazu. Du prüfst den Beitrag in deinem Feed und änderst, was du willst. Nach deinem OK veröffentlicht Posta ihn auf den Konten, die du gewählt hast.',
 				stack: [
-					{ group: 'when', text: 'Jeden Dienstag und Freitag um 10:00' },
-					{ group: 'look', text: 'Neuigkeiten aus meiner Branche suchen' },
-					{ group: 'think', text: 'Die beste behalten' },
-					{ group: 'think', text: 'Einen Beitrag in meinem Ton schreiben' },
+					{ group: 'when', text: 'Jeden Montag um 8:00' },
+					{ group: 'think', text: 'Einen Beitrag zu meinem Thema schreiben' },
 					{ group: 'think', text: 'Ein Bild dazu zeichnen' },
 					{ group: 'ask', text: 'Erst prüfen' },
-					{ group: 'do', text: 'Mit Posta um 12:00 posten' }
+					{ group: 'do', text: 'Auf meinen Social-Media-Konten posten' }
 				],
 				result: {
 					title: 'Ein Beitrag wartet auf dich',
@@ -452,11 +450,12 @@ export const USE_CASES: UseCase[] = [
 				},
 				questions: [
 					'Worum geht es in deinem Geschäft? (wird gemerkt)',
-					'Welche Social-Media-Konten?',
-					'Wann sollen Beiträge erscheinen?'
+					'Worum sollen die Beiträge gehen?',
+					'Welche Social-Media-Konten?'
 				],
 				notes: [
-					'Beiträge und Bilder schreiben geht heute schon; das Veröffentlichen mit Posta kommt bald.'
+					'Das Posten läuft über Posta, einen Dienst unserer eigenen Firma. Du schaltest es in Laamo ein und verbindest dort deine Social-Media-Konten.',
+					'Nichts geht raus, bevor du es geprüft hast. Tag, Uhrzeit und Bausteine kannst du danach ändern, zum Beispiel, um zu einer festen Zeit zu posten.'
 				]
 			}
 		}
