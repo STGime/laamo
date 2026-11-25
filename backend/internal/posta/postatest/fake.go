@@ -5,6 +5,7 @@ package postatest
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -43,12 +44,58 @@ type Fake struct {
 	own      map[string]*account // people's own accounts, by token
 	taken    map[string]bool     // emails with an own account
 	Calls    []string            // "METHOD path", in order
+	media    map[string]*media
+	posts    []*FakePost
+	// FailCreate: the next n "create post" calls answer 500 (Posta is in
+	// trouble), LoseCreate: the next one makes the post but the answer is
+	// lost on the way (a 502), as a timeout would.
+	FailCreate, LoseCreate int
+}
+
+type media struct {
+	owner  *account
+	mime   string
+	data   []byte
+	looked int // how often its state was read after the upload
+}
+
+// FakePost is a post made at the fake.
+type FakePost struct {
+	ID       string
+	Caption  string
+	Channels []string
+	MediaIDs []string
+	Status   string // draft, scheduled, processing
+	At       *time.Time
+	Publish  int // how often it was told to go out
+	owner    *account
+}
+
+// Posts returns the posts made so far.
+func (f *Fake) Posts() []FakePost {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]FakePost, len(f.posts))
+	for i, p := range f.posts {
+		out[i] = *p
+	}
+	return out
+}
+
+// Picture returns the bytes uploaded as this media id.
+func (f *Fake) Picture(id string) []byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if m := f.media[id]; m != nil {
+		return m.data
+	}
+	return nil
 }
 
 // New starts a fake Posta and returns it with a service that talks to it.
 func New(t *testing.T) (*Fake, *posta.Service) {
 	t.Helper()
-	f := &Fake{accounts: map[string]*account{}, own: map[string]*account{}, taken: map[string]bool{}}
+	f := &Fake{accounts: map[string]*account{}, own: map[string]*account{}, taken: map[string]bool{}, media: map[string]*media{}}
 	srv := httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(srv.Close)
 	f.URL = srv.URL
@@ -128,6 +175,16 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		f.partner(w, r, rest)
+		return
+	}
+	if id, isUpload := strings.CutPrefix(path, "/upload/"); isUpload && r.Method == http.MethodPut {
+		m := f.media[id]
+		if m == nil || r.Header.Get("Authorization") != "" || r.Header.Get("Content-Type") != m.mime {
+			fail(w, http.StatusForbidden, "FORBIDDEN", "bad upload")
+			return
+		}
+		m.data, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 	if r.Method == http.MethodGet && path == "/social-accounts/platforms" {
@@ -216,9 +273,127 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	case r.Method == http.MethodPost && path == "/media/create-upload-url":
+		var in struct {
+			Name string `json:"name"`
+			Mime string `json:"mime_type"`
+			Size int    `json:"size_bytes"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		if in.Name == "" || in.Size <= 0 || !slices.Contains([]string{"image/jpeg", "image/png", "image/webp"}, in.Mime) {
+			fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid file type or size")
+			return
+		}
+		f.n++
+		id := fmt.Sprintf("media-%d", f.n)
+		f.media[id] = &media{owner: a, mime: in.Mime}
+		ok(w, http.StatusCreated, map[string]any{"media_id": id, "upload_url": f.URL + "/upload/" + id})
+	case strings.HasPrefix(path, "/media/"):
+		id, action, _ := strings.Cut(strings.TrimPrefix(path, "/media/"), "/")
+		m := f.media[id]
+		if m == nil || m.owner != a {
+			fail(w, http.StatusNotFound, "NOT_FOUND", "Media not found")
+			return
+		}
+		switch {
+		case r.Method == http.MethodPost && action == "confirm-upload" && m.data != nil:
+			w.WriteHeader(http.StatusAccepted)
+		case r.Method == http.MethodGet && action == "":
+			// Processing takes a moment: ready from the second look on.
+			m.looked++
+			status := "processing"
+			if m.looked > 1 {
+				status = "completed"
+			}
+			ok(w, http.StatusOK, map[string]any{"id": id, "status": status})
+		default:
+			fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "not uploaded yet")
+		}
+	case r.Method == http.MethodPost && path == "/posts":
+		f.createPost(w, r, a)
+	case strings.HasPrefix(path, "/posts/"):
+		id, action, _ := strings.Cut(strings.TrimPrefix(path, "/posts/"), "/")
+		i := slices.IndexFunc(f.posts, func(p *FakePost) bool { return p.ID == id && p.owner == a })
+		if i < 0 {
+			fail(w, http.StatusNotFound, "NOT_FOUND", "Post not found")
+			return
+		}
+		post := f.posts[i]
+		switch {
+		case r.Method == http.MethodGet && action == "":
+			ok(w, http.StatusOK, map[string]any{"id": post.ID, "status": post.Status})
+		case r.Method == http.MethodPost && action == "publish":
+			if f.refuse(w, a, false) {
+				return
+			}
+			if post.Status != "draft" {
+				fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "Post cannot be published")
+				return
+			}
+			post.Status, post.Publish = "processing", post.Publish+1
+			ok(w, http.StatusOK, map[string]any{"id": post.ID, "status": post.Status})
+		default:
+			fail(w, http.StatusNotFound, "NOT_FOUND", "no such route in the fake")
+		}
 	default:
 		fail(w, http.StatusNotFound, "NOT_FOUND", "no such route in the fake")
 	}
+}
+
+func (f *Fake) createPost(w http.ResponseWriter, r *http.Request, a *account) {
+	if f.FailCreate > 0 {
+		f.FailCreate--
+		fail(w, http.StatusInternalServerError, "INTERNAL", "try later")
+		return
+	}
+	var in struct {
+		Caption  string     `json:"caption"`
+		MediaIDs []string   `json:"mediaIds"`
+		Channels []any      `json:"socialAccountIds"`
+		At       *time.Time `json:"scheduledAt"`
+		IsDraft  *bool      `json:"isDraft"`
+	}
+	if json.NewDecoder(r.Body).Decode(&in) != nil || len(in.Channels) == 0 {
+		fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request")
+		return
+	}
+	if f.refuse(w, a, false) {
+		return
+	}
+	post := &FakePost{Caption: in.Caption, MediaIDs: in.MediaIDs, At: in.At, Status: "draft", owner: a}
+	for _, c := range in.Channels {
+		// Whole numbers, or numeric text; and one of this account's own.
+		var id string
+		switch v := c.(type) {
+		case float64:
+			id = strconv.FormatFloat(v, 'f', -1, 64)
+		case string:
+			id = v
+		}
+		if _, err := strconv.Atoi(id); err != nil || !slices.ContainsFunc(a.channels, func(ch posta.Channel) bool { return ch.ID == id }) {
+			fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "socialAccountIds: not one of your accounts")
+			return
+		}
+		post.Channels = append(post.Channels, id)
+	}
+	for _, id := range in.MediaIDs {
+		if m := f.media[id]; m == nil || m.owner != a || m.looked < 2 {
+			fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "Media is not ready")
+			return
+		}
+	}
+	if in.At != nil && (in.IsDraft == nil || !*in.IsDraft) {
+		post.Status = "scheduled"
+	}
+	f.n++
+	post.ID = fmt.Sprintf("post-%d", f.n)
+	f.posts = append(f.posts, post)
+	if f.LoseCreate > 0 {
+		f.LoseCreate--
+		w.WriteHeader(http.StatusBadGateway) // made, but the caller never learns its id
+		return
+	}
+	ok(w, http.StatusCreated, map[string]any{"id": post.ID, "status": post.Status})
 }
 
 // refuse answers 403 when the account's plan doesn't allow the call

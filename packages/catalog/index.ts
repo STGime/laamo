@@ -56,7 +56,8 @@ export type SettingType =
 	| 'tags'
 	| 'fields'
 	| 'place'
-	| 'list';
+	| 'list'
+	| 'channels';
 
 export interface Option {
 	value: Scalar;

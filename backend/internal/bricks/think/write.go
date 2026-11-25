@@ -26,7 +26,9 @@ var placeholderRe = regexp.MustCompile(`\[[^\]\n]{1,40}\]|\{[^}\n]{1,40}\}|<[a-z
 // all of them. The user's words say what to write; the cards are only data.
 // The signature from About me is added here, not by the model.
 var Write = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in []engine.Card, cfg engine.Config) ([]engine.Card, error) {
-	if len(in) == 0 {
+	// One in total needs no cards: the user's words are enough (a post
+	// written from scratch, right after When).
+	if len(in) == 0 && cfg.String("mode") != "all" {
 		return nil, nil
 	}
 	if rc.Brain == nil {

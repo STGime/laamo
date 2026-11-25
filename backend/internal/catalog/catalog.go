@@ -175,6 +175,8 @@ const (
 	TypeFields   = "fields"
 	TypePlace    = "place"
 	TypeList     = "list"
+	// TypeChannels: the social accounts to post to (ids, as text).
+	TypeChannels = "channels"
 )
 
 type Setting struct {

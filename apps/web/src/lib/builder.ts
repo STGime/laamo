@@ -28,6 +28,7 @@ export const ready = new Set([
 	'think.draw',
 	'do.list',
 	'do.chat',
+	'do.social',
 	'ask.check',
 	'ask.pick',
 	'ask.question',
@@ -73,8 +74,8 @@ export function add(
 	const sb: StackBrick = { id: nextId(bricks), type, config: withDefaults(b, {}) };
 	if (type === 'when.email' && ownEmail) sb.config = { ...sb.config, senders: [ownEmail] };
 	if (b.shape === 'start') return { bricks: [sb, ...bricks.filter((x) => !isStart(x))], id: sb.id };
-	// Draw a picture with no cards before it: one picture in total.
-	if (type === 'think.draw' && !cardsBefore(bricks, bricks.length))
+	// Write it or Draw a picture with no cards before it: one in total.
+	if (alone.has(type) && !cardsBefore(bricks, bricks.length))
 		sb.config = { ...sb.config, mode: 'all' };
 	return { bricks: fitSettings([...bricks, sb], sb.id), id: sb.id };
 }
@@ -181,10 +182,15 @@ export function fitSettings(bricks: StackBrick[], id: string): StackBrick[] {
 	return out;
 }
 
+/** Bricks that, set to one in total, make a card with none before them. */
+export const alone = new Set(['think.write', 'think.draw']);
+const makesOne = (b: StackBrick) =>
+	alone.has(b.type) && withDefaults(brick(b.type)!, b.config).mode === 'all';
+
 /**
  * Whether any brick before index makes cards: a Look brick, Email this
  * helper (the email), or a brick
- * that makes one on its own (Draw a picture, one in total). Without that, a
+ * that makes one on its own (Write it or Draw a picture, one in total). Without that, a
  * brick that works on cards gets none (e.g. When I tap → Draw a picture).
  */
 export function cardsBefore(bricks: StackBrick[], index: number): boolean {
@@ -193,7 +199,7 @@ export function cardsBefore(bricks: StackBrick[], index: number): boolean {
 		return (
 			def?.group === 'look' ||
 			b.type === 'when.email' || // the email is a card
-			(b.type === 'think.draw' && withDefaults(def!, b.config).mode === 'all')
+			makesOne(b)
 		);
 	});
 }
@@ -203,6 +209,6 @@ export function starved(bricks: StackBrick[], index: number): boolean {
 	const b = bricks[index];
 	const def = b && brick(b.type);
 	if (!def || def.group === 'when' || def.group === 'look') return false;
-	if (b.type === 'think.draw' && withDefaults(def, b.config).mode === 'all') return false;
+	if (makesOne(b)) return false;
 	return !cardsBefore(bricks, index);
 }

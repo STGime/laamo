@@ -28,6 +28,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/images"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/osm"
+	"github.com/STGime/laamo/backend/internal/posta"
 	"github.com/STGime/laamo/backend/internal/push"
 	"github.com/STGime/laamo/backend/internal/queue"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
@@ -120,7 +121,10 @@ func serveHealth(ctx context.Context, addr string, log *slog.Logger) {
 
 func brickDeps(cfg config.Config, log *slog.Logger, st store.Store) bricks.Deps {
 	d := bricks.Deps{SearchCostEUR: cfg.SearchCostEUR, Store: st, Chat: &chat.Sender{}, Pages: &web.Fetcher{},
-		Businesses: businessFinder(cfg)}
+		Businesses: businessFinder(cfg), Posta: posta.New(cfg.PostaPartnerKey, cfg.PostaURL)}
+	if d.Posta == nil {
+		log.Warn("no POSTA_PARTNER_KEY: Post to social is off")
+	}
 	if cfg.FalKey != "" {
 		d.Images = &images.Client{APIKey: cfg.FalKey, Model: cfg.ImageModel}
 	} else {

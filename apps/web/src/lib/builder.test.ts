@@ -105,6 +105,16 @@ describe('cards before', () => {
 		expect(r.bricks[1].config.mode).toBe('all');
 		expect(starved(r.bricks, 1)).toBe(false);
 	});
+	it('writes one post in total right after When', () => {
+		const r = add([tap], 'think.write');
+		expect(r.bricks[1].config.mode).toBe('all');
+		expect(starved(r.bricks, 1)).toBe(false);
+		// The post is a card for what comes next.
+		const post = add(r.bricks, 'do.social');
+		expect(starved(post.bricks, 2)).toBe(false);
+		const each = [tap, { id: 'b2', type: 'think.write', config: { what: 'x', mode: 'each' } }];
+		expect(starved(each, 1)).toBe(true);
+	});
 	it('notices a brick that gets no cards', () => {
 		const st = [tap, { id: 'b2', type: 'think.draw', config: { mode: 'each' } }];
 		expect(starved(st, 1)).toBe(true);

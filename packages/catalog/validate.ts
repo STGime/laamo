@@ -134,6 +134,12 @@ function checkValue(set: Setting, v: unknown): string {
 			const bad = days.find((d) => !weekdays.includes(d));
 			return bad ? `has an unknown day "${bad}"` : '';
 		}
+		case 'channels': {
+			const ids = stringList(v);
+			if (!ids || ids.length === 0) return 'needs at least one account';
+			if (ids.length > 20) return 'has more than 20 accounts';
+			return ids.some((id) => id === '' || id.length > 40) ? "has an account id that isn't one" : '';
+		}
 		case 'tags':
 			return stringList(v) ? '' : 'must be a list of words';
 		case 'fields': {

@@ -2830,14 +2830,14 @@
       "id": "do.social",
       "group": "do",
       "shape": "act",
-      "status": "later",
+      "status": "mvp",
       "title": {
-        "en": "Post to social (Posta)",
-        "de": "Auf Social Media posten (Posta)"
+        "en": "Post to social",
+        "de": "Auf Social Media posten"
       },
       "does": {
-        "en": "Publishes or schedules a post on your social accounts through Posta.",
-        "de": "Veröffentlicht oder plant einen Post auf deinen Social-Media-Konten über Posta."
+        "en": "Posts the card's text, and its picture if it has one, to your social accounts. Nothing goes out in a test run.",
+        "de": "Postet den Text der Karte, und ihr Bild, wenn sie eins hat, auf deinen Social-Media-Konten. In einem Testlauf geht nichts raus."
       },
       "sentence": [
         {
@@ -2849,16 +2849,13 @@
       ],
       "settings": [
         {
-          "key": "accounts",
-          "type": "place",
+          "key": "channels",
+          "type": "channels",
           "label": {
             "en": "Which accounts",
             "de": "Welche Konten"
           },
-          "required": true,
-          "place_types": [
-            "posta"
-          ]
+          "required": true
         },
         {
           "key": "when",
@@ -2867,13 +2864,13 @@
             "en": "When",
             "de": "Wann"
           },
-          "default": "draft",
+          "default": "now",
           "options": [
             {
               "value": "now",
               "label": {
-                "en": "Now",
-                "de": "Jetzt"
+                "en": "Right away",
+                "de": "Sofort"
               }
             },
             {
@@ -2893,40 +2890,50 @@
           ]
         },
         {
+          "key": "time",
+          "type": "time",
+          "label": {
+            "en": "Time",
+            "de": "Uhrzeit"
+          },
+          "default": "09:00",
+          "required": true,
+          "show_if": {
+            "when": [
+              "at"
+            ]
+          }
+        },
+        {
           "key": "mode",
           "type": "select",
           "label": {
             "en": "One post or one per card",
             "de": "Ein Post oder einer pro Karte"
           },
-          "default": "one",
+          "default": "each",
           "options": [
-            {
-              "value": "one",
-              "label": {
-                "en": "One post",
-                "de": "Ein Post"
-              }
-            },
             {
               "value": "each",
               "label": {
                 "en": "One per card",
                 "de": "Einer pro Karte"
               }
+            },
+            {
+              "value": "one",
+              "label": {
+                "en": "Only the first card",
+                "de": "Nur die erste Karte"
+              }
             }
-          ]
+          ],
+          "advanced": true
         }
       ],
       "needs": [
         "body"
       ],
-      "requires": {
-        "places": [
-          "posta"
-        ],
-        "plan": "paid"
-      },
       "check": {
         "default": true
       },

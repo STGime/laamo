@@ -13,7 +13,7 @@
 	import Brick, { type BrickState } from '#lib/components/Brick.svelte';
 	import { listen } from '#lib/feed.svelte.ts';
 	import { brickProgress, retrying } from '#lib/progress.ts';
-	import { settingFix, starved } from '#lib/builder.ts';
+	import { alone, settingFix, starved } from '#lib/builder.ts';
 	import RunTicker from '#lib/components/RunTicker.svelte';
 	import BrickSheet, { type Pill } from '#lib/components/BrickSheet.svelte';
 	import BottomSheet from '#lib/components/BottomSheet.svelte';
@@ -487,10 +487,18 @@
 				items: bricks,
 				flipDurationMs: flip,
 				dropTargetStyle: {},
-				dragDisabled: testing
+				dragDisabled: testing,
+				// On a phone a brick moves after a short hold; a swipe scrolls the page.
+				delayTouchStart: 200
 			}}
 			onconsider={consider}
 			onfinalize={finalize}
+			onclickcapture={(e) => {
+				// With the hold delay a tap makes two clicks: the browser's own and
+				// one the drag library adds. The second would land on the sheet the
+				// first opened and close it again, so only the browser's counts.
+				if (!e.isTrusted) e.stopPropagation();
+			}}
 		>
 			{#each bricks as b, i (b.id)}
 				{@const issue = issueFor(b)}
@@ -527,6 +535,21 @@
 											(bricks = bricks.map((x) =>
 												x.id === b.id ? { ...x, config: { ...x.config, [sf.key]: sf.value } } : x
 											))}>{t('builder.useOption', { option: sf.label[lang] })}</button
+									>
+								{/if}
+							{/if}
+							{#if issue.code === 'no_cards' && alone.has(b.type)}
+								{@const one = brick(b.type)
+									?.settings.find((x) => x.key === 'mode')
+									?.options?.find((o) => o.value === 'all')}
+								{#if one}
+									<button
+										type="button"
+										class="fix"
+										onclick={() =>
+											(bricks = bricks.map((x) =>
+												x.id === b.id ? { ...x, config: { ...x.config, mode: 'all' } } : x
+											))}>{t('builder.useOption', { option: one.label[lang] })}</button
 									>
 								{/if}
 							{/if}
@@ -738,6 +761,14 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
+	}
+	/* A long instruction stays three lines here; the sheet shows all of it. */
+	.stack :global(.brick .title) {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		overflow: hidden;
 	}
 	.stack:focus-visible {
 		outline: 2px solid var(--ink);
