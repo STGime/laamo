@@ -86,6 +86,9 @@ func (s *Sender) allowed(endpoint string) bool {
 	return err == nil && s.Allow(u.Host)
 }
 
+// recordSize is how many bytes every push has on the wire.
+const recordSize = 1536
+
 // client never follows redirects: a push service has no reason to send
 // us elsewhere.
 var client = &http.Client{
@@ -110,7 +113,12 @@ func (s *Sender) Send(ctx context.Context, sub store.PushSubscription, m Message
 	resp, err := webpush.SendNotificationWithContext(ctx, body,
 		&webpush.Subscription{Endpoint: sub.Endpoint, Keys: webpush.Keys{P256dh: sub.P256dh, Auth: sub.Auth}},
 		&webpush.Options{
-			HTTPClient:      hc,
+			HTTPClient: hc,
+			// Every push is padded to this size (so its length says nothing).
+			// The library's default of 4096 is too much for Firefox on
+			// phones, whose push service takes about 2000 bytes; our
+			// longest message is under 1100.
+			RecordSize:      recordSize,
 			Subscriber:      s.Subject,
 			VAPIDPublicKey:  s.PublicKey,
 			VAPIDPrivateKey: s.PrivateKey,

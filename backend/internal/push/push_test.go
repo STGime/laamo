@@ -67,6 +67,10 @@ func (b *browser) serve(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// Firefox on phones: its push service refuses more than about 2000 bytes.
+	if len(body) > 2000 {
+		b.t.Errorf("push is %d bytes, too large for Firefox on phones", len(body))
+	}
 	b.reqs = append(b.reqs, r)
 	if b.status != 0 {
 		w.WriteHeader(b.status)
@@ -178,6 +182,19 @@ func TestSend(t *testing.T) {
 	_ = json.Unmarshal(body, &claims)
 	if claims.Aud != b.srv.URL || claims.Sub != "https://laamo.app" {
 		t.Fatalf("claims: %+v", claims)
+	}
+}
+
+// The longest message we can make still fits (every character 4 bytes).
+func TestSendLongest(t *testing.T) {
+	b := newBrowser(t)
+	s := sender(t, b)
+	m := push.Message{Title: strings.Repeat("🥐", 80), Body: strings.Repeat("🥐", 300), URL: "/feed", Tag: store.NewID()}
+	if err := s.Send(context.Background(), b.sub("u1"), m, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := b.messages(); len(got) != 1 || len([]rune(got[0].Body)) != 160 {
+		t.Fatalf("the browser got %+v", got)
 	}
 }
 
