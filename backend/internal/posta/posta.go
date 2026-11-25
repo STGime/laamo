@@ -509,7 +509,9 @@ func (u *User) Upload(ctx context.Context, name, mime string, data []byte) (stri
 	if _, err := u.call().do(ctx, http.MethodPost, "/media/create-upload-url", in, &up); err != nil {
 		return "", err
 	}
-	if up.MediaID == "" || !(strings.HasPrefix(up.UploadURL, "https://") || u.URL != "" && strings.HasPrefix(up.UploadURL, u.URL)) {
+	// An https address, or (tests) one at the API's own address.
+	usable := strings.HasPrefix(up.UploadURL, "https://") || (u.URL != "" && strings.HasPrefix(up.UploadURL, u.URL))
+	if up.MediaID == "" || !usable {
 		return "", errors.New("posta: no upload address came back")
 	}
 	// The bytes go straight to Posta's storage, at an address signed for
