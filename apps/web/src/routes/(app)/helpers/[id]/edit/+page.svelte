@@ -487,7 +487,9 @@
 				items: bricks,
 				flipDurationMs: flip,
 				dropTargetStyle: {},
-				dragDisabled: testing
+				dragDisabled: testing,
+				// On a phone a brick moves after a short hold; a swipe scrolls the page.
+				delayTouchStart: 200
 			}}
 			onconsider={consider}
 			onfinalize={finalize}
@@ -738,6 +740,14 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
+	}
+	/* A long instruction stays three lines here; the sheet shows all of it. */
+	.stack :global(.brick .title) {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		overflow: hidden;
 	}
 	.stack:focus-visible {
 		outline: 2px solid var(--ink);
