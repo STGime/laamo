@@ -277,8 +277,9 @@ func postaSaid(err error) string {
 		}
 		return msg
 	}
-	if strings.Contains(err.Error(), "answer not understood") {
-		return "Posta answered in a form Laamo doesn't understand"
+	if _, why, ok := strings.Cut(err.Error(), "answer not understood: "); ok {
+		// Field names and types only (see posta.channelList): no data.
+		return "Posta answered in a form Laamo doesn't understand: " + cutRunes(why, 300)
 	}
 	return "Posta couldn't be reached; try again in a moment"
 }

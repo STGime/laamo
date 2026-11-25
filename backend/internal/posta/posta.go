@@ -16,8 +16,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -114,13 +117,102 @@ type Usage struct {
 
 // Channel is a social account connected in Posta.
 type Channel struct {
-	ID              string  `json:"id"`
-	Platform        string  `json:"platform"`
-	Username        string  `json:"username"`
-	DisplayName     string  `json:"displayName"`
-	ProfileImageURL string  `json:"profileImageUrl"`
-	IsActive        bool    `json:"isActive"`
-	ConnectionError *string `json:"connectionError"`
+	ID              string `json:"id"`
+	Platform        string `json:"platform"`
+	Username        string `json:"username"`
+	DisplayName     string `json:"displayName"`
+	ProfileImageURL string `json:"profileImageUrl"`
+	IsActive        bool   `json:"isActive"`
+	// ConnectionError: why the network refuses this channel, "" when fine.
+	ConnectionError string `json:"connectionError,omitempty"`
+}
+
+// UnmarshalJSON reads a channel the way Posta really sends it, which is
+// looser than its documentation: field names in camelCase or snake_case,
+// ids as text or numbers, and null or an object where a text is described.
+func (c *Channel) UnmarshalJSON(b []byte) error {
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return err
+	}
+	get := func(keys ...string) any {
+		for _, k := range keys {
+			if v, ok := m[k]; ok && v != nil {
+				return v
+			}
+		}
+		return nil
+	}
+	*c = Channel{
+		ID:              text(get("id")),
+		Platform:        text(get("platform")),
+		Username:        text(get("username")),
+		DisplayName:     text(get("displayName", "display_name")),
+		ProfileImageURL: text(get("profileImageUrl", "profile_image_url")),
+		ConnectionError: text(get("connectionError", "connection_error")),
+		IsActive:        true,
+	}
+	if v, ok := get("isActive", "is_active").(bool); ok {
+		c.IsActive = v
+	}
+	if c.ID == "" {
+		return fmt.Errorf("a channel without an id (fields: %s)", keysOf(m))
+	}
+	return nil
+}
+
+// text turns a JSON value into text: numbers without a fraction as whole
+// numbers, objects by their message.
+func text(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case float64:
+		return strconv.FormatFloat(x, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(x)
+	case map[string]any:
+		for _, k := range []string{"message", "error", "code"} {
+			if s := text(x[k]); s != "" {
+				return s
+			}
+		}
+		return "error"
+	}
+	return ""
+}
+
+// keysOf lists an object's field names (never its values).
+func keysOf(m map[string]any) string {
+	return strings.Join(slices.Sorted(maps.Keys(m)), ", ")
+}
+
+// channelList reads the answer of GET /social-accounts: the list itself,
+// or an object that holds it.
+func channelList(raw []byte) ([]Channel, error) {
+	var list []Channel
+	if err := json.Unmarshal(raw, &list); err == nil {
+		return list, nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil, errors.New("neither a list nor an object")
+	}
+	for _, k := range []string{"accounts", "socialAccounts", "social_accounts", "data", "items"} {
+		v, ok := obj[k]
+		if !ok {
+			continue
+		}
+		if err := json.Unmarshal(v, &list); err != nil {
+			return nil, fmt.Errorf("%q: %w", k, err)
+		}
+		return list, nil
+	}
+	names := make(map[string]any, len(obj))
+	for k := range obj {
+		names[k] = nil
+	}
+	return nil, fmt.Errorf("no list of channels (fields: %s)", keysOf(names))
 }
 
 // caller does the HTTP for both credentials.
@@ -292,11 +384,16 @@ func (u *User) call() caller { return caller{base: u.URL, token: u.Token, http: 
 // Channels lists the connected social accounts. It is also how a pasted
 // key is checked: ErrUnauthorized when Posta doesn't know it.
 func (u *User) Channels(ctx context.Context) ([]Channel, error) {
-	var out struct {
-		Accounts []Channel `json:"accounts"`
+	var raw json.RawMessage
+	if _, err := u.call().do(ctx, http.MethodGet, "/social-accounts", nil, &raw); err != nil {
+		return nil, err
 	}
-	_, err := u.call().do(ctx, http.MethodGet, "/social-accounts", nil, &out)
-	return out.Accounts, err
+	list, err := channelList(raw)
+	if err != nil {
+		// Field names only: they say what Posta changed, and hold no data.
+		return nil, fmt.Errorf("posta: GET /social-accounts: answer not understood: %w", err)
+	}
+	return list, nil
 }
 
 // Service is both sides of Posta for one deployment: the partner key, and

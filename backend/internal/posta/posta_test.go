@@ -3,6 +3,8 @@ package posta_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -82,5 +84,44 @@ func TestKeysStayOutOfErrors(t *testing.T) {
 	gone := &posta.Partner{Key: "postapk_secret_value", URL: "http://127.0.0.1:1"}
 	if _, err := gone.Usage(ctx); err == nil || strings.Contains(err.Error(), "postapk_secret_value") {
 		t.Fatalf("unreachable: %v", err)
+	}
+}
+
+// Posta's real answers are looser than its documentation.
+func TestChannelShapes(t *testing.T) {
+	for name, body := range map[string]string{
+		"as the guide says": `{"accounts":[{"id":"123","platform":"instagram","username":"anna","displayName":"Anna","isActive":true,"connectionError":null}]}`,
+		"snake case":        `{"accounts":[{"id":"123","platform":"instagram","username":"anna","display_name":"Anna","is_active":true}]}`,
+		"a number as id":    `{"accounts":[{"id":123,"platform":"instagram","username":"anna","displayName":"Anna"}]}`,
+		"a bare list":       `[{"id":"123","platform":"instagram","username":"anna","displayName":"Anna"}]`,
+		"under data":        `{"data":[{"id":"123","platform":"instagram","username":null,"displayName":"Anna","profileImageUrl":null}]}`,
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(body)) }))
+		cs, err := (&posta.User{Token: "posta_x", URL: srv.URL}).Channels(context.Background())
+		srv.Close()
+		if err != nil || len(cs) != 1 || cs[0].ID != "123" || cs[0].Platform != "instagram" || cs[0].DisplayName != "Anna" || !cs[0].IsActive {
+			t.Errorf("%s: %+v %v", name, cs, err)
+		}
+	}
+	// A broken channel: the reason may be text or an object.
+	for _, body := range []string{
+		`{"accounts":[{"id":"1","platform":"x","isActive":false,"connectionError":"token expired"}]}`,
+		`{"accounts":[{"id":"1","platform":"x","is_active":false,"connection_error":{"code":"EXPIRED","message":"token expired"}}]}`,
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(body)) }))
+		cs, err := (&posta.User{Token: "posta_x", URL: srv.URL}).Channels(context.Background())
+		srv.Close()
+		if err != nil || len(cs) != 1 || cs[0].IsActive || cs[0].ConnectionError != "token expired" {
+			t.Errorf("%s: %+v %v", body, cs, err)
+		}
+	}
+	// Something else entirely: the error names the fields, never the values.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"channels":"secret-value","total":1}`))
+	}))
+	defer srv.Close()
+	_, err := (&posta.User{Token: "posta_x", URL: srv.URL}).Channels(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "channels, total") || strings.Contains(err.Error(), "secret-value") {
+		t.Fatalf("unknown shape: %v", err)
 	}
 }
