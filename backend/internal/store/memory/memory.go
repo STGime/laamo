@@ -41,6 +41,7 @@ type Store struct {
 	usage      map[string]store.UsageEntry
 	outbound   map[string]store.OutboundMessage
 	examples   []store.PickExample
+	push       map[string]store.PushSubscription
 	reads      map[string]string // helper id + "/" + row id → run id
 }
 
@@ -65,6 +66,7 @@ func New() *Store {
 		listRows:   map[string]store.ListRow{},
 		usage:      map[string]store.UsageEntry{},
 		outbound:   map[string]store.OutboundMessage{},
+		push:       map[string]store.PushSubscription{},
 	}
 }
 
@@ -1214,4 +1216,41 @@ func (s *Store) WaitlistToInvite(_ context.Context, limit int) ([]store.Waitlist
 		return cmp.Or(a.ConfirmedAt.Compare(*b.ConfirmedAt), strings.Compare(a.ID, b.ID))
 	})
 	return out[:min(limit, len(out))], nil
+}
+
+// ---- push subscriptions ----
+
+func (s *Store) SavePushSubscription(_ context.Context, p *store.PushSubscription) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p.ID = store.PushID(p.Endpoint)
+	if old, ok := s.push[p.ID]; ok {
+		p.CreatedAt = old.CreatedAt
+	} else if p.CreatedAt.IsZero() {
+		p.CreatedAt = s.now()
+	}
+	s.push[p.ID] = *p
+	return nil
+}
+
+func (s *Store) PushSubscriptions(_ context.Context, userID string) ([]store.PushSubscription, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []store.PushSubscription
+	for _, p := range s.push {
+		if p.UserID == userID {
+			out = append(out, p)
+		}
+	}
+	slices.SortFunc(out, func(a, b store.PushSubscription) int {
+		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), cmp.Compare(a.ID, b.ID))
+	})
+	return out, nil
+}
+
+func (s *Store) DeletePushSubscription(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.push, id)
+	return nil
 }

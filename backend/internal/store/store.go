@@ -45,6 +45,7 @@ type Store interface {
 	OutboundStore
 	LearnStore
 	WaitlistStore
+	PushStore
 }
 
 // Create* methods fill in a missing ID and copy back server defaults
@@ -216,4 +217,16 @@ type WaitlistStore interface {
 	// WaitlistToInvite returns up to limit confirmed, not yet invited
 	// entries, the ones who confirmed first first.
 	WaitlistToInvite(ctx context.Context, limit int) ([]WaitlistEntry, error)
+}
+
+// PushStore keeps the browsers that turned notifications on (Web Push).
+type PushStore interface {
+	// SavePushSubscription stores a browser's subscription, replacing the one
+	// with the same endpoint (also when it belonged to someone else: the
+	// browser is theirs now). The id is PushID(endpoint).
+	SavePushSubscription(ctx context.Context, p *PushSubscription) error
+	// PushSubscriptions returns a user's subscriptions, oldest first.
+	PushSubscriptions(ctx context.Context, userID string) ([]PushSubscription, error)
+	// DeletePushSubscription removes one; a missing one is not an error.
+	DeletePushSubscription(ctx context.Context, id string) error
 }

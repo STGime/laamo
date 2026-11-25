@@ -5,6 +5,7 @@ go 1.26
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.3
 	github.com/STGime/laamo/packages/catalog v0.0.0
+	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/coder/websocket v1.8.14
 	github.com/emersion/go-message v0.18.2
 	github.com/emersion/go-msgauth v0.7.0
@@ -18,6 +19,7 @@ require (
 	github.com/getkin/kin-openapi v0.142.0 // indirect
 	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/itlightning/dateparse v0.2.1 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 )

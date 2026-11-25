@@ -377,6 +377,45 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/me/push': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * The key a browser needs to turn notifications on
+		 * @description Notifications use Web Push: the browser subscribes with this key (applicationServerKey) and hands the subscription to PUT /me/push. A push tells you about new Feed cards from helpers that ran by themselves (on a schedule, from an email); it goes through the browser maker's push service, encrypted for your browser.
+		 */
+		get: operations['getPushKey'];
+		/** Turn notifications on for this browser (or refresh its subscription) */
+		put: operations['savePushSubscription'];
+		post?: never;
+		/** Turn notifications off for this browser */
+		delete: operations['deletePushSubscription'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/me/push/test': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Send a test notification to this browser */
+		post: operations['testPush'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/workspaces': {
 		parameters: {
 			query?: never;
@@ -892,6 +931,19 @@ export interface components {
 			user: components['schemas']['User'];
 			/** @description Oldest first. Empty for a new user (onboarding creates one). */
 			workspaces: components['schemas']['WorkspaceSummary'][];
+		};
+		PushKey: {
+			/** @description The server's VAPID public key (base64url) */
+			public_key: string;
+		};
+		/** @description What the browser's pushManager.subscribe() returns (its toJSON()) */
+		PushSubscription: {
+			/** @description An https address at the browser's push service */
+			endpoint: string;
+			keys: {
+				p256dh: string;
+				auth: string;
+			};
 		};
 		/**
 		 * @description About me facts by key (see packages/catalog/bricks.json `profile`), used as {my city} etc.
@@ -1942,6 +1994,103 @@ export interface operations {
 					'application/json': components['schemas']['Error'];
 				};
 			};
+		};
+	};
+	getPushKey: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['PushKey'];
+				};
+			};
+			401: components['responses']['Unauthorized'];
+			503: components['responses']['Unavailable'];
+		};
+	};
+	savePushSubscription: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['PushSubscription'];
+			};
+		};
+		responses: {
+			/** @description Saved */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			400: components['responses']['BadRequest'];
+			401: components['responses']['Unauthorized'];
+			503: components['responses']['Unavailable'];
+		};
+	};
+	deletePushSubscription: {
+		parameters: {
+			query: {
+				/** @description The subscription's endpoint */
+				endpoint: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Off (also when it wasn't on) */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			401: components['responses']['Unauthorized'];
+		};
+	};
+	testPush: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': {
+					endpoint: string;
+					locale?: components['schemas']['Locale'];
+				};
+			};
+		};
+		responses: {
+			/** @description Handed to the push service */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			401: components['responses']['Unauthorized'];
+			404: components['responses']['NotFound'];
+			503: components['responses']['Unavailable'];
 		};
 	};
 	createWorkspace: {

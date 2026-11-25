@@ -414,3 +414,14 @@ type WaitlistPatch struct {
 	ConfirmedAt *Nullable[time.Time] `json:"confirmed_at,omitempty"`
 	InvitedAt   *Nullable[time.Time] `json:"invited_at,omitempty"`
 }
+
+// PushSubscription is one browser that gets notifications (Web Push): where
+// to send them and the keys to encrypt them with.
+type PushSubscription struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Endpoint  string    `json:"endpoint"`
+	P256dh    string    `json:"p256dh"`
+	Auth      string    `json:"auth"`
+	CreatedAt time.Time `json:"created_at,omitzero"`
+}

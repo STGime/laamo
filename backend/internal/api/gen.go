@@ -1190,6 +1190,22 @@ type Plan string
 // Example: {"business":"bakery","city":"Berlin"}
 type Profile map[string]string
 
+// PushKey defines model for PushKey.
+type PushKey struct {
+	// PublicKey The server's VAPID public key (base64url)
+	PublicKey string `json:"public_key"`
+}
+
+// PushSubscription What the browser's pushManager.subscribe() returns (its toJSON())
+type PushSubscription struct {
+	// Endpoint An https address at the browser's push service
+	Endpoint string `json:"endpoint"`
+	Keys     struct {
+		Auth   string `json:"auth"`
+		P256dh string `json:"p256dh"`
+	} `json:"keys"`
+}
+
 // Role defines model for Role.
 type Role string
 
@@ -1537,6 +1553,18 @@ type GetMapParams struct {
 	Lon float32 `form:"lon" json:"lon"`
 }
 
+// DeletePushSubscriptionParams defines parameters for DeletePushSubscription.
+type DeletePushSubscriptionParams struct {
+	// Endpoint The subscription's endpoint
+	Endpoint string `form:"endpoint" json:"endpoint"`
+}
+
+// TestPushJSONBody defines parameters for TestPush.
+type TestPushJSONBody struct {
+	Endpoint string  `json:"endpoint"`
+	Locale   *Locale `json:"locale,omitempty"`
+}
+
 // ConfirmWaitlistJSONBody defines parameters for ConfirmWaitlist.
 type ConfirmWaitlistJSONBody struct {
 	Token string `json:"token"`
@@ -1577,6 +1605,12 @@ type UpdateListJSONRequestBody = NewList
 
 // AddListRowsJSONRequestBody defines body for AddListRows for application/json ContentType.
 type AddListRowsJSONRequestBody = AddListRows
+
+// SavePushSubscriptionJSONRequestBody defines body for SavePushSubscription for application/json ContentType.
+type SavePushSubscriptionJSONRequestBody = PushSubscription
+
+// TestPushJSONRequestBody defines body for TestPush for application/json ContentType.
+type TestPushJSONRequestBody TestPushJSONBody
 
 // JoinWaitlistJSONRequestBody defines body for JoinWaitlist for application/json ContentType.
 type JoinWaitlistJSONRequestBody = WaitlistJoin
@@ -2010,6 +2044,46 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /me (the `GetMe` operationId).
 	GetMe(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeletePushSubscription Turn notifications off for this browser
+	//
+	// Corresponds with DELETE /me/push (the `DeletePushSubscription` operationId).
+	DeletePushSubscription(ctx context.Context, params *DeletePushSubscriptionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPushKey The key a browser needs to turn notifications on
+	//
+	// Notifications use Web Push: the browser subscribes with this key (applicationServerKey) and hands the subscription to PUT /me/push. A push tells you about new Feed cards from helpers that ran by themselves (on a schedule, from an email); it goes through the browser maker's push service, encrypted for your browser.
+	//
+	// Corresponds with GET /me/push (the `GetPushKey` operationId).
+	GetPushKey(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SavePushSubscriptionWithBody Turn notifications on for this browser (or refresh its subscription)
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /me/push (the `SavePushSubscription` operationId).
+	SavePushSubscriptionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SavePushSubscription Turn notifications on for this browser (or refresh its subscription)
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /me/push (the `SavePushSubscription` operationId).
+	SavePushSubscription(ctx context.Context, body SavePushSubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TestPushWithBody Send a test notification to this browser
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /me/push/test (the `TestPush` operationId).
+	TestPushWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TestPush Send a test notification to this browser
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /me/push/test (the `TestPush` operationId).
+	TestPush(ctx context.Context, body TestPushJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeletePlace Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
 	//
@@ -2768,6 +2842,106 @@ func (c *Client) GetMap(ctx context.Context, params *GetMapParams, reqEditors ..
 // Corresponds with GET /me (the `GetMe` operationId).
 func (c *Client) GetMe(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetMeRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeletePushSubscription Turn notifications off for this browser
+//
+// Corresponds with DELETE /me/push (the `DeletePushSubscription` operationId).
+func (c *Client) DeletePushSubscription(ctx context.Context, params *DeletePushSubscriptionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePushSubscriptionRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetPushKey The key a browser needs to turn notifications on
+//
+// Notifications use Web Push: the browser subscribes with this key (applicationServerKey) and hands the subscription to PUT /me/push. A push tells you about new Feed cards from helpers that ran by themselves (on a schedule, from an email); it goes through the browser maker's push service, encrypted for your browser.
+//
+// Corresponds with GET /me/push (the `GetPushKey` operationId).
+func (c *Client) GetPushKey(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPushKeyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SavePushSubscriptionWithBody Turn notifications on for this browser (or refresh its subscription)
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /me/push (the `SavePushSubscription` operationId).
+func (c *Client) SavePushSubscriptionWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSavePushSubscriptionRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SavePushSubscription Turn notifications on for this browser (or refresh its subscription)
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /me/push (the `SavePushSubscription` operationId).
+func (c *Client) SavePushSubscription(ctx context.Context, body SavePushSubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSavePushSubscriptionRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TestPushWithBody Send a test notification to this browser
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /me/push/test (the `TestPush` operationId).
+func (c *Client) TestPushWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestPushRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TestPush Send a test notification to this browser
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /me/push/test (the `TestPush` operationId).
+func (c *Client) TestPush(ctx context.Context, body TestPushJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestPushRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4349,6 +4523,163 @@ func NewGetMeRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewDeletePushSubscriptionRequest constructs an http.Request for the DeletePushSubscription method
+func NewDeletePushSubscriptionRequest(server string, params *DeletePushSubscriptionParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/me/push")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "endpoint", params.Endpoint, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetPushKeyRequest constructs an http.Request for the GetPushKey method
+func NewGetPushKeyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/me/push")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSavePushSubscriptionRequest calls the generic SavePushSubscription builder with application/json body
+func NewSavePushSubscriptionRequest(server string, body SavePushSubscriptionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSavePushSubscriptionRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSavePushSubscriptionRequestWithBody constructs an http.Request for the SavePushSubscription method, with any body, and a specified content type
+func NewSavePushSubscriptionRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/me/push")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewTestPushRequest calls the generic TestPush builder with application/json body
+func NewTestPushRequest(server string, body TestPushJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTestPushRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewTestPushRequestWithBody constructs an http.Request for the TestPush method, with any body, and a specified content type
+func NewTestPushRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/me/push/test")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewDeletePlaceRequest constructs an http.Request for the DeletePlace method
 func NewDeletePlaceRequest(server string, placeId PlaceId) (*http.Request, error) {
 	var err error
@@ -5351,6 +5682,50 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /me (the `GetMe` operationId).
 	GetMeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetMeResponse, error)
+
+	// DeletePushSubscriptionWithResponse Turn notifications off for this browser
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /me/push (the `DeletePushSubscription` operationId).
+	DeletePushSubscriptionWithResponse(ctx context.Context, params *DeletePushSubscriptionParams, reqEditors ...RequestEditorFn) (*DeletePushSubscriptionResponse, error)
+
+	// GetPushKeyWithResponse The key a browser needs to turn notifications on
+	//
+	// Notifications use Web Push: the browser subscribes with this key (applicationServerKey) and hands the subscription to PUT /me/push. A push tells you about new Feed cards from helpers that ran by themselves (on a schedule, from an email); it goes through the browser maker's push service, encrypted for your browser.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /me/push (the `GetPushKey` operationId).
+	GetPushKeyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPushKeyResponse, error)
+
+	// SavePushSubscriptionWithBodyWithResponse Turn notifications on for this browser (or refresh its subscription)
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /me/push (the `SavePushSubscription` operationId).
+	SavePushSubscriptionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SavePushSubscriptionResponse, error)
+
+	// SavePushSubscriptionWithResponse Turn notifications on for this browser (or refresh its subscription)
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /me/push (the `SavePushSubscription` operationId).
+	SavePushSubscriptionWithResponse(ctx context.Context, body SavePushSubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*SavePushSubscriptionResponse, error)
+
+	// TestPushWithBodyWithResponse Send a test notification to this browser
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /me/push/test (the `TestPush` operationId).
+	TestPushWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TestPushResponse, error)
+
+	// TestPushWithResponse Send a test notification to this browser
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /me/push/test (the `TestPush` operationId).
+	TestPushWithResponse(ctx context.Context, body TestPushJSONRequestBody, reqEditors ...RequestEditorFn) (*TestPushResponse, error)
 
 	// DeletePlaceWithResponse Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
 	//
@@ -7129,6 +7504,212 @@ func (r GetMeResponse) ContentType() string {
 	return ""
 }
 
+type DeletePushSubscriptionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeletePushSubscriptionResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePushSubscriptionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePushSubscriptionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePushSubscriptionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePushSubscriptionResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetPushKeyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PushKey
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetPushKeyResponse) GetJSON200() *PushKey {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetPushKeyResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetPushKeyResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPushKeyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPushKeyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPushKeyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPushKeyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SavePushSubscriptionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r SavePushSubscriptionResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r SavePushSubscriptionResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r SavePushSubscriptionResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r SavePushSubscriptionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SavePushSubscriptionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SavePushSubscriptionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SavePushSubscriptionResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TestPushResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r TestPushResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r TestPushResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r TestPushResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r TestPushResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TestPushResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TestPushResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TestPushResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeletePlaceResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -8573,6 +9154,86 @@ func (c *ClientWithResponses) GetMeWithResponse(ctx context.Context, reqEditors 
 		return nil, err
 	}
 	return ParseGetMeResponse(rsp)
+}
+
+// DeletePushSubscriptionWithResponse Turn notifications off for this browser
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /me/push (the `DeletePushSubscription` operationId).
+func (c *ClientWithResponses) DeletePushSubscriptionWithResponse(ctx context.Context, params *DeletePushSubscriptionParams, reqEditors ...RequestEditorFn) (*DeletePushSubscriptionResponse, error) {
+	rsp, err := c.DeletePushSubscription(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePushSubscriptionResponse(rsp)
+}
+
+// GetPushKeyWithResponse The key a browser needs to turn notifications on
+//
+// Notifications use Web Push: the browser subscribes with this key (applicationServerKey) and hands the subscription to PUT /me/push. A push tells you about new Feed cards from helpers that ran by themselves (on a schedule, from an email); it goes through the browser maker's push service, encrypted for your browser.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /me/push (the `GetPushKey` operationId).
+func (c *ClientWithResponses) GetPushKeyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPushKeyResponse, error) {
+	rsp, err := c.GetPushKey(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPushKeyResponse(rsp)
+}
+
+// SavePushSubscriptionWithBodyWithResponse Turn notifications on for this browser (or refresh its subscription)
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /me/push (the `SavePushSubscription` operationId).
+func (c *ClientWithResponses) SavePushSubscriptionWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SavePushSubscriptionResponse, error) {
+	rsp, err := c.SavePushSubscriptionWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSavePushSubscriptionResponse(rsp)
+}
+
+// SavePushSubscriptionWithResponse Turn notifications on for this browser (or refresh its subscription)
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /me/push (the `SavePushSubscription` operationId).
+func (c *ClientWithResponses) SavePushSubscriptionWithResponse(ctx context.Context, body SavePushSubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*SavePushSubscriptionResponse, error) {
+	rsp, err := c.SavePushSubscription(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSavePushSubscriptionResponse(rsp)
+}
+
+// TestPushWithBodyWithResponse Send a test notification to this browser
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /me/push/test (the `TestPush` operationId).
+func (c *ClientWithResponses) TestPushWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TestPushResponse, error) {
+	rsp, err := c.TestPushWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestPushResponse(rsp)
+}
+
+// TestPushWithResponse Send a test notification to this browser
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /me/push/test (the `TestPush` operationId).
+func (c *ClientWithResponses) TestPushWithResponse(ctx context.Context, body TestPushJSONRequestBody, reqEditors ...RequestEditorFn) (*TestPushResponse, error) {
+	rsp, err := c.TestPush(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestPushResponse(rsp)
 }
 
 // DeletePlaceWithResponse Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
@@ -10087,6 +10748,161 @@ func ParseGetMeResponse(rsp *http.Response) (*GetMeResponse, error) {
 	return response, nil
 }
 
+// ParseDeletePushSubscriptionResponse parses an HTTP response from a DeletePushSubscriptionWithResponse call
+func ParseDeletePushSubscriptionResponse(rsp *http.Response) (*DeletePushSubscriptionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePushSubscriptionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPushKeyResponse parses an HTTP response from a GetPushKeyWithResponse call
+func ParseGetPushKeyResponse(rsp *http.Response) (*GetPushKeyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPushKeyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PushKey
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSavePushSubscriptionResponse parses an HTTP response from a SavePushSubscriptionWithResponse call
+func ParseSavePushSubscriptionResponse(rsp *http.Response) (*SavePushSubscriptionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SavePushSubscriptionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTestPushResponse parses an HTTP response from a TestPushWithResponse call
+func ParseTestPushResponse(rsp *http.Response) (*TestPushResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TestPushResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeletePlaceResponse parses an HTTP response from a DeletePlaceWithResponse call
 func ParseDeletePlaceResponse(rsp *http.Response) (*DeletePlaceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -10877,6 +11693,18 @@ type ServerInterface interface {
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// DeletePushSubscription Turn notifications off for this browser
+	// (DELETE /me/push)
+	DeletePushSubscription(w http.ResponseWriter, r *http.Request, params DeletePushSubscriptionParams)
+	// GetPushKey The key a browser needs to turn notifications on
+	// (GET /me/push)
+	GetPushKey(w http.ResponseWriter, r *http.Request)
+	// SavePushSubscription Turn notifications on for this browser (or refresh its subscription)
+	// (PUT /me/push)
+	SavePushSubscription(w http.ResponseWriter, r *http.Request)
+	// TestPush Send a test notification to this browser
+	// (POST /me/push/test)
+	TestPush(w http.ResponseWriter, r *http.Request)
 	// DeletePlace Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
 	// (DELETE /places/{placeId})
 	DeletePlace(w http.ResponseWriter, r *http.Request, placeId PlaceId)
@@ -11723,6 +12551,81 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 	handler.ServeHTTP(w, r)
 }
 
+// DeletePushSubscription operation middleware
+func (siw *ServerInterfaceWrapper) DeletePushSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeletePushSubscriptionParams
+
+	// ------------- Required query parameter "endpoint" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "endpoint", r.URL.Query(), &params.Endpoint, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "endpoint"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "endpoint", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePushSubscription(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPushKey operation middleware
+func (siw *ServerInterfaceWrapper) GetPushKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPushKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SavePushSubscription operation middleware
+func (siw *ServerInterfaceWrapper) SavePushSubscription(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SavePushSubscription(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestPush operation middleware
+func (siw *ServerInterfaceWrapper) TestPush(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestPush(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeletePlace operation middleware
 func (siw *ServerInterfaceWrapper) DeletePlace(w http.ResponseWriter, r *http.Request) {
 
@@ -12305,6 +13208,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/places/{placeId}", wrapper.DeletePlace)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/places/{placeId}/test", wrapper.TestPlace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/me", wrapper.GetMe)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/me/push", wrapper.DeletePushSubscription)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/me/push", wrapper.GetPushKey)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/me/push", wrapper.SavePushSubscription)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/me/push/test", wrapper.TestPush)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces", wrapper.CreateWorkspace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}", wrapper.GetWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/workspaces/{workspaceId}", wrapper.UpdateWorkspace)
@@ -13891,6 +14798,201 @@ func (response GetMe403JSONResponse) VisitGetMeResponse(w http.ResponseWriter) e
 	return err
 }
 
+type DeletePushSubscriptionRequestObject struct {
+	Params DeletePushSubscriptionParams
+}
+
+type DeletePushSubscriptionResponseObject interface {
+	VisitDeletePushSubscriptionResponse(w http.ResponseWriter) error
+}
+
+type DeletePushSubscription204Response struct {
+}
+
+func (response DeletePushSubscription204Response) VisitDeletePushSubscriptionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeletePushSubscription401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeletePushSubscription401JSONResponse) VisitDeletePushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPushKeyRequestObject struct {
+}
+
+type GetPushKeyResponseObject interface {
+	VisitGetPushKeyResponse(w http.ResponseWriter) error
+}
+
+type GetPushKey200JSONResponse PushKey
+
+func (response GetPushKey200JSONResponse) VisitGetPushKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPushKey401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetPushKey401JSONResponse) VisitGetPushKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPushKey503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response GetPushKey503JSONResponse) VisitGetPushKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SavePushSubscriptionRequestObject struct {
+	Body *SavePushSubscriptionJSONRequestBody
+}
+
+type SavePushSubscriptionResponseObject interface {
+	VisitSavePushSubscriptionResponse(w http.ResponseWriter) error
+}
+
+type SavePushSubscription204Response struct {
+}
+
+func (response SavePushSubscription204Response) VisitSavePushSubscriptionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type SavePushSubscription400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SavePushSubscription400JSONResponse) VisitSavePushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SavePushSubscription401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SavePushSubscription401JSONResponse) VisitSavePushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SavePushSubscription503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response SavePushSubscription503JSONResponse) VisitSavePushSubscriptionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestPushRequestObject struct {
+	Body *TestPushJSONRequestBody
+}
+
+type TestPushResponseObject interface {
+	VisitTestPushResponse(w http.ResponseWriter) error
+}
+
+type TestPush204Response struct {
+}
+
+func (response TestPush204Response) VisitTestPushResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type TestPush401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response TestPush401JSONResponse) VisitTestPushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestPush404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response TestPush404JSONResponse) VisitTestPushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestPush503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response TestPush503JSONResponse) VisitTestPushResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeletePlaceRequestObject struct {
 	PlaceId PlaceId `json:"placeId"`
 }
@@ -14874,6 +15976,18 @@ type StrictServerInterface interface {
 	// GetMe The signed-in user and their workspaces
 	// (GET /me)
 	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// DeletePushSubscription Turn notifications off for this browser
+	// (DELETE /me/push)
+	DeletePushSubscription(ctx context.Context, request DeletePushSubscriptionRequestObject) (DeletePushSubscriptionResponseObject, error)
+	// GetPushKey The key a browser needs to turn notifications on
+	// (GET /me/push)
+	GetPushKey(ctx context.Context, request GetPushKeyRequestObject) (GetPushKeyResponseObject, error)
+	// SavePushSubscription Turn notifications on for this browser (or refresh its subscription)
+	// (PUT /me/push)
+	SavePushSubscription(ctx context.Context, request SavePushSubscriptionRequestObject) (SavePushSubscriptionResponseObject, error)
+	// TestPush Send a test notification to this browser
+	// (POST /me/push/test)
+	TestPush(ctx context.Context, request TestPushRequestObject) (TestPushResponseObject, error)
 	// DeletePlace Remove a chat (owner only). Helpers that post there stop with a note in the Feed until you pick another chat
 	// (DELETE /places/{placeId})
 	DeletePlace(ctx context.Context, request DeletePlaceRequestObject) (DeletePlaceResponseObject, error)
@@ -15768,6 +16882,118 @@ func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetMeResponseObject); ok {
 		if err := validResponse.VisitGetMeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeletePushSubscription operation middleware
+func (sh *strictHandler) DeletePushSubscription(w http.ResponseWriter, r *http.Request, params DeletePushSubscriptionParams) {
+	var request DeletePushSubscriptionRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePushSubscription(ctx, request.(DeletePushSubscriptionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePushSubscription")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePushSubscriptionResponseObject); ok {
+		if err := validResponse.VisitDeletePushSubscriptionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPushKey operation middleware
+func (sh *strictHandler) GetPushKey(w http.ResponseWriter, r *http.Request) {
+	var request GetPushKeyRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPushKey(ctx, request.(GetPushKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPushKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPushKeyResponseObject); ok {
+		if err := validResponse.VisitGetPushKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SavePushSubscription operation middleware
+func (sh *strictHandler) SavePushSubscription(w http.ResponseWriter, r *http.Request) {
+	var request SavePushSubscriptionRequestObject
+
+	var body SavePushSubscriptionJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SavePushSubscription(ctx, request.(SavePushSubscriptionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SavePushSubscription")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SavePushSubscriptionResponseObject); ok {
+		if err := validResponse.VisitSavePushSubscriptionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestPush operation middleware
+func (sh *strictHandler) TestPush(w http.ResponseWriter, r *http.Request) {
+	var request TestPushRequestObject
+
+	var body TestPushJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestPush(ctx, request.(TestPushRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestPush")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestPushResponseObject); ok {
+		if err := validResponse.VisitTestPushResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -534,6 +534,7 @@ func laamoTables() map[string]table {
 		"triggers":        {defaults: with(ts("created_at", "updated_at"), Row{"config": Row{}}), uniques: [][]string{{"inbound_address"}, {"webhook_token"}}},
 		"waitlist": {defaults: with(ts("created_at"), Row{"user_id": "00000000-0000-0000-0000-000000000000", "locale": "en", "interests": []any{}}),
 			uniques: [][]string{{"email"}, {"ref_code"}, {"token_hash"}}},
+		"push_subscriptions": {defaults: ts("created_at"), uniques: [][]string{{"endpoint"}}},
 		"runs": {defaults: with(ts("created_at"), Row{"trigger_data": Row{}, "test_mode": false, "status": "queued",
 			"next_brick_index": 0.0, "cost_eur": 0.0, "tokens_in": 0.0, "tokens_out": 0.0})},
 		"run_steps": {defaults: with(ts("started_at"), Row{"attempt": 1.0, "status": "running", "cards_in": 0.0, "cards_out": 0.0,

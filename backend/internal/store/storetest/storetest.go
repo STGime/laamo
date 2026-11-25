@@ -44,6 +44,7 @@ func Run(t *testing.T, newStore New) {
 	t.Run("Triggers", func(t *testing.T) { testTriggers(t, newStore) })
 	t.Run("Places", func(t *testing.T) { testPlaces(t, newStore) })
 	t.Run("Waitlist", func(t *testing.T) { testWaitlist(t, newStore) })
+	t.Run("Push", func(t *testing.T) { testPush(t, newStore) })
 }
 
 func testReadSeeded(t *testing.T, newStore New) {
@@ -708,5 +709,45 @@ func testWaitlist(t *testing.T, newStore New) {
 	must(t, get(s.UpdateWaitlist(ctx, e.ID, store.WaitlistPatch{InvitedAt: store.Set(now)})))
 	if waiting() {
 		t.Fatal("invited entry is still up for an invite")
+	}
+}
+
+func testPush(t *testing.T, newStore New) {
+	s, seed := newStore(t)
+	ctx := context.Background()
+	endpoint := "https://push.example/send/" + store.NewID()
+	p := store.PushSubscription{UserID: seed.UserID, Endpoint: endpoint,
+		P256dh: strings.Repeat("k", 87), Auth: strings.Repeat("a", 22)}
+	must(t, s.SavePushSubscription(ctx, &p))
+	t.Cleanup(func() { _ = s.DeletePushSubscription(ctx, p.ID) })
+	eq(t, "id", p.ID, store.PushID(endpoint))
+	if p.CreatedAt.IsZero() {
+		t.Fatalf("created_at not filled in: %+v", p)
+	}
+
+	// The same browser again: its keys are replaced, no second row.
+	again := store.PushSubscription{UserID: seed.UserID, Endpoint: endpoint,
+		P256dh: strings.Repeat("n", 87), Auth: strings.Repeat("b", 22)}
+	must(t, s.SavePushSubscription(ctx, &again))
+	var mine []store.PushSubscription
+	all, err := s.PushSubscriptions(ctx, seed.UserID)
+	must(t, err)
+	for _, x := range all {
+		if x.Endpoint == endpoint {
+			mine = append(mine, x)
+		}
+	}
+	if len(mine) != 1 || mine[0].P256dh != again.P256dh || mine[0].Auth != again.Auth {
+		t.Fatalf("after saving twice: %+v", mine)
+	}
+
+	must(t, s.DeletePushSubscription(ctx, p.ID))
+	must(t, s.DeletePushSubscription(ctx, p.ID)) // gone already: fine
+	all, err = s.PushSubscriptions(ctx, seed.UserID)
+	must(t, err)
+	for _, x := range all {
+		if x.Endpoint == endpoint {
+			t.Fatalf("still there after delete: %+v", x)
+		}
 	}
 }

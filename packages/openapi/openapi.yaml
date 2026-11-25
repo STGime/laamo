@@ -552,6 +552,91 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /me/push:
+    get:
+      operationId: getPushKey
+      summary: The key a browser needs to turn notifications on
+      description: >-
+        Notifications use Web Push: the browser subscribes with this key
+        (applicationServerKey) and hands the subscription to PUT /me/push.
+        A push tells you about new Feed cards from helpers that ran by
+        themselves (on a schedule, from an email); it goes through the
+        browser maker's push service, encrypted for your browser.
+      tags: [me]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    put:
+      operationId: savePushSubscription
+      summary: Turn notifications on for this browser (or refresh its subscription)
+      tags: [me]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscription'
+      responses:
+        '204':
+          description: Saved
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    delete:
+      operationId: deletePushSubscription
+      summary: Turn notifications off for this browser
+      tags: [me]
+      parameters:
+        - name: endpoint
+          in: query
+          required: true
+          description: The subscription's endpoint
+          schema:
+            type: string
+            maxLength: 1000
+      responses:
+        '204':
+          description: Off (also when it wasn't on)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /me/push/test:
+    post:
+      operationId: testPush
+      summary: Send a test notification to this browser
+      tags: [me]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties:
+                endpoint:
+                  type: string
+                  maxLength: 1000
+                locale:
+                  $ref: '#/components/schemas/Locale'
+      responses:
+        '204':
+          description: Handed to the push service
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /workspaces:
     post:
       operationId: createWorkspace
@@ -1514,6 +1599,34 @@ components:
           description: Oldest first. Empty for a new user (onboarding creates one).
           items:
             $ref: '#/components/schemas/WorkspaceSummary'
+    PushKey:
+      type: object
+      required: [public_key]
+      properties:
+        public_key:
+          type: string
+          description: The server's VAPID public key (base64url)
+    PushSubscription:
+      type: object
+      description: What the browser's pushManager.subscribe() returns (its toJSON())
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          maxLength: 1000
+          description: An https address at the browser's push service
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+              minLength: 40
+              maxLength: 200
+            auth:
+              type: string
+              minLength: 16
+              maxLength: 100
     Profile:
       type: object
       description: About me facts by key (see packages/catalog/bricks.json `profile`), used as {my city} etc.

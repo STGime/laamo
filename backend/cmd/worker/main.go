@@ -28,6 +28,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/images"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/osm"
+	"github.com/STGime/laamo/backend/internal/push"
 	"github.com/STGime/laamo/backend/internal/queue"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	"github.com/STGime/laamo/backend/internal/search"
@@ -57,7 +58,12 @@ func run(log *slog.Logger) error {
 	defer stop()
 
 	client := eb.New(cfg.EurobaseURL, cfg.EurobaseSecretKey)
-	st := sebs.New(client)
+	// Notifications: every new Feed card also goes to the owner's browsers.
+	notifier := push.New(sebs.New(client), cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, log)
+	if notifier == nil {
+		log.Warn("no VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY: notifications are off")
+	}
+	st := push.Wrap(sebs.New(client), notifier)
 	if cfg.LLMAPIKey == "" {
 		log.Warn("no LLM key (FAL_KEY, FAL_AI_API_KEY or LLM_API_KEY): Think bricks will fail")
 	}

@@ -479,6 +479,28 @@ export const en = {
 	'day.fri': 'Fri',
 	'day.sat': 'Sat',
 	'day.sun': 'Sun',
+	'push.title': 'Notifications',
+	'push.hint':
+		'Get a notification on this device when a helper has something for you. Not for runs you start yourself.',
+	'push.on': 'On for this device',
+	'push.turnOn': 'Turn on notifications',
+	'push.turnOff': 'Turn off',
+	'push.test': 'Send a test',
+	'push.testSent': 'Sent. It should show up in a moment.',
+	'push.testFailed': 'That didn’t go out. Turn notifications off and on again.',
+	'push.later': 'Not now',
+	'push.failed': 'That didn’t work. Try again.',
+	'push.blocked':
+		'Notifications are blocked for Laamo in this browser. Allow them in the browser’s site settings, then come back here.',
+	'push.unsupported': 'This browser can’t show notifications.',
+	'push.homeScreen':
+		'On an iPhone or iPad, notifications work once Laamo is on your Home Screen (iOS 16.4 or later):',
+	'push.homeScreen.1': 'In Safari, tap the Share button.',
+	'push.homeScreen.2': 'Choose “Add to Home Screen”.',
+	'push.homeScreen.3': 'Open Laamo from the Home Screen and come back to this page.',
+	'push.nudge.title': 'Hear from your helpers',
+	'push.nudge.body':
+		'Get a notification when a helper found something or needs your OK. You don’t have to keep looking in.',
 	loading: 'Loading…'
 } as const;
 
