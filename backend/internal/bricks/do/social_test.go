@@ -133,8 +133,8 @@ func TestSocialPostsNow(t *testing.T) {
 		t.Fatalf("posts: %+v", posts)
 	}
 	for _, c := range out {
-		if c.Text("posted_at") == "" {
-			t.Fatalf("card %s has no posted_at", c.ID)
+		if c.Text("posted_at") == "" || c.Text("posted") != "On its way to Bluesky" {
+			t.Fatalf("card %s: posted_at %q, posted %q", c.ID, c.Text("posted_at"), c.Text("posted"))
 		}
 	}
 	m := e.outbound(t, "d0")
@@ -199,8 +199,13 @@ func TestSocialWithAPicture(t *testing.T) {
 func TestSocialAtATime(t *testing.T) {
 	e := setupSocial(t, false)
 	// The test clock: 10 November 2026, 08:00 UTC = 09:00 in Berlin.
-	if _, err := e.run(t, drafts(1), map[string]any{"when": "at", "time": "18:30"}); err != nil {
-		t.Fatal(err)
+	out, err := e.run(t, drafts(1), map[string]any{"when": "at", "time": "18:30", "channels": []any{"11", "12"}})
+	if err == nil || !strings.Contains(err.Error(), "Instagram") {
+		t.Fatalf("instagram without a picture: %v %v", out, err)
+	}
+	out, err = e.run(t, drafts(1), map[string]any{"when": "at", "time": "18:30"})
+	if err != nil || out[0].Text("posted") != "Planned for 18:30 on Bluesky" {
+		t.Fatalf("%v, posted %q", err, out[0].Text("posted"))
 	}
 	p := e.fake.Posts()[0]
 	if p.Status != "scheduled" || p.Publish != 0 || p.At == nil || !p.At.Equal(time.Date(2026, 11, 10, 17, 30, 0, 0, time.UTC)) {
@@ -211,8 +216,9 @@ func TestSocialAtATime(t *testing.T) {
 	}
 	// A time that has passed today means tomorrow.
 	e2 := setupSocial(t, false)
-	if _, err := e2.run(t, drafts(1), map[string]any{"when": "at", "time": "07:00"}); err != nil {
-		t.Fatal(err)
+	out, err = e2.run(t, drafts(1), map[string]any{"when": "at", "time": "07:00"})
+	if err != nil || out[0].Text("posted") != "Planned for tomorrow 07:00 on Bluesky" {
+		t.Fatalf("%v, posted %q", err, out[0].Text("posted"))
 	}
 	if p := e2.fake.Posts()[0]; !p.At.Equal(time.Date(2026, 11, 11, 6, 0, 0, 0, time.UTC)) {
 		t.Fatalf("tomorrow: %v", p.At)
@@ -222,8 +228,9 @@ func TestSocialAtATime(t *testing.T) {
 func TestSocialDraft(t *testing.T) {
 	// With your own Posta account, a draft waits for you in Posta.
 	e := setupSocial(t, true)
-	if _, err := e.run(t, drafts(1), map[string]any{"when": "draft"}); err != nil {
-		t.Fatal(err)
+	out, err := e.run(t, drafts(1), map[string]any{"when": "draft"})
+	if err != nil || out[0].Text("posted") != "Saved as a draft in Posta" {
+		t.Fatalf("%v, posted %q", err, out[0].Text("posted"))
 	}
 	if p := e.fake.Posts()[0]; p.Status != "draft" || p.Publish != 0 {
 		t.Fatalf("draft: %+v", p)

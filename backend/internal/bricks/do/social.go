@@ -143,6 +143,8 @@ func (s Social) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card
 		}
 		if sent {
 			card.Set("posted_at", now().UTC().Format(time.RFC3339), engine.TrustUser)
+			// What became of it, for the Feed.
+			card.Set("posted", outcome(when, at, chosen, now(), rc.Workspace.Timezone, de), engine.TrustUser)
 		}
 	}
 	return in, nil
@@ -360,6 +362,52 @@ func (s Social) explain(err error, de bool) error {
 		return pick("Posta refused the post: "+why, "Posta hat den Post abgelehnt: "+why)
 	}
 	return err
+}
+
+// outcome says in one line what became of a post: the Feed card's title.
+// "Now" is on its way, not out: the networks answer a little later (and
+// Posta then tells, see api/posta_hook.go).
+func outcome(when string, at *time.Time, chosen []posta.Channel, now time.Time, zone string, de bool) string {
+	var names []string
+	for _, c := range chosen {
+		if n := platform(c); !slices.Contains(names, n) {
+			names = append(names, n)
+		}
+	}
+	and := " and "
+	if de {
+		and = " und "
+	}
+	on := strings.Join(names, ", ")
+	if n := len(names); n > 1 {
+		on = strings.Join(names[:n-1], ", ") + and + names[n-1]
+	}
+	switch {
+	case when == "draft" && de:
+		return "Als Entwurf in Posta gespeichert"
+	case when == "draft":
+		return "Saved as a draft in Posta"
+	case at != nil:
+		loc, err := time.LoadLocation(zone)
+		if err != nil || zone == "" {
+			loc, _ = time.LoadLocation("Europe/Berlin")
+		}
+		clock := at.In(loc).Format("15:04")
+		if at.In(loc).YearDay() != now.In(loc).YearDay() {
+			if de {
+				clock = "morgen " + clock
+			} else {
+				clock = "tomorrow " + clock
+			}
+		}
+		if de {
+			return fmt.Sprintf("Geplant für %s auf %s", clock, on)
+		}
+		return fmt.Sprintf("Planned for %s on %s", clock, on)
+	case de:
+		return "Unterwegs zu " + on
+	}
+	return "On its way to " + on
 }
 
 // nextAt is the next time the clock shows hhmm in the workspace's time

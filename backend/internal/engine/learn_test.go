@@ -135,3 +135,35 @@ func TestResultSavedTo(t *testing.T) {
 	}
 	t.Fatal("no result card")
 }
+
+// A run that ends at Post to social says on its result card what became of
+// the post, not just "Done".
+func TestResultSaysWhatBecameOfThePost(t *testing.T) {
+	e := newEnv(t, []sb{{ID: "b1", Type: "when.tap"}})
+	raw, _ := json.Marshal(catalog.Stack{Schema: 1, Bricks: []catalog.StackBrick{
+		{ID: "b1", Type: "when.tap"}, {ID: "b2", Type: "think.write", Config: map[string]any{"what": "a post about bread", "mode": "all"}},
+		{ID: "b3", Type: "do.social", Config: map[string]any{"channels": []any{"11"}, "when": "draft"}},
+	}})
+	v := e.store.PutHelperVersion(store.HelperVersion{WorkspaceID: e.ws.ID, UserID: e.ws.UserID, HelperID: e.helper.ID, Version: 2, Stack: raw})
+	e.helper.CurrentVersionID = &v.ID
+	e.helper = e.store.PutHelper(e.helper)
+	e.eng.Bricks["think.write"] = engine.BrickFunc(func(context.Context, *engine.RunContext, []engine.Card, engine.Config) ([]engine.Card, error) {
+		c := engine.Card{Kind: "draft"}
+		c.Set("body", "Fresh sourdough every Friday", engine.TrustExtracted)
+		return []engine.Card{c}, nil
+	})
+	e.eng.Bricks["do.social"] = engine.BrickFunc(func(_ context.Context, _ *engine.RunContext, in []engine.Card, _ engine.Config) ([]engine.Card, error) {
+		in[0].Set("posted", "Saved as a draft in Posta", engine.TrustUser)
+		return in, nil
+	})
+	r := e.run(e.start("manual", false))
+	for _, f := range e.feed(r.ID) {
+		if f.Type == "result" {
+			if f.Title != "Saved as a draft in Posta" || f.Body == nil || *f.Body != "Fresh sourdough every Friday" {
+				t.Fatalf("result card %q %v", f.Title, f.Body)
+			}
+			return
+		}
+	}
+	t.Fatalf("no result card: %+v", e.feed(r.ID))
+}

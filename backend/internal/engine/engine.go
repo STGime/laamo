@@ -773,7 +773,7 @@ type result struct {
 
 // result describes the last pile for the Result card: a single summary as
 // the body; several cards as a count title and their first titles.
-func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
+func (e *Engine) result(ctx context.Context, r *store.Run, de bool) (res result) {
 	steps, err := e.Store.ListSteps(ctx, r.ID)
 	if err != nil || len(steps) == 0 {
 		return result{}
@@ -801,7 +801,23 @@ func (e *Engine) result(ctx context.Context, r *store.Run, de bool) result {
 		}
 		return ""
 	}
-	res := result{stepID: last.ID, n: len(cards)}
+	res = result{stepID: last.ID, n: len(cards)}
+	// Post to social says what became of each post; that is the news.
+	posted, how := 0, ""
+	for _, c := range cards {
+		if s := text(c, "posted"); s != "" && last.BrickType == "do.social" {
+			posted++
+			how = cmpOr(how, s)
+		}
+	}
+	defer func() {
+		switch {
+		case posted == 1:
+			res.title = how
+		case posted > 1:
+			res.title = fmt.Sprintf("%d× %s", posted, how)
+		}
+	}()
 	if len(cards) == 1 {
 		res.body = truncate(text(cards[0], "summary", "body", "title", "name", "image_alt"), 500)
 		res.image = text(cards[0], "image") // Draw a picture: shown on the Feed card

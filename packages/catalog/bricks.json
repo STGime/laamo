@@ -2938,7 +2938,8 @@
         "default": true
       },
       "adds": [
-        "posted_at"
+        "posted_at",
+        "posted"
       ]
     },
     {

@@ -16,6 +16,19 @@ let loaded = $state(false); // at least one page has come back
 // Why the Feed didn't load: 0 = it did, -1 = no connection, else the HTTP status.
 let failed = $state(0);
 
+// Something new in the Feed since it was last looked at (the dot on the
+// tab). "Looked at" is kept on this device; without storage the dot only
+// knows this visit.
+let unseen = $state(false);
+const SEEN = 'laamo.feed.seen';
+function seenAt(): string {
+	try {
+		return localStorage.getItem(SEEN) ?? '';
+	} catch {
+		return '';
+	}
+}
+
 async function fetchPage(before?: string) {
 	const ws = session.workspace;
 	if (!ws) return null;
@@ -50,6 +63,35 @@ export const feed = {
 	},
 	get filter() {
 		return filter;
+	},
+	get unseen() {
+		return unseen;
+	},
+
+	/** The Feed is on screen: what's in it now counts as seen. */
+	seen() {
+		unseen = false;
+		try {
+			localStorage.setItem(SEEN, new Date().toISOString());
+		} catch {
+			/* no storage: fine */
+		}
+	},
+
+	/** Looks whether the newest card is newer than the last look (other screens). */
+	async peek() {
+		const ws = session.workspace;
+		if (!ws) return;
+		const { data } = await api.GET('/workspaces/{workspaceId}/feed', {
+			params: { path: { workspaceId: ws.id }, query: { filter: 'all', limit: 1 } }
+		});
+		if (!data) return;
+		needsMe = data.needs_me;
+		const newest = data.cards[0]?.created_at ?? '';
+		const last = seenAt();
+		// Never looked on this device: don't greet with a dot.
+		if (!last) return feed.seen();
+		unseen = newest !== '' && new Date(newest) > new Date(last);
 	},
 
 	async load(f: Filter = filter) {

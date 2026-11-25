@@ -5,7 +5,7 @@
 	import TabBar from '#lib/components/TabBar.svelte';
 	import { api, session } from '#lib/session.svelte.ts';
 	import { takePending } from '#lib/demo.ts';
-	import { feed } from '#lib/feed.svelte.ts';
+	import { feed, listen } from '#lib/feed.svelte.ts';
 	import { onOpen, push } from '#lib/push.svelte.ts';
 	import { t } from '#lib/i18n/index.svelte.ts';
 
@@ -52,6 +52,15 @@
 		if (session.status === 'signedIn' && session.workspace) push.check();
 	});
 	$effect(() => onOpen((path) => goto(path)));
+	// The dot on the Feed tab: something new came in while another screen
+	// was open. On the Feed itself everything counts as seen.
+	const onFeed = $derived(path === '/feed');
+	$effect(() => {
+		if (session.status !== 'signedIn' || !session.workspace) return;
+		const look = () => (onFeed ? feed.seen() : feed.peek());
+		look();
+		return listen(look, () => session.fresh());
+	});
 	const showTabs = $derived(session.status === 'signedIn' && !BARE.includes(path) && !shared);
 </script>
 
@@ -73,7 +82,7 @@
 		<p class="loading">{t('loading')}</p>
 	{/if}
 </div>
-{#if showTabs}<TabBar needsMe={feed.needsMe} />{/if}
+{#if showTabs}<TabBar needsMe={feed.needsMe} fresh={feed.unseen} />{/if}
 
 <style>
 	.app {

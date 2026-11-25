@@ -119,7 +119,10 @@ func (s *Server) ListHelpers(ctx context.Context, req ListHelpersRequestObject) 
 	out := ListHelpers200JSONResponse{Helpers: make([]Helper, 0, len(hs))}
 	for _, h := range hs {
 		ho := helperOut(h)
-		ho.Run, _ = s.activeRun(ctx, h)
+		var last *store.Run
+		if ho.Run, last = s.activeRun(ctx, h); ho.Run == nil && last != nil {
+			ho.LastRun = &LastRun{Id: uuid(last.ID), Status: last.Status, FinishedAt: last.FinishedAt}
+		}
 		var q string
 		ho.StartsWith, q = s.helperStart(ctx, h)
 		ho.Question = nonEmpty(q)

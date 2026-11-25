@@ -2,6 +2,7 @@
 // Voice: short, friendly, concrete. No buzzwords.
 export const en = {
 	'tab.feed': 'Feed',
+	'tab.feedNew': 'New in your Feed',
 	'tab.helpers': 'Helpers',
 	'tab.new': 'New helper',
 	'tab.lists': 'Lists',
