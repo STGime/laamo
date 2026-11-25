@@ -1303,8 +1303,11 @@ export interface components {
 		};
 		SetupQuestion: {
 			key: string;
-			/** @enum {string} */
-			kind: 'text' | 'select' | 'place' | 'list' | 'time';
+			/**
+			 * @description channels: the social accounts to post to; answer with their ids, comma separated
+			 * @enum {string}
+			 */
+			kind: 'text' | 'select' | 'place' | 'list' | 'time' | 'channels';
 			/** @description An About me fact (remembered for all helpers) */
 			profile: boolean;
 			text: string;

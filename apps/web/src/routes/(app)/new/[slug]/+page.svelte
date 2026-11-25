@@ -17,6 +17,24 @@
 	let places = $state<Schemas['Place'][]>([]);
 	// Chats this template can post to (Discord, Slack, …).
 	const usable = $derived(places.filter((p) => tpl?.places.includes(p.type) && p.verified_at));
+	// Social accounts to post to (a "channels" question): null = not loaded,
+	// 'off' = social posting isn't switched on. Typed answers are kept on
+	// this device, so a trip to the social screen and back loses nothing.
+	let social = $state<Schemas['SocialChannels'] | 'off' | null>(null);
+	const networkName = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
+	const picked = (key: string) => (answers[key] ?? '').split(',').filter(Boolean);
+	function togglePick(key: string, id: string) {
+		const now = picked(key);
+		answers[key] = (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]).join(',');
+	}
+	const draftKey = $derived(`laamo.setup.${page.params.slug}`);
+	function keep() {
+		try {
+			sessionStorage.setItem(draftKey, JSON.stringify(answers));
+		} catch {
+			/* no storage: the answers are typed again */
+		}
+	}
 	// About me facts the user wants for this helper only.
 	let justHere = $state<string[]>([]);
 	let busy = $state(false);
@@ -36,6 +54,30 @@
 				const back = page.url.searchParams.get('place');
 				for (const q of tpl?.questions ?? [])
 					if (q.kind === 'place') answers[q.key] = back ?? 'feed';
+				if (tpl?.questions.some((q) => q.kind === 'channels')) {
+					// Back from the social screen: what was typed before is still here.
+					try {
+						const kept = JSON.parse(sessionStorage.getItem(draftKey) ?? '{}');
+						for (const q of tpl.questions)
+							if (typeof kept[q.key] === 'string' && !answers[q.key]) answers[q.key] = kept[q.key];
+					} catch {
+						/* nothing kept */
+					}
+					api
+						.GET('/workspaces/{workspaceId}/social/channels', {
+							params: { path: { workspaceId: ws.id } }
+						})
+						.then(({ data, response }) => {
+							social = data ?? (response.status === 404 ? 'off' : null);
+							// Accounts that went away since aren't picked anymore.
+							if (data)
+								for (const q of tpl?.questions ?? [])
+									if (q.kind === 'channels')
+										answers[q.key] = picked(q.key)
+											.filter((id) => data.channels.some((c) => c.id === id))
+											.join(',');
+						});
+				}
 			});
 		api
 			.GET('/workspaces/{workspaceId}/places', { params: { path: { workspaceId: ws.id } } })
@@ -171,6 +213,30 @@
 								<a class="add" href="/places/new?back={encodeURIComponent(`/new/${tpl.slug}`)}"
 									>+ {t('tpl.addChat')}</a
 								>
+							{/if}
+						{:else if q.kind === 'channels'}
+							{#if social === 'off'}
+								<p class="hint">{t('builder.socialOff')}</p>
+								<a class="add" href="/places/social" onclick={keep}>+ {t('builder.socialOn')}</a>
+							{:else if social}
+								<div class="choices" id="q-{q.key}" role="group">
+									{#each social.channels as c (c.id)}
+										<button
+											type="button"
+											aria-pressed={picked(q.key).includes(c.id)}
+											disabled={!c.ok}
+											onclick={() => togglePick(q.key, c.id)}
+											>{c.name} · {networkName(c.platform)}{c.ok
+												? ''
+												: ` · ${t('builder.socialBroken')}`}</button
+										>
+									{/each}
+								</div>
+								{#if !social.channels.length}<p class="hint">{t('builder.socialNone')}</p>{/if}
+								<a class="add" href="/places/social" onclick={keep}>+ {t('builder.socialManage')}</a
+								>
+							{:else}
+								<p class="hint">{t('loading')}</p>
 							{/if}
 						{:else if q.help}
 							<!-- A fact worth a sentence or two (e.g. my offer): room to say it. -->
@@ -322,7 +388,12 @@
 		font-weight: 700;
 		cursor: pointer;
 	}
-	.choices button[aria-checked='true'] {
+	.choices button:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+	.choices button[aria-checked='true'],
+	.choices button[aria-pressed='true'] {
 		background: var(--brick-green);
 		color: var(--on-green);
 		box-shadow: var(--brick-edge);

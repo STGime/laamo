@@ -37,7 +37,7 @@
             "required": ["key", "type", "question", "fills"],
             "properties": {
               "key": { "$ref": "bricks.schema.json#/$defs/key" },
-              "type": { "enum": ["text", "select", "place", "list", "time"] },
+              "type": { "enum": ["text", "select", "place", "list", "time", "channels"] },
               "question": { "$ref": "bricks.schema.json#/$defs/text" },
               "placeholder": { "$ref": "bricks.schema.json#/$defs/text" },
               "fills": {

@@ -111,7 +111,7 @@
 </section>
 
 <section>
-	<h2>{c.social.title} <span class="soon">{c.social.soon}</span></h2>
+	<h2>{c.social.title}</h2>
 	<p>{c.social.body}</p>
 	{@render stack(c.social.stack)}
 </section>

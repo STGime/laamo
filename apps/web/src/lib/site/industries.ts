@@ -460,7 +460,7 @@ export const INDUSTRIES: Industry[] = [
 					},
 					{
 						q: 'Can it post to my social accounts?',
-						a: 'Soon. A helper that writes a post, draws a picture for it and publishes after your OK is being built.'
+						a: 'Yes. A helper writes a post, draws a picture for it and, after your OK, publishes it to your social accounts with Posta.'
 					}
 				]
 			},
@@ -522,7 +522,7 @@ export const INDUSTRIES: Industry[] = [
 					},
 					{
 						q: 'Kann er auf meinen Social-Media-Konten posten?',
-						a: 'Bald. Ein Helfer, der einen Beitrag schreibt, ein Bild dazu malt und nach deinem OK veröffentlicht, ist in Arbeit.'
+						a: 'Ja. Ein Helfer schreibt einen Beitrag, malt ein Bild dazu und veröffentlicht ihn nach deinem OK mit Posta auf deinen Social-Media-Konten.'
 					}
 				]
 			}

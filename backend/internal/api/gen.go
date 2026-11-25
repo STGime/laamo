@@ -581,16 +581,19 @@ func (e RunSummaryStatus) Valid() bool {
 
 // Defines values for SetupQuestionKind.
 const (
-	SetupQuestionKindList   SetupQuestionKind = "list"
-	SetupQuestionKindPlace  SetupQuestionKind = "place"
-	SetupQuestionKindSelect SetupQuestionKind = "select"
-	SetupQuestionKindText   SetupQuestionKind = "text"
-	SetupQuestionKindTime   SetupQuestionKind = "time"
+	SetupQuestionKindChannels SetupQuestionKind = "channels"
+	SetupQuestionKindList     SetupQuestionKind = "list"
+	SetupQuestionKindPlace    SetupQuestionKind = "place"
+	SetupQuestionKindSelect   SetupQuestionKind = "select"
+	SetupQuestionKindText     SetupQuestionKind = "text"
+	SetupQuestionKindTime     SetupQuestionKind = "time"
 )
 
 // Valid indicates whether the value is a known member of the SetupQuestionKind enum.
 func (e SetupQuestionKind) Valid() bool {
 	switch e {
+	case SetupQuestionKindChannels:
+		return true
 	case SetupQuestionKindList:
 		return true
 	case SetupQuestionKindPlace:
@@ -1336,8 +1339,10 @@ type SetupQuestion struct {
 	Fills *[]string `json:"fills,omitempty"`
 
 	// Help A hint shown under the field (e.g. why a longer answer is better)
-	Help        *string           `json:"help,omitempty"`
-	Key         string            `json:"key"`
+	Help *string `json:"help,omitempty"`
+	Key  string  `json:"key"`
+
+	// Kind channels: the social accounts to post to; answer with their ids, comma separated
 	Kind        SetupQuestionKind `json:"kind"`
 	Placeholder *string           `json:"placeholder,omitempty"`
 
@@ -1346,7 +1351,7 @@ type SetupQuestion struct {
 	Text    string `json:"text"`
 }
 
-// SetupQuestionKind defines model for SetupQuestion.Kind.
+// SetupQuestionKind channels: the social accounts to post to; answer with their ids, comma separated
 type SetupQuestionKind string
 
 // SharedList defines model for SharedList.

@@ -38,7 +38,7 @@ export interface Copy {
 		bricks: { group: Group; name: string; question: string }[];
 	};
 	mobile: { title: string; body: string };
-	social: { title: string; soon: string; body: string; stack: Stack };
+	social: { title: string; body: string; stack: Stack };
 	customers: {
 		title: string;
 		examples: { name: string; body: string; stack: Stack }[];
@@ -165,7 +165,6 @@ const en: Copy = {
 	},
 	social: {
 		title: 'Post to your social accounts with Posta.',
-		soon: 'Soon',
 		body: 'A helper writes the post and draws a picture for it. You check it, and Posta publishes it to your social accounts, right away or at a time you pick.',
 		stack: [
 			{ group: 'when', text: 'Every Tuesday and Friday at 10:00' },
@@ -388,7 +387,6 @@ const de: Copy = {
 	},
 	social: {
 		title: 'Poste mit Posta auf deinen Social-Media-Konten.',
-		soon: 'Bald',
 		body: 'Ein Helfer schreibt den Beitrag und zeichnet ein Bild dazu. Du prüfst ihn, und Posta veröffentlicht ihn auf deinen Konten, sofort oder zu einer Zeit, die du wählst.',
 		stack: [
 			{ group: 'when', text: 'Jeden Dienstag und Freitag um 10:00' },
