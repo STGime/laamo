@@ -568,5 +568,47 @@ export const de: Record<Key, string> = {
 	'social.err.key':
 		'Posta kennt diesen Schlüssel nicht. Kopiere ihn noch mal aus Posta, Einstellungen, „API Tokens“.',
 	'social.err.down': 'Das hat nicht geklappt. Versuch es gleich noch mal.',
+	'social.accounts': 'Social-Media-Konten',
+	'social.noneYet':
+		'Noch kein Social-Media-Konto verbunden. Verbinde eins, dann kann ein Helfer dort posten.',
+	'social.noneOwn':
+		'Dein Posta-Konto hat noch keine Social-Media-Konten. Füge in Posta eins hinzu.',
+	'social.channelsFailed':
+		'Deine Social-Media-Konten konnten nicht geladen werden. Versuch es gleich noch mal.',
+	'social.connect': 'Social-Media-Konto verbinden',
+	'social.pick':
+		'Wo möchtest du posten? Du meldest dich dort an und erlaubst Posta, für dich zu posten.',
+	'social.videoOnly': 'nur Video',
+	'social.reconnect': 'Neu verbinden nötig: Das Netzwerk hat den Zugriff entzogen',
+	'social.connectAgain': 'Neu verbinden',
+	'social.disconnect': '„{name}“ trennen?',
+	'social.disconnectDo': 'Trennen',
+	'social.disconnectBody':
+		'Helfer posten nicht mehr auf diesem Konto. Schon veröffentlichte Posts bleiben dort. Du kannst es jederzeit wieder verbinden.',
+	'social.form.title': '{name} verbinden',
+	'social.form.1':
+		'Öffne in {name} die Einstellungen, dann „Privatsphäre und Sicherheit“, dann „App-Passwörter“.',
+	'social.form.2':
+		'Lege ein App-Passwort an und füge es hier ein. Es ist nicht dein normales Passwort.',
+	'social.form.handle': 'Dein Handle',
+	'social.form.password': 'App-Passwort',
+	'social.form.connect': 'Verbinden',
+	'social.err.trial':
+		'Deine 5 kostenlosen Tage sind vorbei, darum lässt sich nichts Neues verbinden.',
+	'social.err.paused': 'Social-Media-Posten ist pausiert, darum lässt sich nichts Neues verbinden.',
+	'social.err.limit': 'Du hast so viele Social-Media-Konten verbunden, wie dein Tarif erlaubt.',
+	'social.err.login': 'Das Handle oder das App-Passwort wurde nicht angenommen. Prüf beides.',
+	'social.done.title': 'Social-Media-Konto',
+	'social.done.ok': '{name} ist verbunden.',
+	'social.done.okHint': 'Ein Helfer kann dort jetzt posten.',
+	'social.done.pages': '{n} Facebook-Seiten verbunden.',
+	'social.done.pages.one': '1 Facebook-Seite verbunden.',
+	'social.done.skipped': '{n} übersprungen.',
+	'social.done.failedPages': '{n} fehlgeschlagen.',
+	'social.done.failed': '{name} wurde nicht verbunden.',
+	'social.done.failedHint':
+		'Es wurde nichts geändert. Das passiert, wenn du abbrichst oder das Netzwerk ablehnt. Versuch es noch mal.',
+	'social.done.back': 'Zurück zu den Social-Media-Konten',
+	'social.done.account': 'Das Konto',
 	loading: 'Lädt…'
 };

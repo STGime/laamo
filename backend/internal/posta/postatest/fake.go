@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -15,8 +17,14 @@ import (
 	"github.com/STGime/laamo/backend/internal/posta"
 )
 
-// PartnerKey is the key the fake accepts.
-const PartnerKey = "postapk_test"
+const (
+	// PartnerKey is the key the fake accepts.
+	PartnerKey = "postapk_test"
+	// Origin is the partner's registered site: connects must come back to it.
+	Origin = "https://laamo.test"
+	// BlueskyPassword is the only app password the fake's Bluesky takes.
+	BlueskyPassword = "abcd-efgh-ijkl-mnop"
+)
 
 type account struct {
 	email, externalID, token string
@@ -122,6 +130,15 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 		f.partner(w, r, rest)
 		return
 	}
+	if r.Method == http.MethodGet && path == "/social-accounts/platforms" {
+		ok(w, http.StatusOK, map[string]any{"platforms": []map[string]any{
+			{"id": "instagram", "name": "Instagram", "isConfigured": true, "supportsImage": true, "supportsVideo": true},
+			{"id": "youtube", "name": "YouTube", "isConfigured": true, "supportsImage": false, "supportsVideo": true},
+			{"id": "x", "name": "X", "isConfigured": false, "supportsImage": true, "supportsVideo": true},
+			{"id": "bluesky", "name": "Bluesky", "isConfigured": true, "authType": "app_password", "supportsImage": true, "supportsVideo": true},
+		}})
+		return
+	}
 	// The normal API, as one user.
 	var a *account
 	if own := f.own[bearer]; own != nil {
@@ -136,15 +153,102 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid or revoked API token")
 		return
 	}
-	if r.Method == http.MethodGet && path == "/social-accounts" {
-		cs := a.channels
-		if cs == nil {
-			cs = []posta.Channel{}
+	_, isOwn := f.own[bearer]
+	switch {
+	case r.Method == http.MethodGet && path == "/social-accounts":
+		// As the real Posta sends them: ids are numbers, a missing display
+		// name is null.
+		list := []map[string]any{}
+		for _, c := range a.channels {
+			m := map[string]any{"platform": c.Platform, "username": c.Username, "displayName": nil,
+				"isActive": c.IsActive, "connectionError": nil}
+			if n, err := strconv.Atoi(c.ID); err == nil {
+				m["id"] = n
+			} else {
+				m["id"] = c.ID
+			}
+			if c.DisplayName != "" {
+				m["displayName"] = c.DisplayName
+			}
+			if c.ConnectionError != "" {
+				m["connectionError"] = c.ConnectionError
+			}
+			list = append(list, m)
 		}
-		ok(w, http.StatusOK, map[string]any{"accounts": cs})
-		return
+		ok(w, http.StatusOK, map[string]any{"accounts": list})
+	case r.Method == http.MethodPost && path == "/social-accounts/oauth/initiate":
+		var in struct {
+			Platform    string `json:"platform"`
+			RedirectURL string `json:"redirectUrl"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		// Only for accounts the partner made, and back to its own site.
+		if isOwn || !strings.HasPrefix(in.RedirectURL, Origin+"/") {
+			fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "redirectUrl is not allowed")
+			return
+		}
+		if f.refuse(w, a, true) {
+			return
+		}
+		ok(w, http.StatusOK, map[string]any{"authorizationUrl": "https://" + in.Platform + ".example/oauth?state=s1", "state": "s1"})
+	case r.Method == http.MethodPost && path == "/social-accounts/bluesky/connect":
+		var in struct {
+			Identifier  string `json:"identifier"`
+			AppPassword string `json:"appPassword"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		if f.refuse(w, a, true) {
+			return
+		}
+		if in.AppPassword != BlueskyPassword {
+			fail(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication failed")
+			return
+		}
+		f.n++
+		a.channels = append(a.channels, posta.Channel{ID: strconv.Itoa(1000 + f.n), Platform: "bluesky", Username: in.Identifier, IsActive: true})
+		ok(w, http.StatusOK, map[string]any{"success": true})
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/social-accounts/"):
+		id := strings.TrimPrefix(path, "/social-accounts/")
+		n := len(a.channels)
+		a.channels = slices.DeleteFunc(a.channels, func(c posta.Channel) bool { return c.ID == id })
+		if len(a.channels) == n {
+			fail(w, http.StatusNotFound, "NOT_FOUND", "Account not found")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		fail(w, http.StatusNotFound, "NOT_FOUND", "no such route in the fake")
 	}
-	fail(w, http.StatusNotFound, "NOT_FOUND", "no such route in the fake")
+}
+
+// refuse answers 403 when the account's plan doesn't allow the call
+// (connecting also needs room under the channel limit).
+func (f *Fake) refuse(w http.ResponseWriter, a *account, connecting bool) bool {
+	reason := ""
+	switch max := a.plan.Limits.MaxSocialAccounts; {
+	case a.externalID == "": // a person's own account: Posta's business
+	case !a.plan.IsActive && a.plan.Type == "trial":
+		reason = "trial_expired"
+	case !a.plan.IsActive:
+		reason = "plan_inactive"
+	case connecting && max != nil && len(a.channels) >= *max:
+		reason = "account_limit"
+	}
+	if reason == "" {
+		return false
+	}
+	fail(w, http.StatusForbidden, "PLAN_LIMIT_EXCEEDED", "Plan limit", reason)
+	return true
+}
+
+// EndTrial makes the trial of a Laamo user's account run out.
+func (f *Fake) EndTrial(externalID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if a := f.accounts[externalID]; a != nil {
+		a.plan.IsActive = false
+		a.plan.DaysRemaining = new(0)
+	}
 }
 
 func (f *Fake) partner(w http.ResponseWriter, r *http.Request, rest string) {

@@ -415,3 +415,67 @@ func New(partnerKey, apiURL string) *Service {
 func (s *Service) As(token string) *User {
 	return &User{Token: token, URL: s.Partner.URL, HTTP: s.Partner.HTTP}
 }
+
+// Platform is a social network Posta can connect right now.
+type Platform struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	IsConfigured  bool   `json:"isConfigured"`
+	AuthType      string `json:"authType"` // "app_password" for Bluesky, else a redirect
+	SupportsImage bool   `json:"supportsImage"`
+	SupportsVideo bool   `json:"supportsVideo"`
+}
+
+// Platforms lists the networks that are switched on (no token needed).
+func (s *Service) Platforms(ctx context.Context) ([]Platform, error) {
+	var out struct {
+		Platforms []Platform `json:"platforms"`
+	}
+	c := caller{base: s.Partner.URL, http: s.Partner.HTTP}
+	if _, err := c.do(ctx, http.MethodGet, "/social-accounts/platforms", nil, &out); err != nil {
+		return nil, err
+	}
+	on := out.Platforms[:0]
+	for _, p := range out.Platforms {
+		if p.IsConfigured {
+			on = append(on, p)
+		}
+	}
+	return on, nil
+}
+
+// StartConnect begins connecting a channel: it returns the address at the
+// network to send the browser to. The browser comes back to redirectURL,
+// which must be on an origin registered at Posta, with success=true or
+// success=false&error=… in its query.
+func (u *User) StartConnect(ctx context.Context, platform, redirectURL string) (string, error) {
+	var out struct {
+		AuthorizationURL string `json:"authorizationUrl"`
+	}
+	in := map[string]string{"platform": platform, "redirectUrl": redirectURL}
+	if _, err := u.call().do(ctx, http.MethodPost, "/social-accounts/oauth/initiate", in, &out); err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(out.AuthorizationURL, "https://") {
+		return "", errors.New("posta: no address to connect at came back")
+	}
+	return out.AuthorizationURL, nil
+}
+
+// ConnectBluesky connects a Bluesky account with an app password (Bluesky
+// has no redirect). A wrong handle or password is an *Error with status 400
+// or 401 from Bluesky's side.
+func (u *User) ConnectBluesky(ctx context.Context, identifier, appPassword string) error {
+	in := map[string]string{"identifier": identifier, "appPassword": appPassword}
+	_, err := u.call().do(ctx, http.MethodPost, "/social-accounts/bluesky/connect", in, nil)
+	return err
+}
+
+// Disconnect removes a channel. A missing one is not an error.
+func (u *User) Disconnect(ctx context.Context, channelID string) error {
+	_, err := u.call().do(ctx, http.MethodDelete, "/social-accounts/"+url.PathEscape(channelID), nil, nil)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	return err
+}

@@ -118,8 +118,12 @@ const (
 	ErrorCodeNotFound           ErrorCode = "not_found"
 	ErrorCodeNotInvited         ErrorCode = "not_invited"
 	ErrorCodePostaAccountExists ErrorCode = "posta_account_exists"
+	ErrorCodePostaChannelLimit  ErrorCode = "posta_channel_limit"
 	ErrorCodePostaElsewhere     ErrorCode = "posta_elsewhere"
 	ErrorCodePostaKeyInvalid    ErrorCode = "posta_key_invalid"
+	ErrorCodePostaLoginFailed   ErrorCode = "posta_login_failed"
+	ErrorCodePostaPlanInactive  ErrorCode = "posta_plan_inactive"
+	ErrorCodePostaTrialExpired  ErrorCode = "posta_trial_expired"
 	ErrorCodeRateLimited        ErrorCode = "rate_limited"
 	ErrorCodeUnauthorized       ErrorCode = "unauthorized"
 	ErrorCodeUnavailable        ErrorCode = "unavailable"
@@ -148,9 +152,17 @@ func (e ErrorCode) Valid() bool {
 		return true
 	case ErrorCodePostaAccountExists:
 		return true
+	case ErrorCodePostaChannelLimit:
+		return true
 	case ErrorCodePostaElsewhere:
 		return true
 	case ErrorCodePostaKeyInvalid:
+		return true
+	case ErrorCodePostaLoginFailed:
+		return true
+	case ErrorCodePostaPlanInactive:
+		return true
+	case ErrorCodePostaTrialExpired:
 		return true
 	case ErrorCodeRateLimited:
 		return true
@@ -1359,6 +1371,31 @@ type ShelfTemplate struct {
 	Slug string `json:"slug"`
 }
 
+// SocialChannel defines model for SocialChannel.
+type SocialChannel struct {
+	Id string `json:"id"`
+
+	// Name The account's name there
+	Name string `json:"name"`
+
+	// Ok False when the network withdrew access; connect it again
+	Ok bool `json:"ok"`
+
+	// Platform The network's id, e.g. instagram
+	Platform string `json:"platform"`
+}
+
+// SocialChannels defines model for SocialChannels.
+type SocialChannels struct {
+	Channels []SocialChannel `json:"channels"`
+
+	// Manage Whether channels are connected and removed here. False for your own Posta account: do that in Posta.
+	Manage bool `json:"manage"`
+
+	// Platforms The networks that can be connected right now
+	Platforms []SocialPlatform `json:"platforms"`
+}
+
 // SocialPlan Only for accounts Laamo created; your own Posta account's plan is Posta's business
 type SocialPlan struct {
 	Active   bool       `json:"active"`
@@ -1370,6 +1407,16 @@ type SocialPlan struct {
 
 	// Type trial, starter, professional or none
 	Type string `json:"type"`
+}
+
+// SocialPlatform defines model for SocialPlatform.
+type SocialPlatform struct {
+	// Form True when it takes a handle and app password (Bluesky) instead of a redirect
+	Form   bool   `json:"form"`
+	Id     string `json:"id"`
+	Images *bool  `json:"images,omitempty"`
+	Name   string `json:"name"`
+	Video  *bool  `json:"video,omitempty"`
 }
 
 // SocialPosting defines model for SocialPosting.
@@ -1678,6 +1725,16 @@ type EnableSocialJSONBody struct {
 	ApiKey *string `json:"api_key,omitempty"`
 }
 
+// ConnectSocialChannelJSONBody defines parameters for ConnectSocialChannel.
+type ConnectSocialChannelJSONBody struct {
+	// AppPassword Bluesky only, an app password from Bluesky's settings
+	AppPassword *string `json:"app_password,omitempty"`
+
+	// Identifier Bluesky only, your handle (anna.bsky.social)
+	Identifier *string `json:"identifier,omitempty"`
+	Platform   string  `json:"platform"`
+}
+
 // RunDemoJSONRequestBody defines body for RunDemo for application/json ContentType.
 type RunDemoJSONRequestBody = DemoRequest
 
@@ -1731,6 +1788,9 @@ type CreatePlaceJSONRequestBody = NewPlace
 
 // EnableSocialJSONRequestBody defines body for EnableSocial for application/json ContentType.
 type EnableSocialJSONRequestBody EnableSocialJSONBody
+
+// ConnectSocialChannelJSONRequestBody defines body for ConnectSocialChannel for application/json ContentType.
+type ConnectSocialChannelJSONRequestBody ConnectSocialChannelJSONBody
 
 // Getter for additional properties for Stack. Returns the specified
 // element and whether it was found
@@ -2379,6 +2439,34 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
 	EnableSocial(ctx context.Context, workspaceId WorkspaceId, body EnableSocialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSocialChannels The social accounts helpers can post to, and the networks you can connect
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/social/channels (the `ListSocialChannels` operationId).
+	ListSocialChannels(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectSocialChannelWithBody Connect a social account (owner only)
+	//
+	// For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/social/channels (the `ConnectSocialChannel` operationId).
+	ConnectSocialChannelWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectSocialChannel Connect a social account (owner only)
+	//
+	// For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/social/channels (the `ConnectSocialChannel` operationId).
+	ConnectSocialChannel(ctx context.Context, workspaceId WorkspaceId, body ConnectSocialChannelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DisconnectSocialChannel Disconnect a social account (owner only; not for your own Posta account)
+	//
+	// Corresponds with DELETE /workspaces/{workspaceId}/social/channels/{channelId} (the `DisconnectSocialChannel` operationId).
+	DisconnectSocialChannel(ctx context.Context, workspaceId WorkspaceId, channelId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	//
@@ -3539,6 +3627,74 @@ func (c *Client) EnableSocialWithBody(ctx context.Context, workspaceId Workspace
 // Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
 func (c *Client) EnableSocial(ctx context.Context, workspaceId WorkspaceId, body EnableSocialJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewEnableSocialRequest(c.Server, workspaceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListSocialChannels The social accounts helpers can post to, and the networks you can connect
+//
+// Corresponds with GET /workspaces/{workspaceId}/social/channels (the `ListSocialChannels` operationId).
+func (c *Client) ListSocialChannels(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSocialChannelsRequest(c.Server, workspaceId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConnectSocialChannelWithBody Connect a social account (owner only)
+//
+// For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workspaces/{workspaceId}/social/channels (the `ConnectSocialChannel` operationId).
+func (c *Client) ConnectSocialChannelWithBody(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectSocialChannelRequestWithBody(c.Server, workspaceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConnectSocialChannel Connect a social account (owner only)
+//
+// For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workspaces/{workspaceId}/social/channels (the `ConnectSocialChannel` operationId).
+func (c *Client) ConnectSocialChannel(ctx context.Context, workspaceId WorkspaceId, body ConnectSocialChannelJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectSocialChannelRequest(c.Server, workspaceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DisconnectSocialChannel Disconnect a social account (owner only; not for your own Posta account)
+//
+// Corresponds with DELETE /workspaces/{workspaceId}/social/channels/{channelId} (the `DisconnectSocialChannel` operationId).
+func (c *Client) DisconnectSocialChannel(ctx context.Context, workspaceId WorkspaceId, channelId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDisconnectSocialChannelRequest(c.Server, workspaceId, channelId)
 	if err != nil {
 		return nil, err
 	}
@@ -5656,6 +5812,128 @@ func NewEnableSocialRequestWithBody(server string, workspaceId WorkspaceId, cont
 	return req, nil
 }
 
+// NewListSocialChannelsRequest constructs an http.Request for the ListSocialChannels method
+func NewListSocialChannelsRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/social/channels", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConnectSocialChannelRequest calls the generic ConnectSocialChannel builder with application/json body
+func NewConnectSocialChannelRequest(server string, workspaceId WorkspaceId, body ConnectSocialChannelJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConnectSocialChannelRequestWithBody(server, workspaceId, "application/json", bodyReader)
+}
+
+// NewConnectSocialChannelRequestWithBody constructs an http.Request for the ConnectSocialChannel method, with any body, and a specified content type
+func NewConnectSocialChannelRequestWithBody(server string, workspaceId WorkspaceId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/social/channels", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDisconnectSocialChannelRequest constructs an http.Request for the DisconnectSocialChannel method
+func NewDisconnectSocialChannelRequest(server string, workspaceId WorkspaceId, channelId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "workspaceId", workspaceId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "channelId", channelId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workspaces/%s/social/channels/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListTemplatesRequest constructs an http.Request for the ListTemplates method
 func NewListTemplatesRequest(server string, workspaceId WorkspaceId) (*http.Request, error) {
 	var err error
@@ -6262,6 +6540,38 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /workspaces/{workspaceId}/social (the `EnableSocial` operationId).
 	EnableSocialWithResponse(ctx context.Context, workspaceId WorkspaceId, body EnableSocialJSONRequestBody, reqEditors ...RequestEditorFn) (*EnableSocialResponse, error)
+
+	// ListSocialChannelsWithResponse The social accounts helpers can post to, and the networks you can connect
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /workspaces/{workspaceId}/social/channels (the `ListSocialChannels` operationId).
+	ListSocialChannelsWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListSocialChannelsResponse, error)
+
+	// ConnectSocialChannelWithBodyWithResponse Connect a social account (owner only)
+	//
+	// For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/social/channels (the `ConnectSocialChannel` operationId).
+	ConnectSocialChannelWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectSocialChannelResponse, error)
+
+	// ConnectSocialChannelWithResponse Connect a social account (owner only)
+	//
+	// For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workspaces/{workspaceId}/social/channels (the `ConnectSocialChannel` operationId).
+	ConnectSocialChannelWithResponse(ctx context.Context, workspaceId WorkspaceId, body ConnectSocialChannelJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectSocialChannelResponse, error)
+
+	// DisconnectSocialChannelWithResponse Disconnect a social account (owner only; not for your own Posta account)
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /workspaces/{workspaceId}/social/channels/{channelId} (the `DisconnectSocialChannel` operationId).
+	DisconnectSocialChannelWithResponse(ctx context.Context, workspaceId WorkspaceId, channelId string, reqEditors ...RequestEditorFn) (*DisconnectSocialChannelResponse, error)
 
 	// ListTemplatesWithResponse The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	//
@@ -9141,6 +9451,196 @@ func (r EnableSocialResponse) ContentType() string {
 	return ""
 }
 
+type ListSocialChannelsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SocialChannels
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSocialChannelsResponse) GetJSON200() *SocialChannels {
+	return r.JSON200
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListSocialChannelsResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListSocialChannelsResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSocialChannelsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSocialChannelsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSocialChannelsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSocialChannelsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConnectSocialChannelResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		AuthorizationUrl *string `json:"authorization_url,omitempty"`
+	}
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConnectSocialChannelResponse) GetJSON200() *struct {
+	AuthorizationUrl *string `json:"authorization_url,omitempty"`
+} {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r ConnectSocialChannelResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r ConnectSocialChannelResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ConnectSocialChannelResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ConnectSocialChannelResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ConnectSocialChannelResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConnectSocialChannelResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConnectSocialChannelResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConnectSocialChannelResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DisconnectSocialChannelResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Forbidden
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *Unavailable
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r DisconnectSocialChannelResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DisconnectSocialChannelResponse) GetJSON403() *Forbidden {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DisconnectSocialChannelResponse) GetJSON404() *NotFound {
+	return r.JSON404
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DisconnectSocialChannelResponse) GetJSON503() *Unavailable {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DisconnectSocialChannelResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DisconnectSocialChannelResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DisconnectSocialChannelResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DisconnectSocialChannelResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListTemplatesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10147,6 +10647,62 @@ func (c *ClientWithResponses) EnableSocialWithResponse(ctx context.Context, work
 		return nil, err
 	}
 	return ParseEnableSocialResponse(rsp)
+}
+
+// ListSocialChannelsWithResponse The social accounts helpers can post to, and the networks you can connect
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /workspaces/{workspaceId}/social/channels (the `ListSocialChannels` operationId).
+func (c *ClientWithResponses) ListSocialChannelsWithResponse(ctx context.Context, workspaceId WorkspaceId, reqEditors ...RequestEditorFn) (*ListSocialChannelsResponse, error) {
+	rsp, err := c.ListSocialChannels(ctx, workspaceId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSocialChannelsResponse(rsp)
+}
+
+// ConnectSocialChannelWithBodyWithResponse Connect a social account (owner only)
+//
+// For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workspaces/{workspaceId}/social/channels (the `ConnectSocialChannel` operationId).
+func (c *ClientWithResponses) ConnectSocialChannelWithBodyWithResponse(ctx context.Context, workspaceId WorkspaceId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectSocialChannelResponse, error) {
+	rsp, err := c.ConnectSocialChannelWithBody(ctx, workspaceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectSocialChannelResponse(rsp)
+}
+
+// ConnectSocialChannelWithResponse Connect a social account (owner only)
+//
+// For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workspaces/{workspaceId}/social/channels (the `ConnectSocialChannel` operationId).
+func (c *ClientWithResponses) ConnectSocialChannelWithResponse(ctx context.Context, workspaceId WorkspaceId, body ConnectSocialChannelJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectSocialChannelResponse, error) {
+	rsp, err := c.ConnectSocialChannel(ctx, workspaceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectSocialChannelResponse(rsp)
+}
+
+// DisconnectSocialChannelWithResponse Disconnect a social account (owner only; not for your own Posta account)
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /workspaces/{workspaceId}/social/channels/{channelId} (the `DisconnectSocialChannel` operationId).
+func (c *ClientWithResponses) DisconnectSocialChannelWithResponse(ctx context.Context, workspaceId WorkspaceId, channelId string, reqEditors ...RequestEditorFn) (*DisconnectSocialChannelResponse, error) {
+	rsp, err := c.DisconnectSocialChannel(ctx, workspaceId, channelId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDisconnectSocialChannelResponse(rsp)
 }
 
 // ListTemplatesWithResponse The Shelf, sorted by your needs, in your language, with known About me facts filled in
@@ -12292,6 +12848,152 @@ func ParseEnableSocialResponse(rsp *http.Response) (*EnableSocialResponse, error
 	return response, nil
 }
 
+// ParseListSocialChannelsResponse parses an HTTP response from a ListSocialChannelsWithResponse call
+func ParseListSocialChannelsResponse(rsp *http.Response) (*ListSocialChannelsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSocialChannelsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SocialChannels
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConnectSocialChannelResponse parses an HTTP response from a ConnectSocialChannelWithResponse call
+func ParseConnectSocialChannelResponse(rsp *http.Response) (*ConnectSocialChannelResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConnectSocialChannelResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			AuthorizationUrl *string `json:"authorization_url,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDisconnectSocialChannelResponse parses an HTTP response from a DisconnectSocialChannelWithResponse call
+func ParseDisconnectSocialChannelResponse(rsp *http.Response) (*DisconnectSocialChannelResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DisconnectSocialChannelResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Forbidden
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Unavailable
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListTemplatesResponse parses an HTTP response from a ListTemplatesWithResponse call
 func ParseListTemplatesResponse(rsp *http.Response) (*ListTemplatesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -12492,6 +13194,15 @@ type ServerInterface interface {
 	// EnableSocial Switch on posting to social media (owner only)
 	// (PUT /workspaces/{workspaceId}/social)
 	EnableSocial(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// ListSocialChannels The social accounts helpers can post to, and the networks you can connect
+	// (GET /workspaces/{workspaceId}/social/channels)
+	ListSocialChannels(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// ConnectSocialChannel Connect a social account (owner only)
+	// (POST /workspaces/{workspaceId}/social/channels)
+	ConnectSocialChannel(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
+	// DisconnectSocialChannel Disconnect a social account (owner only; not for your own Posta account)
+	// (DELETE /workspaces/{workspaceId}/social/channels/{channelId})
+	DisconnectSocialChannel(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, channelId string)
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	// (GET /workspaces/{workspaceId}/templates)
 	ListTemplates(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId)
@@ -13853,6 +14564,93 @@ func (siw *ServerInterfaceWrapper) EnableSocial(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
+// ListSocialChannels operation middleware
+func (siw *ServerInterfaceWrapper) ListSocialChannels(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSocialChannels(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConnectSocialChannel operation middleware
+func (siw *ServerInterfaceWrapper) ConnectSocialChannel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConnectSocialChannel(w, r, workspaceId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisconnectSocialChannel operation middleware
+func (siw *ServerInterfaceWrapper) DisconnectSocialChannel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "workspaceId" -------------
+	var workspaceId WorkspaceId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "workspaceId", r.PathValue("workspaceId"), &workspaceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspaceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "channelId" -------------
+	var channelId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "channelId", r.PathValue("channelId"), &channelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "channelId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisconnectSocialChannel(w, r, workspaceId, channelId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTemplates operation middleware
 func (siw *ServerInterfaceWrapper) ListTemplates(w http.ResponseWriter, r *http.Request) {
 
@@ -14008,6 +14806,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/workspaces/{workspaceId}/social", wrapper.DisableSocial)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/social", wrapper.GetSocial)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/workspaces/{workspaceId}/social", wrapper.EnableSocial)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/social/channels", wrapper.ListSocialChannels)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/social/channels", wrapper.ConnectSocialChannel)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/workspaces/{workspaceId}/social/channels/{channelId}", wrapper.DisconnectSocialChannel)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.ListPlaces)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workspaces/{workspaceId}/places", wrapper.CreatePlace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/workspaces/{workspaceId}/lists", wrapper.ListLists)
@@ -16842,6 +17643,210 @@ func (response EnableSocial503JSONResponse) VisitEnableSocialResponse(w http.Res
 	return err
 }
 
+type ListSocialChannelsRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+}
+
+type ListSocialChannelsResponseObject interface {
+	VisitListSocialChannelsResponse(w http.ResponseWriter) error
+}
+
+type ListSocialChannels200JSONResponse SocialChannels
+
+func (response ListSocialChannels200JSONResponse) VisitListSocialChannelsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSocialChannels404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListSocialChannels404JSONResponse) VisitListSocialChannelsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSocialChannels503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response ListSocialChannels503JSONResponse) VisitListSocialChannelsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConnectSocialChannelRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	Body        *ConnectSocialChannelJSONRequestBody
+}
+
+type ConnectSocialChannelResponseObject interface {
+	VisitConnectSocialChannelResponse(w http.ResponseWriter) error
+}
+
+type ConnectSocialChannel200JSONResponse struct {
+	AuthorizationUrl *string `json:"authorization_url,omitempty"`
+}
+
+func (response ConnectSocialChannel200JSONResponse) VisitConnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConnectSocialChannel400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ConnectSocialChannel400JSONResponse) VisitConnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConnectSocialChannel403JSONResponse Error
+
+func (response ConnectSocialChannel403JSONResponse) VisitConnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConnectSocialChannel404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ConnectSocialChannel404JSONResponse) VisitConnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConnectSocialChannel503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response ConnectSocialChannel503JSONResponse) VisitConnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisconnectSocialChannelRequestObject struct {
+	WorkspaceId WorkspaceId `json:"workspaceId"`
+	ChannelId   string      `json:"channelId"`
+}
+
+type DisconnectSocialChannelResponseObject interface {
+	VisitDisconnectSocialChannelResponse(w http.ResponseWriter) error
+}
+
+type DisconnectSocialChannel204Response struct {
+}
+
+func (response DisconnectSocialChannel204Response) VisitDisconnectSocialChannelResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DisconnectSocialChannel400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DisconnectSocialChannel400JSONResponse) VisitDisconnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisconnectSocialChannel403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DisconnectSocialChannel403JSONResponse) VisitDisconnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisconnectSocialChannel404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DisconnectSocialChannel404JSONResponse) VisitDisconnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisconnectSocialChannel503JSONResponse struct{ UnavailableJSONResponse }
+
+func (response DisconnectSocialChannel503JSONResponse) VisitDisconnectSocialChannelResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTemplatesRequestObject struct {
 	WorkspaceId WorkspaceId `json:"workspaceId"`
 }
@@ -17052,6 +18057,15 @@ type StrictServerInterface interface {
 	// EnableSocial Switch on posting to social media (owner only)
 	// (PUT /workspaces/{workspaceId}/social)
 	EnableSocial(ctx context.Context, request EnableSocialRequestObject) (EnableSocialResponseObject, error)
+	// ListSocialChannels The social accounts helpers can post to, and the networks you can connect
+	// (GET /workspaces/{workspaceId}/social/channels)
+	ListSocialChannels(ctx context.Context, request ListSocialChannelsRequestObject) (ListSocialChannelsResponseObject, error)
+	// ConnectSocialChannel Connect a social account (owner only)
+	// (POST /workspaces/{workspaceId}/social/channels)
+	ConnectSocialChannel(ctx context.Context, request ConnectSocialChannelRequestObject) (ConnectSocialChannelResponseObject, error)
+	// DisconnectSocialChannel Disconnect a social account (owner only; not for your own Posta account)
+	// (DELETE /workspaces/{workspaceId}/social/channels/{channelId})
+	DisconnectSocialChannel(ctx context.Context, request DisconnectSocialChannelRequestObject) (DisconnectSocialChannelResponseObject, error)
 	// ListTemplates The Shelf, sorted by your needs, in your language, with known About me facts filled in
 	// (GET /workspaces/{workspaceId}/templates)
 	ListTemplates(ctx context.Context, request ListTemplatesRequestObject) (ListTemplatesResponseObject, error)
@@ -18553,6 +19567,92 @@ func (sh *strictHandler) EnableSocial(w http.ResponseWriter, r *http.Request, wo
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(EnableSocialResponseObject); ok {
 		if err := validResponse.VisitEnableSocialResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSocialChannels operation middleware
+func (sh *strictHandler) ListSocialChannels(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ListSocialChannelsRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSocialChannels(ctx, request.(ListSocialChannelsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSocialChannels")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSocialChannelsResponseObject); ok {
+		if err := validResponse.VisitListSocialChannelsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConnectSocialChannel operation middleware
+func (sh *strictHandler) ConnectSocialChannel(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId) {
+	var request ConnectSocialChannelRequestObject
+
+	request.WorkspaceId = workspaceId
+
+	var body ConnectSocialChannelJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConnectSocialChannel(ctx, request.(ConnectSocialChannelRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConnectSocialChannel")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConnectSocialChannelResponseObject); ok {
+		if err := validResponse.VisitConnectSocialChannelResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DisconnectSocialChannel operation middleware
+func (sh *strictHandler) DisconnectSocialChannel(w http.ResponseWriter, r *http.Request, workspaceId WorkspaceId, channelId string) {
+	var request DisconnectSocialChannelRequestObject
+
+	request.WorkspaceId = workspaceId
+	request.ChannelId = channelId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DisconnectSocialChannel(ctx, request.(DisconnectSocialChannelRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DisconnectSocialChannel")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DisconnectSocialChannelResponseObject); ok {
+		if err := validResponse.VisitDisconnectSocialChannelResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
