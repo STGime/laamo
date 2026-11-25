@@ -377,6 +377,9 @@ type User struct {
 	Token string // posta_…
 	URL   string
 	HTTP  *http.Client
+	// Poll: how long to wait between looks at a picture being processed
+	// (tests shorten it; default 2s).
+	Poll time.Duration
 }
 
 func (u *User) call() caller { return caller{base: u.URL, token: u.Token, http: u.HTTP} }
@@ -400,6 +403,8 @@ func (u *User) Channels(ctx context.Context) ([]Channel, error) {
 // user calls made with a user's token.
 type Service struct {
 	Partner *Partner
+	// Poll is passed to every User (tests shorten it).
+	Poll time.Duration
 }
 
 // New returns the service, or nil without a partner key (social posting is
@@ -413,7 +418,7 @@ func New(partnerKey, apiURL string) *Service {
 
 // As returns the normal API as the user with this token.
 func (s *Service) As(token string) *User {
-	return &User{Token: token, URL: s.Partner.URL, HTTP: s.Partner.HTTP}
+	return &User{Token: token, URL: s.Partner.URL, HTTP: s.Partner.HTTP, Poll: s.Poll}
 }
 
 // Platform is a social network Posta can connect right now.
@@ -478,4 +483,143 @@ func (u *User) Disconnect(ctx context.Context, channelID string) error {
 		return nil
 	}
 	return err
+}
+
+// Media is a picture or video uploaded to Posta.
+type Media struct {
+	ID     string `json:"id"`
+	Status string `json:"status"` // pending, processing, completed, failed
+}
+
+// MaxImage is the largest picture Posta takes.
+const MaxImage = 20 << 20
+
+// Upload puts a picture into the user's Posta account and waits until it
+// is ready for a post (Posta makes a version for each network first). It
+// returns the media id. mime is image/jpeg, image/png or image/webp.
+func (u *User) Upload(ctx context.Context, name, mime string, data []byte) (string, error) {
+	if len(data) == 0 || len(data) > MaxImage {
+		return "", fmt.Errorf("posta: a picture must be between 1 byte and %d MB", MaxImage>>20)
+	}
+	var up struct {
+		MediaID   string `json:"media_id"`
+		UploadURL string `json:"upload_url"`
+	}
+	in := map[string]any{"name": name, "mime_type": mime, "size_bytes": len(data)}
+	if _, err := u.call().do(ctx, http.MethodPost, "/media/create-upload-url", in, &up); err != nil {
+		return "", err
+	}
+	if up.MediaID == "" || !(strings.HasPrefix(up.UploadURL, "https://") || u.URL != "" && strings.HasPrefix(up.UploadURL, u.URL)) {
+		return "", errors.New("posta: no upload address came back")
+	}
+	// The bytes go straight to Posta's storage, at an address signed for
+	// this one file: no token on this request.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, up.UploadURL, bytes.NewReader(data))
+	if err != nil {
+		return "", errors.New("posta: the upload address isn't one")
+	}
+	req.Header.Set("Content-Type", mime)
+	hc := u.HTTP
+	if hc == nil {
+		hc = uploadHTTP
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err // never the signed address in an error
+		}
+		return "", fmt.Errorf("posta: upload: %w", err)
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
+	_ = resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("posta: upload: storage answered %d", resp.StatusCode)
+	}
+	if _, err := u.call().do(ctx, http.MethodPost, "/media/"+url.PathEscape(up.MediaID)+"/confirm-upload", nil, nil); err != nil {
+		return "", err
+	}
+	// Processing takes a few seconds for a picture.
+	wait := u.Poll
+	if wait == 0 {
+		wait = 2 * time.Second
+	}
+	for range 45 {
+		var m Media
+		if _, err := u.call().do(ctx, http.MethodGet, "/media/"+url.PathEscape(up.MediaID), nil, &m); err != nil {
+			return "", err
+		}
+		switch m.Status {
+		case "completed":
+			return up.MediaID, nil
+		case "failed":
+			return "", &Error{Status: http.StatusUnprocessableEntity, Code: "MEDIA_FAILED", Message: "Posta couldn't process the picture"}
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(wait):
+		}
+	}
+	return "", errors.New("posta: the picture is still being processed; try again in a moment")
+}
+
+var uploadHTTP = &http.Client{Timeout: 2 * time.Minute}
+
+// NewPost is a post to make. Channels are the ids from Channels.
+type NewPost struct {
+	Caption  string
+	MediaIDs []string
+	Channels []string
+	// At schedules the post; nil with Draft false means "publish when told"
+	// (Publish). Draft saves it in Posta for the person to finish there.
+	At    *time.Time
+	Draft bool
+}
+
+// Post is a post at Posta.
+type Post struct {
+	ID     string `json:"id"`
+	Status string `json:"status"` // draft, scheduled, processing, posted, partially_posted, failed
+}
+
+// CreatePost makes a post. Channel ids go out as numbers, the way Posta
+// hands them out.
+func (u *User) CreatePost(ctx context.Context, p NewPost) (Post, error) {
+	ids := make([]any, 0, len(p.Channels))
+	for _, c := range p.Channels {
+		if n, err := strconv.ParseInt(c, 10, 64); err == nil {
+			ids = append(ids, n)
+		} else {
+			ids = append(ids, c)
+		}
+	}
+	media := p.MediaIDs
+	if media == nil {
+		media = []string{}
+	}
+	in := map[string]any{"caption": p.Caption, "mediaIds": media, "socialAccountIds": ids, "isDraft": p.Draft}
+	if p.At != nil && !p.Draft {
+		in["scheduledAt"] = p.At.UTC().Format(time.RFC3339)
+	}
+	var out Post
+	_, err := u.call().do(ctx, http.MethodPost, "/posts", in, &out)
+	if err == nil && out.ID == "" {
+		err = errors.New("posta: the post was made, but no id came back")
+	}
+	return out, err
+}
+
+// Publish sends a post out now. Posta works through the channels in the
+// background; the result comes later (GetPost, or a webhook).
+func (u *User) Publish(ctx context.Context, postID string) error {
+	_, err := u.call().do(ctx, http.MethodPost, "/posts/"+url.PathEscape(postID)+"/publish", nil, nil)
+	return err
+}
+
+// GetPost reads a post's state.
+func (u *User) GetPost(ctx context.Context, postID string) (Post, error) {
+	var out Post
+	_, err := u.call().do(ctx, http.MethodGet, "/posts/"+url.PathEscape(postID), nil, &out)
+	return out, err
 }

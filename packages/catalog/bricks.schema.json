@@ -283,7 +283,8 @@
             "tags",
             "fields",
             "place",
-            "list"
+            "list",
+            "channels"
           ]
         },
         "label": {

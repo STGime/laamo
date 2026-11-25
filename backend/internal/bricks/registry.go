@@ -7,6 +7,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/bricks/when"
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/posta"
 	"github.com/STGime/laamo/backend/internal/search"
 	"github.com/STGime/laamo/backend/internal/store"
 )
@@ -25,6 +26,8 @@ type Deps struct {
 	Pages look.PageReader
 	// Find businesses (osm.Client in production).
 	Businesses look.BusinessFinder
+	// Post to social (with Store and Keys): nil without a partner key.
+	Posta *posta.Service
 	// Draw a picture (images.Client in production).
 	Images think.Drawer
 }
@@ -43,6 +46,9 @@ func All(d Deps) map[string]engine.Brick {
 	}
 	if d.Store != nil && d.Keys != nil && d.Chat != nil {
 		m["do.chat"] = do.Chat{Store: d.Store, Keys: d.Keys, Sender: d.Chat}
+	}
+	if d.Store != nil && d.Keys != nil && d.Posta != nil {
+		m["do.social"] = do.Social{Store: d.Store, Keys: d.Keys, Posta: d.Posta}
 	}
 	if ls, ok := d.Store.(store.ListStore); ok {
 		m["do.list"] = do.List{Store: ls}

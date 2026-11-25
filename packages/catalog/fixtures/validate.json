@@ -239,33 +239,22 @@
       "bricks": [
         {
           "id": "b1",
-          "type": "when.tap",
+          "type": "when.watch",
           "config": null
         },
         {
           "id": "b2",
           "type": "look.magic",
           "config": null
-        },
-        {
-          "id": "b3",
-          "type": "do.social",
-          "config": {
-            "accounts": "x"
-          }
         }
       ]
     },
     "issues": [
-      "b2:unknown_brick",
-      "b3:check_suggested",
-      "b3:missing_field",
-      "b3:not_available"
+      "b1:missing_setting",
+      "b1:not_available",
+      "b2:unknown_brick"
     ],
-    "fixes": {
-      "b3:check_suggested": "ask.check",
-      "b3:missing_field": "think.write"
-    }
+    "fixes": {}
   },
   {
     "name": "settings",
@@ -894,6 +883,65 @@
     },
     "issues": [
       ":empty_stack"
+    ]
+  },
+  {
+    "name": "post to social: which accounts",
+    "stack": {
+      "schema": 1,
+      "bricks": [
+        {
+          "id": "b1",
+          "type": "when.tap",
+          "config": null
+        },
+        {
+          "id": "b2",
+          "type": "think.write",
+          "config": {
+            "what": "a short post about {my offer}",
+            "mode": "all"
+          }
+        },
+        {
+          "id": "b3",
+          "type": "ask.check",
+          "config": null
+        },
+        {
+          "id": "b4",
+          "type": "do.social",
+          "config": {
+            "channels": [
+              "12",
+              "34"
+            ],
+            "when": "at",
+            "time": "18:30"
+          }
+        },
+        {
+          "id": "b5",
+          "type": "do.social",
+          "config": {
+            "channels": "12"
+          }
+        },
+        {
+          "id": "b6",
+          "type": "do.social",
+          "config": {
+            "channels": [],
+            "when": "at",
+            "time": "late"
+          }
+        }
+      ]
+    },
+    "issues": [
+      "b5:bad_value",
+      "b6:bad_value",
+      "b6:missing_setting"
     ]
   }
 ]

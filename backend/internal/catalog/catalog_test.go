@@ -171,8 +171,8 @@ func TestCatalogConsistency(t *testing.T) {
 			mvp++
 		}
 	}
-	if len(cat.Bricks) != 23 || mvp != 21 {
-		t.Errorf("want 23 bricks (21 mvp with Draw a picture and Read the photo + Something changed + Posta), got %d (%d mvp)", len(cat.Bricks), mvp)
+	if len(cat.Bricks) != 23 || mvp != 22 {
+		t.Errorf("want 23 bricks (22 mvp with Draw a picture, Read the photo and Post to social + Something changed), got %d (%d mvp)", len(cat.Bricks), mvp)
 	}
 }
 

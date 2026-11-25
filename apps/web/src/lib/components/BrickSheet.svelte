@@ -106,6 +106,31 @@
 		} else listError = response.status === 409 ? t('lists.taken') : t('lists.failed');
 	}
 	const str = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '');
+	// Post to social: the accounts to pick from, loaded when the sheet opens.
+	// null = not loaded; 'off' = social posting isn't switched on.
+	let social = $state<Schemas['SocialChannels'] | 'off' | null>(null);
+	$effect(() => {
+		const ws = session.workspace;
+		if (!open || !ws || !b?.settings?.some((s) => s.type === 'channels')) return;
+		api
+			.GET('/workspaces/{workspaceId}/social/channels', {
+				params: { path: { workspaceId: ws.id } }
+			})
+			.then(({ data, response }) => {
+				social = data ?? (response.status === 404 ? 'off' : null);
+			});
+	});
+	// "Save as draft in Posta" only helps people who can open Posta: those
+	// with their own Posta account.
+	const offered = (s: Setting) =>
+		(s.options ?? []).filter(
+			(o) =>
+				!(sb.type === 'do.social' && o.value === 'draft') ||
+				(social !== null && social !== 'off' && !social.manage) ||
+				cfg[s.key] === 'draft'
+		);
+	const networkName = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
+
 	const list = (v: unknown) => (Array.isArray(v) ? (v as string[]) : []);
 	function toggle(key: string, item: string) {
 		const l = list(cfg[key]);
@@ -157,7 +182,7 @@
 		<label for={id}>{s.label[lang]}</label>
 		{#if s.type === 'select'}
 			<div class="choices" {id} role="radiogroup">
-				{#each s.options ?? [] as o (String(o.value))}
+				{#each offered(s) as o (String(o.value))}
 					<button
 						type="button"
 						role="radio"
@@ -202,6 +227,36 @@
 				/>
 				<button class="btn" disabled={!detailKey(other)}>{t('builder.add')}</button>
 			</form>
+		{:else if s.type === 'channels'}
+			{#if social === 'off'}
+				<p class="hint">{t('builder.socialOff')}</p>
+				<a class="add" href="/places/social" onclick={() => onleave?.()}
+					>+ {t('builder.socialOn')}</a
+				>
+			{:else if social}
+				<div class="choices" {id}>
+					{#each social.channels as c (c.id)}
+						<button
+							type="button"
+							aria-pressed={list(cfg[s.key]).includes(c.id)}
+							disabled={!c.ok && !list(cfg[s.key]).includes(c.id)}
+							onclick={() => toggle(s.key, c.id)}
+							>{c.name} · {networkName(c.platform)}{c.ok
+								? ''
+								: ` · ${t('builder.socialBroken')}`}</button
+						>
+					{/each}
+				</div>
+				{#if list(cfg[s.key]).some((x) => !social || social === 'off' || !social.channels.some((c) => c.id === x))}
+					<p class="error">{t('builder.socialGone')}</p>
+				{/if}
+				{#if !social.channels.length}<p class="hint">{t('builder.socialNone')}</p>{/if}
+				<a class="add" href="/places/social" onclick={() => onleave?.()}
+					>+ {t('builder.socialManage')}</a
+				>
+			{:else}
+				<p class="hint">{t('loading')}</p>
+			{/if}
 		{:else if s.type === 'place'}
 			<div class="choices" {id} role="radiogroup">
 				{#each placesFor(s) as p (p.id)}
@@ -448,6 +503,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2);
+	}
+	.hint {
+		margin: 0 0 var(--space-1);
+		color: var(--muted);
+		font-size: var(--text-sm);
 	}
 	.error {
 		margin: var(--space-1) 0 0;

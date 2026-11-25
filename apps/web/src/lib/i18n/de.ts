@@ -610,5 +610,11 @@ export const de: Record<Key, string> = {
 		'Es wurde nichts geändert. Das passiert, wenn du abbrichst oder das Netzwerk ablehnt. Versuch es noch mal.',
 	'social.done.back': 'Zurück zu den Social-Media-Konten',
 	'social.done.account': 'Das Konto',
+	'builder.socialOff': 'Social-Media-Posten ist noch nicht eingeschaltet.',
+	'builder.socialOn': 'Social-Media-Posten einschalten',
+	'builder.socialNone': 'Noch ist kein Social-Media-Konto verbunden.',
+	'builder.socialManage': 'Social-Media-Konten verbinden oder ändern',
+	'builder.socialBroken': 'neu verbinden nötig',
+	'builder.socialGone': 'Ein hier gewähltes Konto ist nicht mehr verbunden. Wähle neu.',
 	loading: 'Lädt…'
 };

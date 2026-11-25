@@ -337,6 +337,19 @@ func checkValue(c *Catalog, set *Setting, v any) string {
 				return fmt.Sprintf("has an unknown day %q", d)
 			}
 		}
+	case TypeChannels:
+		ids, ok := strictStringList(v)
+		if !ok || len(ids) == 0 {
+			return "needs at least one account"
+		}
+		if len(ids) > 20 {
+			return "has more than 20 accounts"
+		}
+		for _, id := range ids {
+			if id == "" || len(id) > 40 {
+				return "has an account id that isn't one"
+			}
+		}
 	case TypeTags:
 		if _, ok := strictStringList(v); !ok {
 			return "must be a list of words"

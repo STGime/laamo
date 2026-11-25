@@ -587,6 +587,12 @@ export const en = {
 		'Nothing was changed. This happens when you cancel, or when the network refuses. Try again.',
 	'social.done.back': 'Back to social accounts',
 	'social.done.account': 'The account',
+	'builder.socialOff': 'Social posting isn’t switched on yet.',
+	'builder.socialOn': 'Switch on social posting',
+	'builder.socialNone': 'No social account is connected yet.',
+	'builder.socialManage': 'Connect or change social accounts',
+	'builder.socialBroken': 'needs reconnecting',
+	'builder.socialGone': 'An account picked here isn’t connected anymore. Pick again.',
 	loading: 'Loading…'
 } as const;
 
