@@ -31,7 +31,11 @@ type account struct {
 	email, externalID, token string
 	plan                     posta.Plan
 	channels                 []posta.Channel
+	hooks                    []Hook
 }
+
+// Hook is a webhook endpoint registered at the fake.
+type Hook struct{ ID, URL, Secret string }
 
 // Fake is the server. Set Down to make every call fail with a 500.
 type Fake struct {
@@ -69,6 +73,20 @@ type FakePost struct {
 	At       *time.Time
 	Publish  int // how often it was told to go out
 	owner    *account
+}
+
+// Hooks returns every webhook endpoint registered so far.
+func (f *Fake) Hooks() []Hook {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []Hook
+	for _, a := range f.accounts {
+		out = append(out, a.hooks...)
+	}
+	for _, a := range f.own {
+		out = append(out, a.hooks...)
+	}
+	return out
 }
 
 // Posts returns the posts made so far.
@@ -309,6 +327,28 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 		default:
 			fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "not uploaded yet")
 		}
+	case r.Method == http.MethodPost && path == "/webhook-endpoints":
+		var in struct {
+			URL    string   `json:"url"`
+			Events []string `json:"events"`
+		}
+		if json.NewDecoder(r.Body).Decode(&in) != nil || !strings.HasPrefix(in.URL, "https://") || len(in.Events) == 0 {
+			fail(w, http.StatusBadRequest, "VALIDATION_ERROR", "url must be https")
+			return
+		}
+		// An account in its free days has room for one endpoint.
+		if len(a.hooks) >= 1 {
+			fail(w, http.StatusForbidden, "PLAN_LIMIT_EXCEEDED", "Webhook endpoint limit reached", "webhook_limit")
+			return
+		}
+		f.n++
+		h := Hook{ID: fmt.Sprintf("hook-%d", f.n), URL: in.URL, Secret: fmt.Sprintf("whsec_%d", f.n)}
+		a.hooks = append(a.hooks, h)
+		ok(w, http.StatusCreated, map[string]any{"id": h.ID, "url": h.URL, "events": in.Events, "secret": h.Secret})
+	case r.Method == http.MethodDelete && strings.HasPrefix(path, "/webhook-endpoints/"):
+		id := strings.TrimPrefix(path, "/webhook-endpoints/")
+		a.hooks = slices.DeleteFunc(a.hooks, func(h Hook) bool { return h.ID == id })
+		w.WriteHeader(http.StatusNoContent)
 	case r.Method == http.MethodPost && path == "/posts":
 		f.createPost(w, r, a)
 	case strings.HasPrefix(path, "/posts/"):

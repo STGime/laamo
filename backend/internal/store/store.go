@@ -187,6 +187,9 @@ type OutboundStore interface {
 	// the message was already recorded (and maybe sent) by an earlier attempt.
 	CreateOutbound(ctx context.Context, m *OutboundMessage) error
 	GetOutboundByKey(ctx context.Context, key string) (OutboundMessage, error)
+	// GetOutboundByProviderID finds a workspace's message by the id its
+	// provider gave it (e.g. a Posta post id).
+	GetOutboundByProviderID(ctx context.Context, workspaceID, channel, providerID string) (OutboundMessage, error)
 	UpdateOutbound(ctx context.Context, id string, p OutboundPatch) (OutboundMessage, error)
 }
 

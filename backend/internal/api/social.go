@@ -253,6 +253,18 @@ func (s *Server) DisableSocial(ctx context.Context, req DisableSocialRequestObje
 			return DisableSocial503JSONResponse{UnavailableJSONResponse(apiErr(ErrorCodeUnavailable, "Posta didn't answer; try again in a moment"))}, nil
 		}
 	}
+	// A person's own Posta account stays; Laamo's webhook on it goes, so
+	// Posta stops calling. (Not worth failing over: the calls would get 404.)
+	if hook, _ := p.Meta[posta.MetaHook].(map[string]any); hook != nil && s.posta != nil {
+		if source, _ := p.Meta["source"].(string); source == postaPasted {
+			id, _ := hook[posta.MetaHookID].(string)
+			if token, err := s.postaToken(p); err == nil && id != "" {
+				if err := s.posta.As(token).DeleteWebhook(ctx, id); err != nil {
+					s.log.Warn("posta: delete webhook", "place", p.ID, "err", err)
+				}
+			}
+		}
+	}
 	if err := s.store.DeletePlace(ctx, p.ID); err != nil && !errors.Is(err, store.ErrNotFound) {
 		return nil, err
 	}

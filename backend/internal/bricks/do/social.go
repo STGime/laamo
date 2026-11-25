@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -30,6 +31,10 @@ type Social struct {
 	Store ChatStore
 	Keys  *crypto.Keyring
 	Posta *posta.Service
+	// HookURL is where Posta reports how a post did (the api's
+	// /api/posta/webhook, https). The place's id is added to it. Empty:
+	// nobody is told, and the Feed only says the post was handed over.
+	HookURL string
 }
 
 // MaxCaption is the longest text Posta takes.
@@ -116,6 +121,9 @@ func (s Social) Run(ctx context.Context, rc *engine.RunContext, in []engine.Card
 		at = &t
 	}
 
+	if when != "draft" {
+		s.listen(ctx, rc, &place, user)
+	}
 	ids := make([]string, len(chosen))
 	for i, c := range chosen {
 		ids[i] = c.ID
@@ -235,6 +243,44 @@ func (s Social) finish(ctx context.Context, user *posta.User, m store.OutboundMe
 	}
 	_, err := s.Store.UpdateOutbound(ctx, m.ID, store.OutboundPatch{Status: &status, SentAt: &sentAt})
 	return err == nil, err
+}
+
+// listen makes sure Posta tells Laamo how this account's posts did. It is
+// set up once per account, before its first post. Failing is no reason not
+// to post: the Feed then just doesn't hear about the result.
+func (s Social) listen(ctx context.Context, rc *engine.RunContext, place *store.Place, user *posta.User) {
+	if !strings.HasPrefix(s.HookURL, "https://") || place.Meta[posta.MetaHook] != nil {
+		return
+	}
+	hook, err := user.CreateWebhook(ctx, strings.TrimRight(s.HookURL, "/")+"/"+place.ID)
+	if err != nil {
+		rc.Log.Warn("posta: no webhook; post results won't show in the Feed", "place", place.ID, "err", err)
+		return
+	}
+	save := func() error {
+		env, err := s.Keys.Encrypt([]byte(hook.Secret), crypto.AAD("places", place.ID, posta.HookField))
+		if err != nil {
+			return err
+		}
+		meta := maps.Clone(place.Meta)
+		if meta == nil {
+			meta = map[string]any{}
+		}
+		meta[posta.MetaHook] = map[string]any{posta.MetaHookID: hook.ID, posta.MetaHookSecret: base64.StdEncoding.EncodeToString(env)}
+		p, err := s.Store.UpdatePlace(ctx, place.ID, store.PlacePatch{Meta: meta})
+		if err == nil {
+			*place = p
+		}
+		return err
+	}
+	if err := save(); err != nil {
+		// Without its secret the endpoint is of no use, and an account in
+		// its free days has room for one only.
+		rc.Log.Warn("posta: webhook not saved; removing it again", "place", place.ID, "err", err)
+		if hook.ID != "" {
+			_ = user.DeleteWebhook(ctx, hook.ID)
+		}
+	}
 }
 
 // upload hands a card's picture (from Draw a picture) to Posta.

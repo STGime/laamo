@@ -145,6 +145,8 @@ func (s *Server) Handler() http.Handler {
 	// to mail.MaxInbound big (see inbound.go).
 	top := http.NewServeMux()
 	top.HandleFunc("POST "+inboundPath, s.serveInbound)
+	// Posta reporting how a post did: signed with the account's own secret.
+	top.HandleFunc("POST "+PostaHookPath+"/{place}", s.servePostaHook)
 	top.Handle("/", api)
 	return top
 }

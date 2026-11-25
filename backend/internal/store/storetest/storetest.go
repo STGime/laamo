@@ -467,6 +467,12 @@ func testOutbound(t *testing.T, newStore New) {
 	must(t, err)
 	eq(t, "sent", got.Status, "sent")
 	eq(t, "recipient kept", got.Recipient, "owner@example.com")
+
+	got, err = s.GetOutboundByProviderID(ctx, m.WorkspaceID, "email", "tem-123")
+	must(t, err)
+	eq(t, "by provider id", got.ID, m.ID)
+	isErr(t, "another workspace", get(s.GetOutboundByProviderID(ctx, store.NewID(), "email", "tem-123")), store.ErrNotFound)
+	isErr(t, "another channel", get(s.GetOutboundByProviderID(ctx, m.WorkspaceID, "posta", "tem-123")), store.ErrNotFound)
 }
 
 func testWorkspaces(t *testing.T, newStore New) {
