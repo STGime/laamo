@@ -103,6 +103,11 @@
 	// it's added without a test run, and its page has the camera button.
 	const takesPhotos = $derived(!!tpl?.bricks.some((b) => b.type === 'look.read_photo'));
 
+	// One that starts with Tap Go asks its question on every run, so the
+	// first run is a real one, from its page.
+	const asksFirst = $derived(tpl?.bricks[0]?.type === 'when.tap');
+	const noTest = $derived(takesPhotos || asksFirst);
+
 	async function tryIt() {
 		const ws = session.workspace;
 		if (!ws || !tpl) return;
@@ -110,7 +115,7 @@
 		error = '';
 		const { data, error: err } = await api.POST('/workspaces/{workspaceId}/helpers', {
 			params: { path: { workspaceId: ws.id } },
-			body: { template: tpl.slug, answers, run_test: !takesPhotos, just_this_helper: justHere }
+			body: { template: tpl.slug, answers, run_test: !noTest, just_this_helper: justHere }
 		});
 		if (!data) {
 			busy = false;
@@ -118,6 +123,7 @@
 			return;
 		}
 		if (takesPhotos) goto(`/helpers/${data.helper.id}`);
+		else if (asksFirst) goto(`/helpers/${data.helper.id}?go=1`);
 		else if (data.run_id) {
 			helperId = data.helper.id;
 			document.getElementById('how')?.scrollIntoView({ block: 'start' });
@@ -220,9 +226,11 @@
 						detail?.steps,
 						(detail?.bricks ?? []).map((b) => b.id)
 					)}
-				/>{:else}{t(takesPhotos ? 'tpl.add' : 'tpl.test')}{/if}</button
+				/>{:else}{t(noTest ? 'tpl.add' : 'tpl.test')}{/if}</button
 		>
-		<p class="hint">{t(takesPhotos ? 'tpl.addHint' : 'tpl.testHint')}</p>
+		<p class="hint">
+			{t(takesPhotos ? 'tpl.addHint' : asksFirst ? 'tpl.askHint' : 'tpl.testHint')}
+		</p>
 	</div>
 {:else}
 	<p class="loading">{t('loading')}</p>

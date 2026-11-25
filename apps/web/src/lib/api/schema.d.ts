@@ -1162,6 +1162,8 @@ export interface components {
 			 * @enum {string}
 			 */
 			starts_with?: 'email' | 'photo';
+			/** @description Tap Go asks this before every run (stacks that start with Tap Go and a question). Send the answer with startRun. */
+			question?: string;
 			run?: components['schemas']['RunProgress'];
 			/** Format: date-time */
 			created_at: string;

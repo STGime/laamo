@@ -1962,6 +1962,9 @@ components:
           type: string
           enum: [email, photo]
           description: What a run needs to start. email is an email to the helper's address, photo is a photo from the camera button (or an email with one). Absent when Run now works on its own.
+        question:
+          type: string
+          description: Tap Go asks this before every run (stacks that start with Tap Go and a question). Send the answer with startRun.
         run:
           $ref: '#/components/schemas/RunProgress'
         created_at:

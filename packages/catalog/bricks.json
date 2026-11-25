@@ -1420,8 +1420,8 @@
         "de": "Meine Sachen lesen"
       },
       "does": {
-        "en": "Uses one of your Lists or text you pasted.",
-        "de": "Nutzt eine deiner Listen oder eingefügten Text."
+        "en": "Uses one of your Lists, text you pasted or links you pasted.",
+        "de": "Nutzt eine deiner Listen, eingefügten Text oder eingefügte Links."
       },
       "sentence": [
         {
@@ -1433,6 +1433,17 @@
           "text": {
             "en": "Read my notes",
             "de": "Meine Notizen lesen"
+          }
+        },
+        {
+          "if": {
+            "source": [
+              "links"
+            ]
+          },
+          "text": {
+            "en": "Read my links",
+            "de": "Meine Links lesen"
           }
         },
         {
@@ -1464,6 +1475,13 @@
               "label": {
                 "en": "Text I paste",
                 "de": "Text, den ich einfüge"
+              }
+            },
+            {
+              "value": "links",
+              "label": {
+                "en": "Links I paste",
+                "de": "Links, die ich einfüge"
               }
             },
             {
@@ -1506,6 +1524,25 @@
           "max_length": 20000
         },
         {
+          "key": "links",
+          "type": "longtext",
+          "label": {
+            "en": "Links",
+            "de": "Links"
+          },
+          "help": {
+            "en": "One link per line. Each becomes a card that Read the page can open.",
+            "de": "Ein Link pro Zeile. Jeder wird eine Karte, die „Seite lesen“ öffnen kann."
+          },
+          "required": true,
+          "show_if": {
+            "source": [
+              "links"
+            ]
+          },
+          "max_length": 4000
+        },
+        {
           "key": "only_new",
           "type": "toggle",
           "label": {
@@ -1530,6 +1567,16 @@
           },
           "fields": [
             "text"
+          ]
+        },
+        {
+          "if": {
+            "source": [
+              "links"
+            ]
+          },
+          "fields": [
+            "url"
           ]
         },
         {

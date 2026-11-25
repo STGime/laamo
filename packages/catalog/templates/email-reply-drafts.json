@@ -1,0 +1,63 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "email-reply-drafts",
+  "name": {
+    "en": "Reply Drafter",
+    "de": "Antwort-Entwerfer"
+  },
+  "promise": {
+    "en": "Forward a customer email to its address and a reply draft waits in your Feed. You check it and send it yourself.",
+    "de": "Leite eine Kundenmail an seine Adresse weiter, und ein Antwortentwurf wartet in deinem Feed. Du prüfst ihn und schickst ihn selbst."
+  },
+  "category": "sort_emails",
+  "avatar": "✉️",
+  "sort_order": 55,
+  "setup_questions": [
+    {
+      "profile": "offer"
+    },
+    {
+      "profile": "tone"
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.email",
+        "config": {}
+      },
+      {
+        "id": "b2",
+        "type": "think.write",
+        "config": {
+          "what": {
+            "en": "a short, polite reply to this email from {from_name}, in my tone ({my tone}). Answer what they ask using only what I know about my business: {my offer}. Where I would have to decide or look something up, leave a clear gap in [square brackets] for me to fill in.",
+            "de": "eine kurze, höfliche Antwort auf diese E-Mail von {from_name}, in meinem Ton ({my tone}). Beantworte, was gefragt wird, nur mit dem, was ich über mein Geschäft weiß: {my offer}. Wo ich entscheiden oder etwas nachsehen müsste, lass eine klare Lücke in [eckigen Klammern], die ich fülle."
+          },
+          "tone": 0.5,
+          "mode": "each",
+          "signature": true
+        }
+      },
+      {
+        "id": "b3",
+        "type": "ask.check",
+        "config": {
+          "timeout_h": 168,
+          "on_timeout": "skip"
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 5,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.05
+    }
+  },
+  "required": {
+    "brain": true
+  }
+}

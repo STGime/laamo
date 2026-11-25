@@ -120,7 +120,9 @@ func (s *Server) ListHelpers(ctx context.Context, req ListHelpersRequestObject) 
 	for _, h := range hs {
 		ho := helperOut(h)
 		ho.Run, _ = s.activeRun(ctx, h)
-		ho.StartsWith = s.helperStartsWith(ctx, h)
+		var q string
+		ho.StartsWith, q = s.helperStart(ctx, h)
+		ho.Question = nonEmpty(q)
 		out.Helpers = append(out.Helpers, ho)
 	}
 	return out, nil
@@ -198,7 +200,9 @@ func (s *Server) CreateHelper(ctx context.Context, req CreateHelperRequestObject
 	s.log.Info("helper created", "helper", h.ID, "template", t.Slug, "workspace", w.ID)
 
 	out := CreateHelper201JSONResponse{Helper: helperOut(h)}
-	if req.Body.RunTest != nil && *req.Body.RunTest {
+	// A helper that asks a question first has no answer to test with: its
+	// first run is a real one, from its page.
+	if req.Body.RunTest != nil && *req.Body.RunTest && tapQuestion(stack) == "" {
 		runID, err := s.startRun(ctx, h.ID, "", "test", nil)
 		if err != nil {
 			s.log.Warn("first test run", "helper", h.ID, "err", err)
@@ -321,9 +325,16 @@ func (s *Server) StartRun(ctx context.Context, req StartRunRequestObject) (Start
 		}
 	}
 	// A helper that starts with an email or a photo has nothing to work on
-	// without one (a test run gets a sample email).
-	if trigger == "manual" && data["photos"] == nil && s.helperStartsWith(ctx, h) != nil {
-		return StartRun409JSONResponse{ConflictJSONResponse(apiErr(ErrorCodeConflict, "this helper starts with an email or a photo"))}, nil
+	// without one (a test run gets a sample email), and one that asks a
+	// question needs the answer.
+	if trigger == "manual" {
+		input, question := s.helperStart(ctx, h)
+		if input != nil && data["photos"] == nil {
+			return StartRun409JSONResponse{ConflictJSONResponse(apiErr(ErrorCodeConflict, "this helper starts with an email or a photo"))}, nil
+		}
+		if question != "" && data["answer"] == nil {
+			return StartRun400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "this helper asks a question first: send the answer"))}, nil
+		}
 	}
 	runID, err := s.startRun(ctx, h.ID, "", trigger, data)
 	if errors.Is(err, engine.ErrNotRunnable) {
@@ -484,6 +495,7 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 				out.TakesPhotos = new(true)
 			}
 			out.Helper.StartsWith = startsWith(stack)
+			out.Helper.Question = nonEmpty(tapQuestion(stack))
 			// Post to chat names its chat, and Save to a list its list, not their ids.
 			names := map[string]string{}
 			if ps, err := s.store.ListPlaces(ctx, w.ID); err == nil {

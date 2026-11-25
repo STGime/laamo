@@ -1,0 +1,104 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "business-list",
+  "name": {
+    "en": "Business List Builder",
+    "de": "Firmenlisten-Helfer"
+  },
+  "promise": {
+    "en": "Name a town and it lists every business of one kind there, with website, email and phone. Download the list as a spreadsheet.",
+    "de": "Nenn einen Ort, und es listet alle Betriebe einer Art dort auf, mit Website, E-Mail und Telefon. Die Liste lädst du als Tabelle herunter."
+  },
+  "category": "find_customers",
+  "avatar": "📋",
+  "sort_order": 15,
+  "notice": {
+    "en": "These are public business contacts. Whether you may write to them unasked depends on your country’s rules.",
+    "de": "Das sind öffentliche Geschäftskontakte. Ob du sie ungefragt anschreiben darfst, hängt von den Regeln deines Landes ab."
+  },
+  "setup_questions": [
+    {
+      "key": "kind",
+      "type": "text",
+      "question": {
+        "en": "What kind of business should I look for?",
+        "de": "Nach welcher Art von Betrieb soll ich suchen?"
+      },
+      "placeholder": {
+        "en": "dentists",
+        "de": "Zahnärzte"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "what"
+        }
+      ]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.tap",
+        "config": {
+          "question": {
+            "en": "Where? A town, a region or a country.",
+            "de": "Wo? Ein Ort, eine Region oder ein Land."
+          }
+        }
+      },
+      {
+        "id": "b2",
+        "type": "look.find_businesses",
+        "config": {
+          "what": "",
+          "where": "{answer}",
+          "radius_km": "whole",
+          "skip_list": {
+            "en": "Businesses",
+            "de": "Betriebe"
+          }
+        }
+      },
+      {
+        "id": "b3",
+        "type": "look.read_page",
+        "config": {
+          "source": "website",
+          "depth": "contact"
+        }
+      },
+      {
+        "id": "b4",
+        "type": "think.extract",
+        "config": {
+          "fields": ["email", "phone"],
+          "only_found": false
+        }
+      },
+      {
+        "id": "b5",
+        "type": "do.list",
+        "config": {
+          "list": {
+            "en": "Businesses",
+            "de": "Betriebe"
+          },
+          "dedupe": "name",
+          "only_new": true
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 50,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.3
+    }
+  },
+  "required": {
+    "brain": true
+  }
+}

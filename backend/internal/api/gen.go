@@ -982,6 +982,9 @@ type Helper struct {
 	// NextRunAt When its schedule runs next (only when on and scheduled)
 	NextRunAt *time.Time `json:"next_run_at,omitempty"`
 
+	// Question Tap Go asks this before every run (stacks that start with Tap Go and a question). Send the answer with startRun.
+	Question *string `json:"question,omitempty"`
+
 	// Run The run going on now (queued, running or waiting for you)
 	Run *RunProgress `json:"run,omitempty"`
 

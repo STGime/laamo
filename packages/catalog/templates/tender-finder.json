@@ -1,0 +1,150 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "tender-finder",
+  "name": {
+    "en": "Tender Finder",
+    "de": "Ausschreibungs-Finder"
+  },
+  "promise": {
+    "en": "Every Monday at 7:00, tenders and funding calls for your field in your region that you haven't seen yet, saved to a list with a date and a link.",
+    "de": "Jeden Montag um 7:00 Ausschreibungen und Förderaufrufe für dein Fach in deiner Region, die du noch nicht kennst, mit Datum und Link in einer Liste gespeichert."
+  },
+  "category": "find_customers",
+  "avatar": "🏛️",
+  "sort_order": 40,
+  "setup_questions": [
+    {
+      "profile": "business"
+    },
+    {
+      "key": "region",
+      "type": "text",
+      "question": {
+        "en": "Which region should I watch?",
+        "de": "Welche Region soll ich beobachten?"
+      },
+      "placeholder": {
+        "en": "Saxony",
+        "de": "Sachsen"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "query",
+          "text": {
+            "en": "public tender {my business} {value}",
+            "de": "öffentliche Ausschreibung {my business} {value}"
+          }
+        },
+        {
+          "brick": "b3",
+          "setting": "criteria",
+          "text": {
+            "en": "are single open tenders, calls for bids or funding programmes in {value} that a small business like mine ({my business}) could apply for. Adverts for tender services don't count",
+            "de": "einzelne offene Ausschreibungen oder Förderprogramme in {value} sind, auf die sich ein kleiner Betrieb wie meiner ({my business}) bewerben könnte. Werbung für Ausschreibungsdienste zählt nicht"
+          }
+        }
+      ]
+    },
+    {
+      "key": "chat",
+      "type": "place",
+      "question": {
+        "en": "Where should I tell you?",
+        "de": "Wo soll ich dir Bescheid geben?"
+      },
+      "fills": [
+        {
+          "brick": "b8",
+          "setting": "place"
+        }
+      ]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.every",
+        "config": {
+          "freq": "weekly",
+          "days": ["mon"],
+          "time": "07:00"
+        }
+      },
+      {
+        "id": "b2",
+        "type": "look.search",
+        "config": {
+          "query": "",
+          "count": 25,
+          "freshness": "any"
+        }
+      },
+      {
+        "id": "b3",
+        "type": "think.keep",
+        "config": {
+          "criteria": "",
+          "max": 8,
+          "sort": "best"
+        }
+      },
+      {
+        "id": "b4",
+        "type": "look.read_page",
+        "config": {
+          "source": "url",
+          "depth": "page"
+        }
+      },
+      {
+        "id": "b5",
+        "type": "think.extract",
+        "config": {
+          "fields": ["title", "date"],
+          "only_found": false
+        }
+      },
+      {
+        "id": "b6",
+        "type": "do.list",
+        "config": {
+          "list": {
+            "en": "Tenders",
+            "de": "Ausschreibungen"
+          },
+          "dedupe": "url",
+          "only_new": true
+        }
+      },
+      {
+        "id": "b7",
+        "type": "think.summarize",
+        "config": {
+          "length": "short",
+          "mode": "all",
+          "language": "auto"
+        }
+      },
+      {
+        "id": "b8",
+        "type": "do.chat",
+        "config": {
+          "mode": "one"
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 30,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.3
+    }
+  },
+  "required": {
+    "brain": true,
+    "places": ["discord", "slack", "teams", "telegram"]
+  }
+}

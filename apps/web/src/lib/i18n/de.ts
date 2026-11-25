@@ -321,6 +321,8 @@ export const de: Record<Key, string> = {
 	'tpl.add': 'Diesen Helfer hinzufügen',
 	'tpl.addHint':
 		'Fügt den Helfer zu deinen Helfern hinzu. Mach dann auf seiner Seite ein Foto oder maile eins an seine Adresse.',
+	'tpl.askHint':
+		'Fügt den Helfer zu deinen Helfern hinzu. Er stellt dir seine Frage bei jedem Lauf, zum ersten Mal gleich jetzt.',
 	'tpl.failed': 'Das hat nicht geklappt: {error}',
 	'helpers.runNow': 'Jetzt ausführen',
 	'helpers.photo': 'Foto',

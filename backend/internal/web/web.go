@@ -6,6 +6,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -84,6 +86,10 @@ type Page struct {
 	// (footers often hold them, and the main text drops footers).
 	Emails []string
 	Phones []string
+	// Price is the price a shop page states in its page data (schema.org
+	// Product/Offer, or product:price meta tags), e.g. "99.00 EUR". The
+	// main text often leaves the price out.
+	Price string
 }
 
 type Link struct{ URL, Text string }
@@ -365,6 +371,7 @@ func parse(body []byte, base *url.URL) (Page, error) {
 	}
 	p := Page{URL: base.String()}
 	seenLink := map[string]bool{}
+	var metaPrice, metaCurrency string
 	var walk func(*html.Node)
 	walk = func(n *html.Node) {
 		if n.Type == html.ElementNode {
@@ -394,7 +401,26 @@ func parse(body []byte, base *url.URL) (Page, error) {
 						}
 					}
 				}
-			case "script", "style", "noscript", "template", "svg":
+			case "meta":
+				switch key := attr(n, "property") + attr(n, "itemprop"); key {
+				case "product:price:amount", "og:price:amount", "price":
+					if metaPrice == "" {
+						metaPrice = cleanLine(attr(n, "content"))
+					}
+				case "product:price:currency", "og:price:currency", "priceCurrency":
+					if metaCurrency == "" {
+						metaCurrency = cleanLine(attr(n, "content"))
+					}
+				}
+			case "script":
+				if p.Price == "" && strings.EqualFold(strings.TrimSpace(attr(n, "type")), "application/ld+json") {
+					var v any
+					if json.Unmarshal([]byte(textOf(n)), &v) == nil {
+						p.Price = offerPrice(v, 0)
+					}
+				}
+				return
+			case "style", "noscript", "template", "svg":
 				return
 			}
 		}
@@ -403,6 +429,9 @@ func parse(body []byte, base *url.URL) (Page, error) {
 		}
 	}
 	walk(doc)
+	if p.Price == "" && priceLike.MatchString(metaPrice) {
+		p.Price = strings.TrimSpace(metaPrice + " " + metaCurrency)
+	}
 
 	art, err := readability.FromDocument(doc, base)
 	if err == nil && art.Node != nil {
@@ -423,6 +452,47 @@ func parse(body []byte, base *url.URL) (Page, error) {
 		}
 	}
 	return p, nil
+}
+
+// priceLike is a plain amount, as page data states it: 99, 99.00, 1.299,00.
+var priceLike = regexp.MustCompile(`^[0-9][0-9.,]{0,14}$`)
+
+// offerPrice finds the first price in schema.org data (an Offer's price,
+// or an AggregateOffer's lowPrice) with its currency: "99.00 EUR".
+func offerPrice(v any, depth int) string {
+	if depth > 8 {
+		return ""
+	}
+	switch v := v.(type) {
+	case []any:
+		for _, x := range v {
+			if p := offerPrice(x, depth+1); p != "" {
+				return p
+			}
+		}
+	case map[string]any:
+		for _, key := range []string{"price", "lowPrice"} {
+			var amount string
+			switch x := v[key].(type) {
+			case string:
+				amount = strings.TrimSpace(x)
+			case float64:
+				amount = strconv.FormatFloat(x, 'f', -1, 64)
+			}
+			if priceLike.MatchString(amount) {
+				cur, _ := v["priceCurrency"].(string)
+				return strings.TrimSpace(amount + " " + cleanLine(cur))
+			}
+		}
+		// Offers first: a Product's own fields come before nested things
+		// like related products.
+		for _, key := range []string{"offers", "mainEntity", "@graph"} {
+			if p := offerPrice(v[key], depth+1); p != "" {
+				return p
+			}
+		}
+	}
+	return ""
 }
 
 func attr(n *html.Node, key string) string {

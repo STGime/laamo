@@ -50,6 +50,10 @@ func server(t *testing.T, robots string) *httptest.Server {
 		w.Header().Set("Content-Type", "text/html; charset=iso-8859-1")
 		_, _ = w.Write(latin1(impressum))
 	})
+	mux.HandleFunc("/shop/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(shopPages[strings.TrimPrefix(r.URL.Path, "/shop/")]))
+	})
 	mux.HandleFunc("/old", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/", http.StatusMovedPermanently) })
 	mux.HandleFunc("/menu.pdf", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/pdf")
@@ -180,6 +184,32 @@ func TestNormalize(t *testing.T) {
 	for _, bad := range []string{"javascript:alert(1)", "mailto:a@b.c", "https://user:pw@x.example/"} {
 		if _, err := web.Normalize(bad); err == nil {
 			t.Errorf("Normalize(%q) accepted", bad)
+		}
+	}
+}
+
+// Shop pages state the price in their page data, where the main text
+// often leaves it out.
+var shopPages = map[string]string{
+	"ld": `<html><head><title>Mikrofon</title><script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[{"@type":"BreadcrumbList"},
+{"@type":"Product","name":"Mikrofon","offers":{"@type":"Offer","price":"99.00","priceCurrency":"EUR"}}]}
+</script></head><body><article><p>Ein robustes Mikrofon für die Bühne, seit Jahrzehnten der Standard für Gesang auf kleinen und großen Bühnen in aller Welt, und kaum kaputtzukriegen.</p></article></body></html>`,
+	"number": `<html><head><script type="application/ld+json">[{"@type":"Product","offers":[{"price":12.5,"priceCurrency":"EUR"}]}]</script></head><body><p>Kette</p></body></html>`,
+	"meta":   `<html><head><meta property="product:price:amount" content="1.299,00"><meta property="product:price:currency" content="EUR"></head><body><p>Rad</p></body></html>`,
+	"none":   `<html><head><script type="application/ld+json">{"@type":"Product","offers":{"price":"on request"}}</script></head><body><p>Rad</p></body></html>`,
+}
+
+func TestReadPagePrice(t *testing.T) {
+	s := server(t, "")
+	f := &web.Fetcher{AllowPrivate: true}
+	for page, want := range map[string]string{"ld": "99.00 EUR", "number": "12.5 EUR", "meta": "1.299,00 EUR", "none": ""} {
+		p, err := f.Read(context.Background(), s.URL+"/shop/"+page)
+		if err != nil {
+			t.Fatalf("%s: %v", page, err)
+		}
+		if p.Price != want {
+			t.Errorf("%s: price %q, want %q", page, p.Price, want)
 		}
 	}
 }

@@ -92,3 +92,15 @@ func TestReadPastedText(t *testing.T) {
 		t.Fatalf("cards %+v", out)
 	}
 }
+
+// Pasted links are one card each, so Read the page can open every one.
+func TestReadPastedLinks(t *testing.T) {
+	out, err := brickstest.Contract(t, "look.my_stuff", look.MyStuff{}, nil, nil,
+		map[string]any{"source": "links", "links": "https://shop.example/a\nhttps://shop.example/b, and https://shop.example/a"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 2 || out[0].Text("url") != "https://shop.example/a" || out[1].Source != "https://shop.example/b" || out[0].Trust["url"] != engine.TrustUser {
+		t.Fatalf("cards %+v", out)
+	}
+}

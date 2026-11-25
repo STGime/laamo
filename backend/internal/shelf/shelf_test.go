@@ -129,3 +129,47 @@ func TestQuestionHint(t *testing.T) {
 	}
 	t.Fatal("no offer question")
 }
+
+// An answer can go into a longer setting: {value} is the answer, and one
+// answer can fill several settings.
+func TestInstallFillText(t *testing.T) {
+	ws := store.Workspace{ID: "w1", Locale: "de", Profile: map[string]any{"business": "Malerbetrieb"}}
+	stack, _, err := shelf.Install(cat, tpl(t, "tender-finder"), ws, map[string]string{"region": "Sachsen", "chat": shelf.FeedOnly}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q, _ := stack.Bricks[1].Config["query"].(string); q != "öffentliche Ausschreibung {my business} Sachsen" {
+		t.Fatalf("query %q", q)
+	}
+	if c, _ := stack.Bricks[2].Config["criteria"].(string); !strings.Contains(c, "in Sachsen sind") {
+		t.Fatalf("criteria %q", c)
+	}
+}
+
+// Every template installs with plain answers.
+func TestInstallAll(t *testing.T) {
+	templates, err := catalog.Templates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tp := range templates {
+		answers := map[string]string{}
+		for _, q := range tp.SetupQuestions {
+			switch {
+			case q.Profile != "":
+				answers[q.Profile] = "Bäckerei"
+			case q.Type == "place":
+				answers[q.Key] = shelf.FeedOnly
+			case q.Key == "pages":
+				answers[q.Key] = "https://shop.example/a https://shop.example/b"
+			default:
+				answers[q.Key] = "Leipzig"
+			}
+		}
+		for _, lang := range []string{"en", "de"} {
+			if _, _, err := shelf.Install(cat, tp, store.Workspace{ID: "w1", Locale: lang}, answers, nil, nil); err != nil {
+				t.Errorf("%s (%s): %v", tp.Slug, lang, err)
+			}
+		}
+	}
+}

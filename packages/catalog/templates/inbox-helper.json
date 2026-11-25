@@ -1,0 +1,98 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "inbox-helper",
+  "name": {
+    "en": "Inbox Helper",
+    "de": "Postfach-Helfer"
+  },
+  "promise": {
+    "en": "Forward emails to its address. It tells you about the urgent ones in one line, in your chat.",
+    "de": "Leite E-Mails an seine Adresse weiter. Es meldet dir die dringenden in einer Zeile in deinem Chat."
+  },
+  "category": "sort_emails",
+  "avatar": "📥",
+  "sort_order": 35,
+  "setup_questions": [
+    {
+      "key": "urgent",
+      "type": "text",
+      "question": {
+        "en": "Which emails count as urgent?",
+        "de": "Welche E-Mails sind dringend?"
+      },
+      "placeholder": {
+        "en": "from customers, about orders, invoices or complaints",
+        "de": "von Kunden, zu Bestellungen, Rechnungen oder Beschwerden"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "criteria",
+          "text": {
+            "en": "are urgent for me. Urgent means: {value}",
+            "de": "für mich dringend sind. Dringend heißt: {value}"
+          }
+        }
+      ]
+    },
+    {
+      "key": "chat",
+      "type": "place",
+      "question": {
+        "en": "Where should I tell you?",
+        "de": "Wo soll ich dir Bescheid geben?"
+      },
+      "fills": [
+        {
+          "brick": "b4",
+          "setting": "place"
+        }
+      ]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.email",
+        "config": {}
+      },
+      {
+        "id": "b2",
+        "type": "think.keep",
+        "config": {
+          "criteria": "",
+          "max": 1,
+          "sort": "original"
+        }
+      },
+      {
+        "id": "b3",
+        "type": "think.summarize",
+        "config": {
+          "length": "line",
+          "mode": "each",
+          "language": "auto"
+        }
+      },
+      {
+        "id": "b4",
+        "type": "do.chat",
+        "config": {
+          "mode": "one"
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 5,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.05
+    }
+  },
+  "required": {
+    "brain": true,
+    "places": ["discord", "slack", "teams", "telegram"]
+  }
+}
