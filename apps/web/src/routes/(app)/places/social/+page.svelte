@@ -73,6 +73,88 @@
 		} else problem = 'social.err.down';
 	}
 
+	// Channels: the social accounts helpers can post to.
+	type Channels = Schemas['SocialChannels'];
+	type Platform = Schemas['SocialPlatform'];
+	let channels = $state<Channels | null>(null);
+	let channelsFailed = $state(false);
+	let picking = $state(false);
+	let form = $state<Platform | null>(null); // Bluesky: handle and app password
+	let handle = $state('');
+	let appPassword = $state('');
+	let connectProblem = $state<Key | null>(null);
+	let removing = $state<Schemas['SocialChannel'] | null>(null);
+	let removeOpen = $state(false);
+
+	function loadChannels() {
+		const ws = session.workspace;
+		if (!ws || social?.state !== 'on') return;
+		api
+			.GET('/workspaces/{workspaceId}/social/channels', {
+				params: { path: { workspaceId: ws.id } }
+			})
+			.then(({ data }) => {
+				channels = data ?? null;
+				channelsFailed = !data;
+			});
+	}
+	$effect(loadChannels);
+	const platformName = (id: string) =>
+		channels?.platforms.find((p) => p.id === id)?.name ?? id.charAt(0).toUpperCase() + id.slice(1);
+
+	const connectErrors: Record<string, Key> = {
+		posta_trial_expired: 'social.err.trial',
+		posta_plan_inactive: 'social.err.paused',
+		posta_channel_limit: 'social.err.limit',
+		posta_login_failed: 'social.err.login'
+	};
+	async function connect(p: Platform, creds?: { identifier: string; app_password: string }) {
+		const ws = session.workspace;
+		if (!ws || busy) return;
+		if (p.form && !creds) {
+			form = p;
+			connectProblem = null;
+			return;
+		}
+		busy = true;
+		connectProblem = null;
+		const { data, error } = await api.POST('/workspaces/{workspaceId}/social/channels', {
+			params: { path: { workspaceId: ws.id } },
+			body: { platform: p.id, ...creds }
+		});
+		busy = false;
+		if (!data) {
+			const code = (error as { code?: string } | undefined)?.code ?? '';
+			connectProblem = connectErrors[code] ?? 'social.err.down';
+			return;
+		}
+		if (data.authorization_url) {
+			// Off to the network's own consent page; it sends the browser back
+			// to /places/social/connected.
+			location.href = data.authorization_url;
+			return;
+		}
+		picking = false;
+		form = null;
+		handle = appPassword = '';
+		load();
+		loadChannels();
+	}
+	async function disconnect() {
+		const ws = session.workspace;
+		if (!ws || !removing || busy) return;
+		busy = true;
+		const { response } = await api.DELETE('/workspaces/{workspaceId}/social/channels/{channelId}', {
+			params: { path: { workspaceId: ws.id, channelId: removing.id } }
+		});
+		busy = false;
+		removeOpen = false;
+		if (response.ok) {
+			load();
+			loadChannels();
+		} else problem = 'social.err.down';
+	}
+
 	const day = (iso: string) =>
 		new Date(iso).toLocaleDateString(i18n.lang, { day: 'numeric', month: 'long' });
 	// What the plan line says for an account Laamo made.
@@ -120,6 +202,51 @@
 			</div>
 		{/if}
 	</dl>
+	{#if channels}
+		<h2 class="sub">{t('social.accounts')}</h2>
+		{#if channels.channels.length}
+			<ul class="list">
+				{#each channels.channels as c (c.id)}
+					<li>
+						<span class="text">
+							<strong>{c.name}</strong>
+							<span>{platformName(c.platform)}</span>
+							{#if !c.ok}<span class="bad">{t('social.reconnect')}</span>{/if}
+						</span>
+						{#if owner && channels.manage}
+							<span class="acts">
+								{#if !c.ok}
+									{@const p = channels.platforms.find((x) => x.id === c.platform)}
+									{#if p}<button class="btn" disabled={busy} onclick={() => connect(p)}
+											>{t('social.connectAgain')}</button
+										>{/if}
+								{/if}
+								<button
+									class="remove"
+									aria-label={t('social.disconnect', { name: c.name })}
+									onclick={() => ((removing = c), (removeOpen = true))}>✕</button
+								>
+							</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="note">{t(channels.manage ? 'social.noneYet' : 'social.noneOwn')}</p>
+		{/if}
+		{#if owner && channels.manage && channels.platforms.length}
+			<div class="cta">
+				<button
+					type="button"
+					class="btn primary wide"
+					onclick={() => ((picking = true), (form = null), (connectProblem = null))}
+					>{t('social.connect')}</button
+				>
+			</div>
+		{/if}
+	{:else if channelsFailed}
+		<p class="note">{t('social.channelsFailed')}</p>
+	{/if}
 	{#if social.source === 'pasted'}
 		<p class="note">{t('social.ownHint')}</p>
 	{:else if social.plan && !social.plan.active}
@@ -203,6 +330,74 @@
 		>
 	</form>
 {/if}
+
+<BottomSheet
+	bind:open={picking}
+	title={form ? t('social.form.title', { name: form.name }) : t('social.connect')}
+>
+	{#if form}
+		{@const p = form}
+		<form
+			class="form inset"
+			onsubmit={(e) => {
+				e.preventDefault();
+				connect(p, { identifier: handle, app_password: appPassword });
+			}}
+		>
+			<ol class="steps">
+				<li>{t('social.form.1', { name: p.name })}</li>
+				<li>{t('social.form.2')}</li>
+			</ol>
+			<label for="sc-handle">{t('social.form.handle')}</label>
+			<input
+				id="sc-handle"
+				bind:value={handle}
+				autocomplete="off"
+				autocapitalize="none"
+				spellcheck="false"
+				placeholder="anna.bsky.social"
+				maxlength="200"
+			/>
+			<label for="sc-pass">{t('social.form.password')}</label>
+			<input
+				id="sc-pass"
+				type="password"
+				bind:value={appPassword}
+				autocomplete="off"
+				placeholder="xxxx-xxxx-xxxx-xxxx"
+				maxlength="200"
+			/>
+			{#if connectProblem}<p class="bad" role="alert">{t(connectProblem)}</p>{/if}
+			<button class="btn primary wide" disabled={busy || !handle.trim() || !appPassword.trim()}
+				>{t('social.form.connect')}</button
+			>
+		</form>
+	{:else}
+		<p>{t('social.pick')}</p>
+		<ul class="pick">
+			{#each channels?.platforms ?? [] as p (p.id)}
+				<li>
+					<button type="button" class="btn wide" disabled={busy} onclick={() => connect(p)}
+						>{p.name}{p.images === false ? ` · ${t('social.videoOnly')}` : ''}</button
+					>
+				</li>
+			{/each}
+		</ul>
+		{#if connectProblem}<p class="bad" role="alert">{t(connectProblem)}</p>{/if}
+	{/if}
+</BottomSheet>
+
+<BottomSheet bind:open={removeOpen} title={t('social.disconnect', { name: removing?.name ?? '' })}>
+	<p>{t('social.disconnectBody')}</p>
+	{#snippet footer()}
+		<div class="confirm">
+			<button class="btn" onclick={() => (removeOpen = false)}>{t('helper.cancel')}</button>
+			<button class="btn danger-solid" disabled={busy} onclick={disconnect}
+				>{t('social.disconnectDo')}</button
+			>
+		</div>
+	{/snippet}
+</BottomSheet>
 
 <BottomSheet bind:open={confirmOff} title={t('social.offTitle')}>
 	<p>{t(social?.source === 'pasted' ? 'social.offBodyOwn' : 'social.offBody')}</p>
@@ -315,6 +510,63 @@
 	}
 	.cta {
 		padding: var(--space-4) var(--gutter);
+	}
+	.sub {
+		margin: 0;
+		padding: var(--space-5) var(--gutter) var(--space-2);
+		font-size: var(--text-lg);
+	}
+	.list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		border-top: var(--border);
+	}
+	.list li {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		min-height: 64px;
+		padding: var(--space-3) var(--gutter);
+		border-bottom: var(--border);
+	}
+	.text {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.text span {
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.text .bad {
+		color: var(--danger);
+	}
+	.acts {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+	.remove {
+		width: var(--tap-min);
+		height: var(--tap-min);
+		border: 0;
+		background: none;
+		color: var(--muted);
+		font-size: var(--text-lg);
+		cursor: pointer;
+	}
+	.pick {
+		list-style: none;
+		margin: var(--space-3) 0 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+	.form.inset {
+		padding: 0;
 	}
 	.confirm {
 		display: grid;

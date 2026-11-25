@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/STGime/laamo/backend/internal/api"
+	"github.com/STGime/laamo/backend/internal/config"
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/posta"
 	"github.com/STGime/laamo/backend/internal/posta/postatest"
@@ -34,7 +35,8 @@ func newSocialEnv(t *testing.T) socialEnv {
 		t.Fatal(err)
 	}
 	fake, svc := postatest.New(t)
-	srv := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna, "ben": ben}, Keys: keys, Posta: svc}).Handler())
+	srv := httptest.NewServer(api.NewServer(api.Deps{Config: config.Config{SiteURL: postatest.Origin},
+		Store: st, Auth: fakeAuth{"anna": anna, "ben": ben}, Keys: keys, Posta: svc}).Handler())
 	t.Cleanup(srv.Close)
 	ws := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Bäckerei", Locale: "de", Timezone: "Europe/Berlin"})
 	ws2 := st.PutWorkspace(store.Workspace{UserID: anna.ID, Name: "Café", Locale: "de", Timezone: "Europe/Berlin"})
@@ -181,5 +183,115 @@ func TestSocialOffWithoutPartnerKey(t *testing.T) {
 	}
 	if r := must(c.EnableSocialWithResponse(ctx, wsID(ws.ID), api.EnableSocialJSONRequestBody{AcceptTerms: yes()})); r.StatusCode() != 503 {
 		t.Fatalf("enable: %d", r.StatusCode())
+	}
+}
+
+func TestSocialChannels(t *testing.T) {
+	e := newSocialEnv(t)
+	ctx := context.Background()
+	asAnna, asBen := e.client(t, "anna"), e.client(t, "ben")
+	id := wsID(e.ws.ID)
+	connect := func(c *api.ClientWithResponses, body api.ConnectSocialChannelJSONRequestBody) *api.ConnectSocialChannelResponse {
+		return must(c.ConnectSocialChannelWithResponse(ctx, id, body))
+	}
+
+	// Not on yet: nothing to list.
+	if r := must(asAnna.ListSocialChannelsWithResponse(ctx, id)); r.StatusCode() != 404 {
+		t.Fatalf("before: %d", r.StatusCode())
+	}
+	must(asAnna.EnableSocialWithResponse(ctx, id, api.EnableSocialJSONRequestBody{AcceptTerms: yes()}))
+
+	// The picker is Posta's own list of networks that are switched on.
+	l := must(asAnna.ListSocialChannelsWithResponse(ctx, id))
+	if l.StatusCode() != 200 || len(l.JSON200.Channels) != 0 || !l.JSON200.Manage {
+		t.Fatalf("list: %d %s", l.StatusCode(), l.Body)
+	}
+	var names []string
+	for _, p := range l.JSON200.Platforms {
+		names = append(names, p.Id)
+		if p.Form != (p.Id == "bluesky") {
+			t.Fatalf("form: %+v", p)
+		}
+	}
+	if strings.Join(names, ",") != "instagram,youtube,bluesky" {
+		t.Fatalf("platforms: %v", names)
+	}
+
+	// A redirect network: the browser is sent there and comes back to us.
+	r := connect(asAnna, api.ConnectSocialChannelJSONRequestBody{Platform: "instagram"})
+	if r.StatusCode() != 200 || r.JSON200.AuthorizationUrl == nil || !strings.HasPrefix(*r.JSON200.AuthorizationUrl, "https://instagram.example/") {
+		t.Fatalf("connect: %d %s", r.StatusCode(), r.Body)
+	}
+	if r := connect(asBen, api.ConnectSocialChannelJSONRequestBody{Platform: "instagram"}); r.StatusCode() != 403 || r.JSON403.Code != api.ErrorCodeForbidden {
+		t.Fatalf("member connects: %d %s", r.StatusCode(), r.Body)
+	}
+	for _, off := range []string{"x", "myspace"} { // switched off at Posta, or unknown
+		if r := connect(asAnna, api.ConnectSocialChannelJSONRequestBody{Platform: off}); r.StatusCode() != 400 {
+			t.Fatalf("%s: %d %s", off, r.StatusCode(), r.Body)
+		}
+	}
+
+	// Bluesky: a handle and an app password, connected at once.
+	if r := connect(asAnna, api.ConnectSocialChannelJSONRequestBody{Platform: "bluesky"}); r.StatusCode() != 400 {
+		t.Fatalf("bluesky without a password: %d", r.StatusCode())
+	}
+	if r := connect(asAnna, api.ConnectSocialChannelJSONRequestBody{Platform: "bluesky", Identifier: new("anna.bsky.social"), AppPassword: new("wrong")}); r.StatusCode() != 400 || r.JSON400.Code != api.ErrorCodePostaLoginFailed {
+		t.Fatalf("bluesky wrong password: %d %s", r.StatusCode(), r.Body)
+	}
+	if r := connect(asAnna, api.ConnectSocialChannelJSONRequestBody{Platform: "bluesky", Identifier: new("@anna.bsky.social "), AppPassword: new(postatest.BlueskyPassword)}); r.StatusCode() != 200 || r.JSON200.AuthorizationUrl != nil {
+		t.Fatalf("bluesky: %d %s", r.StatusCode(), r.Body)
+	}
+	// Instagram came back connected; LinkedIn lost its access meanwhile.
+	e.fake.SetChannels(anna.ID,
+		posta.Channel{ID: "7", Platform: "instagram", Username: "annas_bakery", IsActive: true},
+		posta.Channel{ID: "8", Platform: "linkedin", Username: "anna", DisplayName: "Anna Krause", IsActive: false, ConnectionError: "token expired"})
+	l = must(asBen.ListSocialChannelsWithResponse(ctx, id)) // members may look
+	cs := l.JSON200.Channels
+	if len(cs) != 2 || cs[0].Id != "7" || cs[0].Name != "annas_bakery" || !cs[0].Ok || cs[1].Name != "Anna Krause" || cs[1].Ok {
+		t.Fatalf("channels: %s", l.Body)
+	}
+
+	if r := must(asBen.DisconnectSocialChannelWithResponse(ctx, id, "7")); r.StatusCode() != 403 {
+		t.Fatalf("member disconnects: %d", r.StatusCode())
+	}
+	for range 2 { // the second time it is gone already: fine
+		if r := must(asAnna.DisconnectSocialChannelWithResponse(ctx, id, "7")); r.StatusCode() != 204 {
+			t.Fatalf("disconnect: %d %s", r.StatusCode(), r.Body)
+		}
+	}
+	if l := must(asAnna.ListSocialChannelsWithResponse(ctx, id)); len(l.JSON200.Channels) != 1 {
+		t.Fatalf("after disconnect: %s", l.Body)
+	}
+
+	// The free days are over: connecting says so, in a code the app knows.
+	e.fake.EndTrial(anna.ID)
+	if r := connect(asAnna, api.ConnectSocialChannelJSONRequestBody{Platform: "instagram"}); r.StatusCode() != 403 || r.JSON403.Code != api.ErrorCodePostaTrialExpired {
+		t.Fatalf("trial over: %d %s", r.StatusCode(), r.Body)
+	}
+}
+
+// A person's own Posta account: its channels are listed, and managed at Posta.
+func TestSocialChannelsOfYourOwnAccount(t *testing.T) {
+	e := newSocialEnv(t)
+	ctx := context.Background()
+	asAnna := e.client(t, "anna")
+	id := wsID(e.ws.ID)
+	key := e.fake.OwnAccount("anna+1@example.com",
+		posta.Channel{ID: "41", Platform: "instagram", Username: "annas_bakery", IsActive: true},
+		posta.Channel{ID: "42", Platform: "bluesky", Username: "anna.bsky.social", IsActive: true})
+	must(asAnna.EnableSocialWithResponse(ctx, id, api.EnableSocialJSONRequestBody{ApiKey: &key}))
+
+	l := must(asAnna.ListSocialChannelsWithResponse(ctx, id))
+	if l.StatusCode() != 200 || len(l.JSON200.Channels) != 2 || l.JSON200.Manage || len(l.JSON200.Platforms) != 0 || l.JSON200.Channels[0].Id != "41" {
+		t.Fatalf("list: %d %s", l.StatusCode(), l.Body)
+	}
+	if r := must(asAnna.ConnectSocialChannelWithResponse(ctx, id, api.ConnectSocialChannelJSONRequestBody{Platform: "instagram"})); r.StatusCode() != 400 {
+		t.Fatalf("connect: %d %s", r.StatusCode(), r.Body)
+	}
+	if r := must(asAnna.DisconnectSocialChannelWithResponse(ctx, id, "41")); r.StatusCode() != 400 {
+		t.Fatalf("disconnect: %d %s", r.StatusCode(), r.Body)
+	}
+	if l := must(asAnna.ListSocialChannelsWithResponse(ctx, id)); len(l.JSON200.Channels) != 2 {
+		t.Fatal("a channel of her own account was removed")
 	}
 }

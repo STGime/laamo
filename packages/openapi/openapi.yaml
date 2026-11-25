@@ -225,6 +225,100 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /workspaces/{workspaceId}/social/channels:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: listSocialChannels
+      summary: The social accounts helpers can post to, and the networks you can connect
+      tags: [social]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialChannels'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: connectSocialChannel
+      summary: Connect a social account (owner only)
+      description: >-
+        For most networks the answer is an address at that network: send the
+        browser there, and it comes back to /places/social/connected. Bluesky
+        takes a handle and an app password instead and connects at once.
+        Not for your own Posta account: add channels in Posta.
+      tags: [social]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform]
+              properties:
+                platform:
+                  type: string
+                  maxLength: 40
+                identifier:
+                  type: string
+                  maxLength: 200
+                  description: Bluesky only, your handle (anna.bsky.social)
+                app_password:
+                  type: string
+                  maxLength: 200
+                  description: Bluesky only, an app password from Bluesky's settings
+      responses:
+        '200':
+          description: Go to `authorization_url` (left out for Bluesky, which is connected now)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authorization_url:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: >-
+            Not the owner (forbidden), or the plan doesn't allow it:
+            posta_trial_expired, posta_plan_inactive, posta_channel_limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /workspaces/{workspaceId}/social/channels/{channelId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          maxLength: 100
+    delete:
+      operationId: disconnectSocialChannel
+      summary: Disconnect a social account (owner only; not for your own Posta account)
+      tags: [social]
+      responses:
+        '204':
+          description: Disconnected (also when it wasn't connected)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /workspaces/{workspaceId}/places:
     parameters:
       - $ref: '#/components/parameters/WorkspaceId'
@@ -1477,6 +1571,54 @@ components:
           description: How many social accounts are connected
         plan:
           $ref: '#/components/schemas/SocialPlan'
+    SocialChannels:
+      type: object
+      required: [channels, platforms, manage]
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/SocialChannel'
+        platforms:
+          type: array
+          description: The networks that can be connected right now
+          items:
+            $ref: '#/components/schemas/SocialPlatform'
+        manage:
+          type: boolean
+          description: >-
+            Whether channels are connected and removed here. False for your
+            own Posta account: do that in Posta.
+    SocialChannel:
+      type: object
+      required: [id, platform, name, ok]
+      properties:
+        id:
+          type: string
+        platform:
+          type: string
+          description: The network's id, e.g. instagram
+        name:
+          type: string
+          description: The account's name there
+        ok:
+          type: boolean
+          description: False when the network withdrew access; connect it again
+    SocialPlatform:
+      type: object
+      required: [id, name, form]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        form:
+          type: boolean
+          description: True when it takes a handle and app password (Bluesky) instead of a redirect
+        images:
+          type: boolean
+        video:
+          type: boolean
     SocialPlan:
       type: object
       description: Only for accounts Laamo created; your own Posta account's plan is Posta's business
@@ -1667,7 +1809,7 @@ components:
         code:
           type: string
           description: Stable machine code
-          enum: [bad_request, unauthorized, forbidden, not_invited, not_found, conflict, auth_unavailable, rate_limited, unavailable, webhook_invalid, webhook_gone, webhook_rejected, webhook_unreachable, posta_account_exists, posta_key_invalid, posta_elsewhere, internal]
+          enum: [bad_request, unauthorized, forbidden, not_invited, not_found, conflict, auth_unavailable, rate_limited, unavailable, webhook_invalid, webhook_gone, webhook_rejected, webhook_unreachable, posta_account_exists, posta_key_invalid, posta_elsewhere, posta_trial_expired, posta_plan_inactive, posta_channel_limit, posta_login_failed, internal]
     User:
       type: object
       required: [id, email]

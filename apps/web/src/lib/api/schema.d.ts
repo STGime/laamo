@@ -140,6 +140,49 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/workspaces/{workspaceId}/social/channels': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		/** The social accounts helpers can post to, and the networks you can connect */
+		get: operations['listSocialChannels'];
+		put?: never;
+		/**
+		 * Connect a social account (owner only)
+		 * @description For most networks the answer is an address at that network: send the browser there, and it comes back to /places/social/connected. Bluesky takes a handle and an app password instead and connects at once. Not for your own Posta account: add channels in Posta.
+		 */
+		post: operations['connectSocialChannel'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/workspaces/{workspaceId}/social/channels/{channelId}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+				channelId: string;
+			};
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Disconnect a social account (owner only; not for your own Posta account) */
+		delete: operations['disconnectSocialChannel'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/workspaces/{workspaceId}/places': {
 		parameters: {
 			query?: never;
@@ -842,6 +885,30 @@ export interface components {
 			channels?: number;
 			plan?: components['schemas']['SocialPlan'];
 		};
+		SocialChannels: {
+			channels: components['schemas']['SocialChannel'][];
+			/** @description The networks that can be connected right now */
+			platforms: components['schemas']['SocialPlatform'][];
+			/** @description Whether channels are connected and removed here. False for your own Posta account: do that in Posta. */
+			manage: boolean;
+		};
+		SocialChannel: {
+			id: string;
+			/** @description The network's id, e.g. instagram */
+			platform: string;
+			/** @description The account's name there */
+			name: string;
+			/** @description False when the network withdrew access; connect it again */
+			ok: boolean;
+		};
+		SocialPlatform: {
+			id: string;
+			name: string;
+			/** @description True when it takes a handle and app password (Bluesky) instead of a redirect */
+			form: boolean;
+			images?: boolean;
+			video?: boolean;
+		};
 		/** @description Only for accounts Laamo created; your own Posta account's plan is Posta's business */
 		SocialPlan: {
 			/** @description trial, starter, professional or none */
@@ -959,6 +1026,10 @@ export interface components {
 				| 'posta_account_exists'
 				| 'posta_key_invalid'
 				| 'posta_elsewhere'
+				| 'posta_trial_expired'
+				| 'posta_plan_inactive'
+				| 'posta_channel_limit'
+				| 'posta_login_failed'
 				| 'internal';
 		};
 		User: {
@@ -1641,6 +1712,101 @@ export interface operations {
 				};
 				content?: never;
 			};
+			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+			503: components['responses']['Unavailable'];
+		};
+	};
+	listSocialChannels: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SocialChannels'];
+				};
+			};
+			404: components['responses']['NotFound'];
+			503: components['responses']['Unavailable'];
+		};
+	};
+	connectSocialChannel: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': {
+					platform: string;
+					/** @description Bluesky only, your handle (anna.bsky.social) */
+					identifier?: string;
+					/** @description Bluesky only, an app password from Bluesky's settings */
+					app_password?: string;
+				};
+			};
+		};
+		responses: {
+			/** @description Go to `authorization_url` (left out for Bluesky, which is connected now) */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': {
+						authorization_url?: string;
+					};
+				};
+			};
+			400: components['responses']['BadRequest'];
+			/** @description Not the owner (forbidden), or the plan doesn't allow it: posta_trial_expired, posta_plan_inactive, posta_channel_limit */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Error'];
+				};
+			};
+			404: components['responses']['NotFound'];
+			503: components['responses']['Unavailable'];
+		};
+	};
+	disconnectSocialChannel: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+				channelId: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Disconnected (also when it wasn't connected) */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			400: components['responses']['BadRequest'];
 			403: components['responses']['Forbidden'];
 			404: components['responses']['NotFound'];
 			503: components['responses']['Unavailable'];
