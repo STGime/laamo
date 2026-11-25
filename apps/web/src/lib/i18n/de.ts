@@ -513,5 +513,60 @@ export const de: Record<Key, string> = {
 	'push.nudge.title': 'Lass deine Helfer sich melden',
 	'push.nudge.body':
 		'Bekomm eine Mitteilung, wenn ein Helfer etwas gefunden hat oder dein OK braucht. Du musst nicht ständig nachsehen.',
+	'social.title': 'Social Media',
+	'social.lead':
+		'Lass einen Helfer auf Instagram, Facebook, LinkedIn und deinen anderen Konten posten.',
+	'social.entry': 'Social Media',
+	'social.unavailable': 'Auf Social Media posten geht hier noch nicht.',
+	'social.elsewhere':
+		'Social-Media-Posten ist in deinem Arbeitsbereich „{name}“ an. Es geht in einem Arbeitsbereich zur Zeit: Schalte es dort aus, um es hier zu nutzen.',
+	'social.ownerOnly':
+		'Nur wer diesen Arbeitsbereich besitzt, kann Social-Media-Posten einschalten.',
+	'social.point.1': '5 Tage kostenlos, ohne Karte.',
+	'social.point.2': 'Nichts wird ohne dein OK gepostet: Helfer zeigen dir jeden Post vorher.',
+	'social.point.3': 'Jederzeit ausschalten. Das löscht das Konto und alles darin.',
+	'social.consent.1':
+		'Das Posten auf Social Media läuft über Posta. Für {email} wird ein Posta-Konto angelegt. Ich akzeptiere die',
+	'social.consent.terms': 'Nutzungsbedingungen',
+	'social.consent.and': 'und die',
+	'social.consent.privacy': 'Datenschutzerklärung',
+	'social.consent.2':
+		' von Posta. Was ich auf Social Media poste, wird nicht unbedingt in der EU gespeichert, weil die sozialen Netzwerke selbst außerhalb der EU sitzen.',
+	'social.turnOn': 'Social-Media-Posten einschalten',
+	'social.turnOff': 'Ausschalten',
+	'social.haveOwn': 'Ich habe schon ein Posta-Konto',
+	'social.own.lead':
+		'Nutze dein eigenes Posta-Konto. Dein Tarif und deine Kanäle bleiben bei Posta.',
+	'social.own.1': 'Öffne in Posta die Einstellungen, dann „API Tokens“.',
+	'social.own.2': 'Erstelle ein Token und füge es hier ein.',
+	'social.own.key': 'Posta-API-Schlüssel',
+	'social.own.note': 'Der Schlüssel wird verschlüsselt gespeichert und nie wieder angezeigt.',
+	'social.own.connect': 'Mein Posta-Konto verbinden',
+	'social.own.back': 'Ich habe kein Posta-Konto',
+	'social.status': 'Social-Media-Posten',
+	'social.on': 'An',
+	'social.plan': 'Tarif',
+	'social.plan.trial': 'Noch {n} Tage kostenlos',
+	'social.plan.trial.one': 'Noch 1 Tag kostenlos',
+	'social.plan.trialOver': 'Deine 5 kostenlosen Tage sind vorbei',
+	'social.plan.paused': 'Pausiert',
+	'social.plan.until': 'Aktiv bis {when}',
+	'social.plan.on': 'Aktiv',
+	'social.channels': 'Verbundene Konten',
+	'social.of': 'von {n}',
+	'social.ownHint':
+		'Das ist dein eigenes Posta-Konto. Social-Media-Konten fügst du in Posta hinzu oder entfernst sie dort; auch dein Tarif liegt bei Posta.',
+	'social.pausedHint':
+		'Helfer können gerade nicht posten. Laamo hat noch keine bezahlten Tarife: Schreib uns, dann schalten wir es wieder frei.',
+	'social.offTitle': 'Social-Media-Posten ausschalten?',
+	'social.offBody':
+		'Das löscht dein Posta-Konto mit den verbundenen Social-Media-Konten und geplanten Posts. Schon veröffentlichte Posts bleiben in den Netzwerken. Die kostenlosen Tage beginnen nicht neu.',
+	'social.offBodyOwn':
+		'Laamo vergisst deinen Posta-API-Schlüssel. Dein Posta-Konto und alles darin bleiben, wie sie sind.',
+	'social.err.exists':
+		'Zu dieser E-Mail-Adresse gibt es schon ein Posta-Konto. Füge dessen API-Schlüssel ein, um es hier zu nutzen.',
+	'social.err.key':
+		'Posta kennt diesen Schlüssel nicht. Kopiere ihn noch mal aus Posta, Einstellungen, „API Tokens“.',
+	'social.err.down': 'Das hat nicht geklappt. Versuch es gleich noch mal.',
 	loading: 'Lädt…'
 };

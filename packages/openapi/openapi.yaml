@@ -21,6 +21,7 @@ tags:
   - name: places
   - name: lists
   - name: workspaces
+  - name: social
 paths:
   /healthz:
     get:
@@ -142,6 +143,88 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+  /workspaces/{workspaceId}/social:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      operationId: getSocial
+      summary: Whether posting to social media is on, and what the plan allows
+      description: >-
+        Posting to social media runs on Posta (getposta.app). Laamo creates a
+        Posta account for you when you switch it on, or uses your own Posta
+        API key. One Posta account per person, used in one workspace.
+      tags: [social]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPosting'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: enableSocial
+      summary: Switch on posting to social media (owner only)
+      description: >-
+        Without `api_key`, Laamo creates a Posta account for your email
+        address (5 days free): `accept_terms` must be true, which records
+        that you accepted the consent text. With `api_key`, your own Posta
+        account is used: its plan and channels stay with Posta.
+      tags: [social]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accept_terms:
+                  type: boolean
+                api_key:
+                  type: string
+                  maxLength: 300
+                  description: Your own Posta API key (Posta, Settings, API Tokens)
+      responses:
+        '200':
+          description: On
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPosting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            posta_account_exists: your email already has a Posta account,
+            send its API key instead. posta_elsewhere: it is on in another
+            of your workspaces.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    delete:
+      operationId: disableSocial
+      summary: Switch off posting to social media (owner only)
+      description: >-
+        An account Laamo created is deleted at Posta, with its channels and
+        posts. Your own Posta account is only disconnected.
+      tags: [social]
+      responses:
+        '204':
+          description: Off (also when it wasn't on)
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /workspaces/{workspaceId}/places:
     parameters:
       - $ref: '#/components/parameters/WorkspaceId'
@@ -1372,6 +1455,46 @@ components:
           type: boolean
         seconds:
           type: number
+    SocialPosting:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          description: >-
+            off; on; elsewhere (on in another of your workspaces);
+            unavailable (this server has no Posta partner key)
+          enum: [off, on, elsewhere, unavailable]
+        source:
+          type: string
+          description: issued = Laamo created the Posta account; pasted = your own Posta account
+          enum: [issued, pasted]
+        elsewhere:
+          type: string
+          description: The name of the workspace it is on in (state elsewhere)
+        channels:
+          type: integer
+          description: How many social accounts are connected
+        plan:
+          $ref: '#/components/schemas/SocialPlan'
+    SocialPlan:
+      type: object
+      description: Only for accounts Laamo created; your own Posta account's plan is Posta's business
+      required: [type, active]
+      properties:
+        type:
+          type: string
+          description: trial, starter, professional or none
+        active:
+          type: boolean
+        days_left:
+          type: integer
+        ends_at:
+          type: string
+          format: date-time
+        max_channels:
+          type: integer
+          description: Left out when there is no limit
     PlaceType:
       type: string
       enum: [discord, slack, teams, telegram, email, posta]
@@ -1544,7 +1667,7 @@ components:
         code:
           type: string
           description: Stable machine code
-          enum: [bad_request, unauthorized, forbidden, not_invited, not_found, conflict, auth_unavailable, rate_limited, unavailable, webhook_invalid, webhook_gone, webhook_rejected, webhook_unreachable, internal]
+          enum: [bad_request, unauthorized, forbidden, not_invited, not_found, conflict, auth_unavailable, rate_limited, unavailable, webhook_invalid, webhook_gone, webhook_rejected, webhook_unreachable, posta_account_exists, posta_key_invalid, posta_elsewhere, internal]
     User:
       type: object
       required: [id, email]

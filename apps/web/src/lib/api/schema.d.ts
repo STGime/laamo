@@ -110,6 +110,36 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/workspaces/{workspaceId}/social': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		/**
+		 * Whether posting to social media is on, and what the plan allows
+		 * @description Posting to social media runs on Posta (getposta.app). Laamo creates a Posta account for you when you switch it on, or uses your own Posta API key. One Posta account per person, used in one workspace.
+		 */
+		get: operations['getSocial'];
+		/**
+		 * Switch on posting to social media (owner only)
+		 * @description Without `api_key`, Laamo creates a Posta account for your email address (5 days free): `accept_terms` must be true, which records that you accepted the consent text. With `api_key`, your own Posta account is used: its plan and channels stay with Posta.
+		 */
+		put: operations['enableSocial'];
+		post?: never;
+		/**
+		 * Switch off posting to social media (owner only)
+		 * @description An account Laamo created is deleted at Posta, with its channels and posts. Your own Posta account is only disconnected.
+		 */
+		delete: operations['disableSocial'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/workspaces/{workspaceId}/places': {
 		parameters: {
 			query?: never;
@@ -795,6 +825,34 @@ export interface components {
 			cached: boolean;
 			seconds?: number;
 		};
+		SocialPosting: {
+			/**
+			 * @description off; on; elsewhere (on in another of your workspaces); unavailable (this server has no Posta partner key)
+			 * @enum {string}
+			 */
+			state: 'off' | 'on' | 'elsewhere' | 'unavailable';
+			/**
+			 * @description issued = Laamo created the Posta account; pasted = your own Posta account
+			 * @enum {string}
+			 */
+			source?: 'issued' | 'pasted';
+			/** @description The name of the workspace it is on in (state elsewhere) */
+			elsewhere?: string;
+			/** @description How many social accounts are connected */
+			channels?: number;
+			plan?: components['schemas']['SocialPlan'];
+		};
+		/** @description Only for accounts Laamo created; your own Posta account's plan is Posta's business */
+		SocialPlan: {
+			/** @description trial, starter, professional or none */
+			type: string;
+			active: boolean;
+			days_left?: number;
+			/** Format: date-time */
+			ends_at?: string;
+			/** @description Left out when there is no limit */
+			max_channels?: number;
+		};
 		/** @enum {string} */
 		PlaceType: 'discord' | 'slack' | 'teams' | 'telegram' | 'email' | 'posta';
 		NewList: {
@@ -898,6 +956,9 @@ export interface components {
 				| 'webhook_gone'
 				| 'webhook_rejected'
 				| 'webhook_unreachable'
+				| 'posta_account_exists'
+				| 'posta_key_invalid'
+				| 'posta_elsewhere'
 				| 'internal';
 		};
 		User: {
@@ -1494,6 +1555,95 @@ export interface operations {
 			};
 			400: components['responses']['BadRequest'];
 			429: components['responses']['TooManyRequests'];
+		};
+	};
+	getSocial: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description OK */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SocialPosting'];
+				};
+			};
+			404: components['responses']['NotFound'];
+		};
+	};
+	enableSocial: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': {
+					accept_terms?: boolean;
+					/** @description Your own Posta API key (Posta, Settings, API Tokens) */
+					api_key?: string;
+				};
+			};
+		};
+		responses: {
+			/** @description On */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['SocialPosting'];
+				};
+			};
+			400: components['responses']['BadRequest'];
+			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+			/** @description posta_account_exists: your email already has a Posta account, send its API key instead. posta_elsewhere: it is on in another of your workspaces. */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['Error'];
+				};
+			};
+			503: components['responses']['Unavailable'];
+		};
+	};
+	disableSocial: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workspaceId: components['parameters']['WorkspaceId'];
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Off (also when it wasn't on) */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			403: components['responses']['Forbidden'];
+			404: components['responses']['NotFound'];
+			503: components['responses']['Unavailable'];
 		};
 	};
 	listPlaces: {

@@ -107,6 +107,9 @@
 </dl>
 <a class="row-link" href="/places"><span>{t('me.places')}</span><span aria-hidden="true">›</span></a
 >
+<a class="row-link" href="/places/social"
+	><span>{t('social.entry')}</span><span aria-hidden="true">›</span></a
+>
 
 {#if push.state !== 'unknown' && push.state !== 'unavailable'}
 	<section class="about">

@@ -99,6 +99,30 @@ cd backend && go run ./cmd/vapid    # prints the two lines
   something, and when. Native apps would use the same services.
 - iPhone and iPad: only once Laamo is on the Home Screen, iOS 16.4 or later.
 
+## Social posting (Posta)
+
+Helpers post to social media through Posta (getposta.app). `POSTA_PARTNER_KEY`
+in the env file lets the api create a Posta account for a user who switches
+social posting on (Me → Social media), and delete it when they switch it off.
+
+- **No sandbox.** Staging and local dev talk to the real Posta: accounts are
+  real, and published posts really go out. Use throwaway emails; each email
+  and each Laamo user gets one 5-day trial, ever.
+- **After the trial** posting stops until the account has a plan. Laamo has
+  no billing yet, so set it by hand:
+
+  ```sh
+  cd backend && set -a && . ../.env && set +a
+  go run ./cmd/posta list                       # who has it on, and their plan
+  go run ./cmd/posta plan <laamo user id> starter 30
+  ```
+
+- **People with their own Posta account** paste its API key instead. Their
+  plan and channels stay with Posta, and the partner key can't touch them.
+- The key is all-powerful for the accounts Laamo created. It never goes into
+  the web app (`scripts/check-web-secrets.sh` checks) or the repo; a lost key
+  is replaced by Posta, not shown again.
+
 ## To check on staging
 
 - **Client IP.** `LAAMO_TRUST_PROXY` is off: behind web's nginx and Scaleway's
