@@ -8,6 +8,7 @@
 	import { api, session } from '#lib/session.svelte.ts';
 	import type { Schemas } from '#lib/api/client.ts';
 	import { busy, progressText } from '#lib/progress.ts';
+	import { push } from '#lib/push.svelte.ts';
 
 	const filters: { id: Filter; key: Key }[] = [
 		{ id: 'all', key: 'feed.filter.all' },
@@ -86,6 +87,20 @@
 	{/each}
 </div>
 
+<!-- Once there are helpers: offer notifications, so nobody has to look in. -->
+{#if push.offer && helperCount !== null && helperCount > 0}
+	<section class="nudge" aria-labelledby="nudge-title">
+		<p id="nudge-title"><strong>{t('push.nudge.title')}</strong></p>
+		<p class="nsub">{t('push.nudge.body')}</p>
+		<div class="nbtns">
+			<button type="button" class="btn primary" disabled={push.busy} onclick={() => push.enable()}
+				>{t('push.turnOn')}</button
+			>
+			<button type="button" class="btn" onclick={() => push.later()}>{t('push.later')}</button>
+		</div>
+	</section>
+{/if}
+
 {#each working as h (h.id)}
 	<a class="working" href="/helpers/{h.id}">
 		<span class="avatar" aria-hidden="true"><HelperIcon avatar={h.avatar} size={28} /></span>
@@ -139,6 +154,25 @@
 {/if}
 
 <style>
+	.nudge {
+		margin: var(--space-3) var(--gutter);
+		padding: var(--space-3) var(--space-4);
+		border: 2px solid var(--ink);
+		border-radius: var(--radius-control);
+	}
+	.nudge p {
+		margin: 0;
+	}
+	.nsub {
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.nbtns {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		margin-top: var(--space-3);
+	}
 	.working {
 		display: flex;
 		align-items: center;

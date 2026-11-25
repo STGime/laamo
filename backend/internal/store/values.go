@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -117,4 +118,17 @@ func ValidTimezone(tz string) bool {
 	}
 	_, err := time.LoadLocation(tz)
 	return err == nil
+}
+
+// pushSpace makes push subscription ids from their endpoint.
+var pushSpace = [16]byte{0x70, 0x75, 0x73, 0x68, 0x2d, 0x73, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x2e, 0x31}
+
+// PushID is the id of the push subscription with this endpoint: the same
+// browser always gets the same row.
+func PushID(endpoint string) string {
+	h := sha256.Sum256(append(pushSpace[:], endpoint...))
+	b := h[:16]
+	b[6] = (b[6] & 0x0f) | 0x80 // version 8 (custom)
+	b[8] = (b[8] & 0x3f) | 0x80 // RFC 9562 variant
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

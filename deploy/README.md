@@ -67,9 +67,37 @@ The script sends only the password's hash. Left out:
   header for it; it stays invite-only.
 - `/healthz`: Scaleway's health check.
 
+- `/manifest.webmanifest`, the home-screen icons and `/sw.js`: a phone
+  fetches these itself, without the login. Behind it, an iPhone couldn't put
+  Laamo on the Home Screen, which notifications need there.
+
 Prod and `docker run` locally leave the two lines empty, so there's no login.
 The flow is: local (no login) → `task deploy:staging` (login) →
 `task deploy:prod`.
+
+## Notifications
+
+People can get a notification on their phone or desktop when a helper puts
+something in the Feed (Web Push, no native app). It needs a key pair,
+`VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` in the env file:
+
+```sh
+cd backend && go run ./cmd/vapid    # prints the two lines
+```
+
+- **One pair for every environment that shares a database** (today: local,
+  staging and prod), like `LAAMO_MASTER_KEYS`. A browser's subscription only
+  works with the key it was made for, and any worker may run any
+  environment's jobs.
+- **Don't change it.** A new pair cuts off every device; each person has to
+  turn notifications on again.
+- Without the keys notifications are off and the app doesn't offer them.
+- A push goes to the browser maker's push service (Google for Chrome and
+  Android, Apple for Safari and iPhones, Mozilla, Microsoft), which hands it
+  to the device. These are US companies. The text is encrypted for the
+  browser, so they can't read it; they do see that Laamo sent this device
+  something, and when. Native apps would use the same services.
+- iPhone and iPad: only once Laamo is on the Home Screen, iOS 16.4 or later.
 
 ## To check on staging
 

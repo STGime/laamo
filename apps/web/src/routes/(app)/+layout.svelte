@@ -6,6 +6,7 @@
 	import { api, session } from '#lib/session.svelte.ts';
 	import { takePending } from '#lib/demo.ts';
 	import { feed } from '#lib/feed.svelte.ts';
+	import { onOpen, push } from '#lib/push.svelte.ts';
 	import { t } from '#lib/i18n/index.svelte.ts';
 
 	let { children } = $props();
@@ -45,6 +46,12 @@
 			body: { template: p.template, answers, run_test: true }
 		});
 	});
+	// Notifications: see what this device can do, and keep its subscription
+	// with the person signed in. A tapped notification opens its page.
+	$effect(() => {
+		if (session.status === 'signedIn' && session.workspace) push.check();
+	});
+	$effect(() => onOpen((path) => goto(path)));
 	const showTabs = $derived(session.status === 'signedIn' && !BARE.includes(path) && !shared);
 </script>
 

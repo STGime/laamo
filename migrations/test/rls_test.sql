@@ -37,6 +37,8 @@ INSERT INTO feed_cards (workspace_id, user_id, run_id, type, title) VALUES
 INSERT INTO brains (workspace_id, user_id, key_ciphertext) VALUES (:wa, :a, '\x01');
 INSERT INTO places (workspace_id, user_id, type, label, secret_ciphertext) VALUES (:wa, :a, 'slack', 'Team', '\x02');
 INSERT INTO calendar_feeds (workspace_id, user_id, token) VALUES (:wa, :a, 'secret-token');
+INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES
+  (:a, 'https://fcm.googleapis.com/fcm/send/a', repeat('k', 87), repeat('s', 22));
 INSERT INTO jobs (workspace_id, kind) VALUES (:wa, 'run');
 DO $$ BEGIN
   INSERT INTO jobs (workspace_id, user_id, kind)
@@ -66,6 +68,7 @@ DO $$ BEGIN
   ASSERT (SELECT count(*) FROM places) = 0, 'places are service only';
   ASSERT (SELECT count(*) FROM calendar_feeds) = 0, 'calendar feeds are service only';
   ASSERT (SELECT count(*) FROM jobs) = 0, 'jobs are service only';
+  ASSERT (SELECT count(*) FROM push_subscriptions) = 0, 'push subscriptions are service only';
 END $$;
 
 -- A cannot write: updates silently match 0 rows, inserts are rejected.

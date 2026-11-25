@@ -14,6 +14,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/demo"
 	"github.com/STGime/laamo/backend/internal/engine"
 	"github.com/STGime/laamo/backend/internal/proof"
+	"github.com/STGime/laamo/backend/internal/push"
 	"github.com/STGime/laamo/backend/internal/queue"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/waitlist"
@@ -44,6 +45,8 @@ type Server struct {
 	wlProof  *proof.Checker
 	wlLimit  limiter
 	invites  inviteGate
+	// push sends notifications; nil without VAPID keys (off).
+	push *push.Notifier
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -73,6 +76,9 @@ type Deps struct {
 	Blobs engine.Blobs
 	// Waitlist runs the marketing site's waiting list. Optional: closed without it.
 	Waitlist *waitlist.Service
+	// Push sends notifications (Web Push). Optional: off without it. New
+	// Feed cards are announced by the store (push.Wrap), not by the api.
+	Push *push.Notifier
 }
 
 // MapMaker draws a small map with a pin.
@@ -86,6 +92,7 @@ func NewServer(d Deps) *Server {
 	}
 	return &Server{cfg: d.Config, store: d.Store, auth: d.Auth, http: &http.Client{Timeout: 3 * time.Second}, log: d.Log,
 		resume: d.Resume, events: d.Events, queue: d.Queue, demo: d.Demo, keys: d.Keys, chat: d.Chat, maps: d.Maps, blobs: d.Blobs,
+		push:     d.Push,
 		waitlist: d.Waitlist, wlProof: &proof.Checker{Scope: "waitlist", Secret: []byte(d.Config.DemoSecret), Bits: waitlistBits}}
 }
 

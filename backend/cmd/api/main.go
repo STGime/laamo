@@ -25,6 +25,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/mail"
 	"github.com/STGime/laamo/backend/internal/osm"
+	"github.com/STGime/laamo/backend/internal/push"
 	qeb "github.com/STGime/laamo/backend/internal/queue/eurobase"
 	"github.com/STGime/laamo/backend/internal/realtime"
 	"github.com/STGime/laamo/backend/internal/search"
@@ -57,7 +58,13 @@ func main() {
 	}
 	// One realtime connection for all browsers' live updates.
 	events := api.NewHub(realtime.Subscribe(ctx, cfg.EurobaseURL, cfg.EurobaseSecretKey, []string{"feed_cards", "runs", "run_steps"}, log))
-	st := sebs.New(client)
+	base := sebs.New(client)
+	// Notifications: every new Feed card also goes to the owner's browsers.
+	notifier := push.New(base, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, log)
+	if notifier == nil {
+		log.Warn("no VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY: notifications are off")
+	}
+	st := push.Wrap(base, notifier)
 	server := api.NewServer(api.Deps{
 		Config: cfg,
 		Store:  st,
@@ -73,6 +80,7 @@ func main() {
 		Chat:     &chat.Sender{},
 		Maps:     mapMaker(cfg),
 		Blobs:    eb.Blobs{Client: client, Prefix: "laamo/"},
+		Push:     notifier,
 		Waitlist: &waitlist.Service{Store: st, Mail: mailSender(cfg, log), SiteURL: cfg.SiteURL, Log: log},
 	})
 

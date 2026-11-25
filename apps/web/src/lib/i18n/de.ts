@@ -491,5 +491,27 @@ export const de: Record<Key, string> = {
 	'day.fri': 'Fr',
 	'day.sat': 'Sa',
 	'day.sun': 'So',
+	'push.title': 'Mitteilungen',
+	'push.hint':
+		'Bekomm auf diesem Gerät eine Mitteilung, wenn ein Helfer etwas für dich hat. Nicht bei Läufen, die du selbst startest.',
+	'push.on': 'An für dieses Gerät',
+	'push.turnOn': 'Mitteilungen einschalten',
+	'push.turnOff': 'Ausschalten',
+	'push.test': 'Test senden',
+	'push.testSent': 'Gesendet. Sie sollte gleich erscheinen.',
+	'push.testFailed': 'Das ging nicht raus. Schalte die Mitteilungen aus und wieder ein.',
+	'push.later': 'Jetzt nicht',
+	'push.failed': 'Das hat nicht geklappt. Versuch es noch mal.',
+	'push.blocked':
+		'Mitteilungen sind für Laamo in diesem Browser blockiert. Erlaube sie in den Website-Einstellungen des Browsers und komm dann hierher zurück.',
+	'push.unsupported': 'Dieser Browser kann keine Mitteilungen anzeigen.',
+	'push.homeScreen':
+		'Auf iPhone oder iPad gehen Mitteilungen, sobald Laamo auf deinem Home-Bildschirm liegt (ab iOS 16.4):',
+	'push.homeScreen.1': 'Tippe in Safari auf „Teilen“.',
+	'push.homeScreen.2': 'Wähle „Zum Home-Bildschirm“.',
+	'push.homeScreen.3': 'Öffne Laamo vom Home-Bildschirm und komm auf diese Seite zurück.',
+	'push.nudge.title': 'Lass deine Helfer sich melden',
+	'push.nudge.body':
+		'Bekomm eine Mitteilung, wenn ein Helfer etwas gefunden hat oder dein OK braucht. Du musst nicht ständig nachsehen.',
 	loading: 'Lädt…'
 };

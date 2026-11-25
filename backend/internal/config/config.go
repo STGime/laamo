@@ -37,6 +37,13 @@ type Config struct {
 	// waiting-list confirmation. Without a key, emails go to the log (dev).
 	ResendAPIKey string
 	MailFrom     string
+	// Notifications (Web Push): the VAPID key pair that signs our pushes
+	// (cmd/vapid makes one) and who we are to the push services. Without
+	// the keys notifications are off. One pair for all environments that
+	// share a database: a browser's subscription is tied to the key.
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	VAPIDSubject    string
 	// SiteURL: the public site; links in emails point here.
 	SiteURL    string
 	FalKey     string // Draw a picture (fal.ai); the LLM key when that is fal's
@@ -89,6 +96,9 @@ func Load() (Config, error) {
 		ResendAPIKey:      os.Getenv("RESEND_API_KEY"),
 		MailFrom:          getenv("MAIL_FROM", "Laamo <hello@notify.laamo.app>"),
 		SiteURL:           getenv("SITE_URL", "http://localhost:5173"),
+		VAPIDPublicKey:    os.Getenv("VAPID_PUBLIC_KEY"),
+		VAPIDPrivateKey:   os.Getenv("VAPID_PRIVATE_KEY"),
+		VAPIDSubject:      getenv("VAPID_SUBJECT", "https://laamo.app"),
 		FalKey:            firstNonEmpty(os.Getenv("FAL_KEY"), os.Getenv("FAL_AI_API_KEY")),
 		ImageModel:        getenv("IMAGE_MODEL", ""),
 		MasterKeys:        os.Getenv("LAAMO_MASTER_KEYS"),

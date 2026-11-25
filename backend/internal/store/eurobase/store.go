@@ -619,3 +619,33 @@ func (s *Store) WaitlistToInvite(ctx context.Context, limit int) ([]store.Waitli
 		Order("confirmed_at", false).Order("id", false)
 	return listRows[store.WaitlistEntry](ctx, s, "waitlist", q, limit)
 }
+
+// ---- push subscriptions ----
+
+func (s *Store) SavePushSubscription(ctx context.Context, p *store.PushSubscription) error {
+	p.ID = store.PushID(p.Endpoint)
+	err := insertRow(ctx, s, "push_subscriptions", &p.ID, p)
+	if !errors.Is(err, store.ErrConflict) {
+		return err
+	}
+	// This browser is known: its keys (and maybe its user) changed.
+	got, err := updateRow[store.PushSubscription](ctx, s, "push_subscriptions", p.ID,
+		map[string]string{"user_id": p.UserID, "p256dh": p.P256dh, "auth": p.Auth})
+	if err != nil {
+		return err
+	}
+	*p = got
+	return nil
+}
+
+func (s *Store) PushSubscriptions(ctx context.Context, userID string) ([]store.PushSubscription, error) {
+	q := eb.NewQuery().Eq("user_id", userID).Order("created_at", false).Order("id", false)
+	return listRows[store.PushSubscription](ctx, s, "push_subscriptions", q, 0)
+}
+
+func (s *Store) DeletePushSubscription(ctx context.Context, id string) error {
+	if err := mapErr(s.c.Delete(ctx, "push_subscriptions", id)); err != nil && !errors.Is(err, store.ErrNotFound) {
+		return err
+	}
+	return nil
+}

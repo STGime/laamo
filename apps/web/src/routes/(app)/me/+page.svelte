@@ -5,6 +5,7 @@
 	import { api, session } from '#lib/session.svelte.ts';
 	import { catalog } from '@laamo/catalog';
 	import { cities } from '#lib/cities.ts';
+	import { push } from '#lib/push.svelte.ts';
 
 	// About me: the facts helpers use as {my city} and so on (S15).
 	let profile = $state<Record<string, string> | null>(null);
@@ -60,7 +61,15 @@
 			await session.refresh();
 		}
 	}
-	function signOut() {
+	// Notifications on this device.
+	let tested = $state<'sent' | 'failed' | null>(null);
+	async function testPush() {
+		tested = null;
+		tested = (await push.test()) ? 'sent' : 'failed';
+	}
+	async function signOut() {
+		// This device stops getting the notifications of who signs out.
+		if (push.state === 'on') await push.disable();
 		session.signOut();
 		goto('/signin');
 	}
@@ -98,6 +107,46 @@
 </dl>
 <a class="row-link" href="/places"><span>{t('me.places')}</span><span aria-hidden="true">›</span></a
 >
+
+{#if push.state !== 'unknown' && push.state !== 'unavailable'}
+	<section class="about">
+		<h2>{t('push.title')}</h2>
+		<p class="hint">{t('push.hint')}</p>
+	</section>
+	<div class="push">
+		{#if push.state === 'on'}
+			<p class="pstate"><strong>{t('push.on')}</strong></p>
+			<div class="pbtns">
+				<button type="button" class="btn" onclick={testPush}>{t('push.test')}</button>
+				<button type="button" class="btn" disabled={push.busy} onclick={() => push.disable()}
+					>{t('push.turnOff')}</button
+				>
+			</div>
+			{#if tested}<p class="hint" role="status">
+					{t(tested === 'sent' ? 'push.testSent' : 'push.testFailed')}
+				</p>{/if}
+		{:else if push.state === 'off'}
+			<button
+				type="button"
+				class="btn primary wide"
+				disabled={push.busy}
+				onclick={() => push.enable()}>{t('push.turnOn')}</button
+			>
+		{:else if push.state === 'homeScreen'}
+			<p class="pstate">{t('push.homeScreen')}</p>
+			<ol class="steps">
+				<li>{t('push.homeScreen.1')}</li>
+				<li>{t('push.homeScreen.2')}</li>
+				<li>{t('push.homeScreen.3')}</li>
+			</ol>
+		{:else if push.state === 'blocked'}
+			<p class="pstate">{t('push.blocked')}</p>
+		{:else}
+			<p class="pstate">{t('push.unsupported')}</p>
+		{/if}
+		{#if push.failed}<p class="hint" role="alert">{t('push.failed')}</p>{/if}
+	</div>
+{/if}
 
 <section class="about">
 	<h2>{t('me.about')}</h2>
@@ -229,6 +278,26 @@
 	}
 	.hint {
 		margin: var(--space-1) 0 0;
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.push {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--gutter) var(--space-2);
+	}
+	.pstate {
+		margin: 0;
+	}
+	.pbtns {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+	.steps {
+		margin: 0;
+		padding-left: var(--space-5);
 		color: var(--muted);
 		font-size: var(--text-sm);
 	}
