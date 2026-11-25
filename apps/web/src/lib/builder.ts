@@ -28,6 +28,7 @@ export const ready = new Set([
 	'think.draw',
 	'do.list',
 	'do.chat',
+	'do.social',
 	'ask.check',
 	'ask.pick',
 	'ask.question',
