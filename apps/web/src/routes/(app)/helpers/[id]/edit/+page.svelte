@@ -493,6 +493,12 @@
 			}}
 			onconsider={consider}
 			onfinalize={finalize}
+			onclickcapture={(e) => {
+				// With the hold delay a tap makes two clicks: the browser's own and
+				// one the drag library adds. The second would land on the sheet the
+				// first opened and close it again, so only the browser's counts.
+				if (!e.isTrusted) e.stopPropagation();
+			}}
 		>
 			{#each bricks as b, i (b.id)}
 				{@const issue = issueFor(b)}
