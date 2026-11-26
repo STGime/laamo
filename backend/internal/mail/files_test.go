@@ -149,15 +149,20 @@ func TestParseAttachmentLimits(t *testing.T) {
 // an email passes when DKIM or SPF passed.
 func TestParseSumsUpADMARCReport(t *testing.T) {
 	rec := func(ip string, n int, dkim, spf, to string) string {
+		// The spoofer's email carries no signature of the domain.
+		auth := `<auth_results><dkim><domain>news.example.com</domain><selector>s1</selector><result>` + dkim + `</result></dkim></auth_results>`
+		if to == "spoofed.example" {
+			auth = `<auth_results><spf><domain>evil.example</domain><result>fail</result></spf></auth_results>`
+		}
 		return fmt.Sprintf(`<record><row><source_ip>%s</source_ip><count>%d</count><policy_evaluated><disposition>none</disposition>`+
 			`<dkim>%s</dkim><spf>%s</spf></policy_evaluated></row><identifiers><envelope_to>%s</envelope_to>`+
-			`<header_from>news.example.com</header_from></identifiers></record>`, ip, n, dkim, spf, to)
+			`<header_from>news.example.com</header_from></identifiers>%s</record>`, ip, n, dkim, spf, to, auth)
 	}
 	xml := `<?xml version="1.0"?><feedback xmlns="urn:ietf:params:xml:ns:dmarc-2.0"><report_metadata><org_name>mailbox.example</org_name>` +
 		`<date_range><begin>1795478400</begin><end>1795564799</end></date_range></report_metadata>` +
 		`<policy_published><domain>news.example.com</domain><p>none</p></policy_published>` +
 		rec("203.0.113.7", 12, "pass", "pass", "a.example") + rec("203.0.113.7", 3, "pass", "fail", "b.example") +
-		rec("198.51.100.9", 2, "fail", "fail", "forwarded.example") + `</feedback>`
+		rec("198.51.100.9", 2, "fail", "fail", "forwarded.example") + rec("192.0.2.66", 1, "fail", "fail", "spoofed.example") + `</feedback>`
 	intro := strings.Repeat("This is an aggregate report. ", 80) // providers explain at length
 	m, err := mail.Parse([]byte(withAttachment(intro, "report.xml.gz", "application/gzip", gz(t, xml))))
 	if err != nil {
@@ -169,8 +174,9 @@ func TestParseSumsUpADMARCReport(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Reporter: mailbox.example\nDomain: news.example.com\nPeriod: 2026-11-24 to 2026-11-24 (UTC)\nPolicy: none\n",
-		"Emails: 17\nPassed DMARC: 15\nFailed DMARC: 2\n",
-		"Failed sources: 198.51.100.9 (2: dkim fail, spf fail, sent to forwarded.example)",
+		"Emails: 18\nPassed DMARC: 15\nFailed DMARC: 3\n",
+		"Failed sources: 198.51.100.9 (2: dkim fail, spf fail, sent to forwarded.example; it carried the domain's own signature, broken on the way: most likely a mailbox that forwards its mail",
+		"192.0.2.66 (1: dkim fail, spf fail, sent to spoofed.example; it carried no signature of the domain: possibly someone else",
 	} {
 		if !strings.Contains(m.Text, want) {
 			t.Errorf("no %q in\n%s", want, m.Text)

@@ -39,6 +39,11 @@ type dmarcReport struct {
 			EnvelopeTo string `xml:"envelope_to"`
 			HeaderFrom string `xml:"header_from"`
 		} `xml:"identifiers"`
+		Auth struct {
+			DKIM []struct {
+				Domain string `xml:"domain"`
+			} `xml:"dkim"`
+		} `xml:"auth_results"`
 	} `xml:"record"`
 }
 
@@ -68,6 +73,19 @@ func dmarcSummary(text string) string {
 			s := fmt.Sprintf("%s (%d: dkim %s, spf %s", word(rec.Row.SourceIP), n, word(rec.Row.Eval.DKIM), word(rec.Row.Eval.SPF))
 			if to := word(rec.IDs.EnvelopeTo); to != "" {
 				s += ", sent to " + to
+			}
+			// Whose email was it? One that carries the domain's own DKIM
+			// signature left the domain's servers and was changed on the way
+			// (a mailbox passing its mail on, a mailing list). One without
+			// it never was the domain's: someone else wrote it.
+			own := false
+			for _, d := range rec.Auth.DKIM {
+				own = own || strings.EqualFold(strings.TrimSpace(d.Domain), strings.TrimSpace(r.Policy.Domain))
+			}
+			if own {
+				s += "; it carried the domain's own signature, broken on the way: most likely a mailbox that forwards its mail, not someone faking the domain"
+			} else {
+				s += "; it carried no signature of the domain: possibly someone else sending in the domain's name"
 			}
 			sources = append(sources, s+")")
 		}
