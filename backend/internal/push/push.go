@@ -200,6 +200,11 @@ func (n *Notifier) CardCreated(ctx context.Context, c store.FeedCard) {
 	if n == nil || n.Sender == nil || c.UserID == "" {
 		return
 	}
+	// A run that found nothing has nothing to say on a locked screen: a
+	// helper that checks something every day would buzz for every quiet day.
+	if nothing, _ := c.Payload["nothing"].(bool); nothing {
+		return
+	}
 	// The card is saved; a cancelled request or job shouldn't lose the push.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 	defer cancel()

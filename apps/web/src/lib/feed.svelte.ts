@@ -159,6 +159,9 @@ export function parseSSE(buffer: string): {
 	return { events, rest };
 }
 
+/** How often a screen with a run going looks again by itself. */
+export const RECHECK_MS = 3000;
+
 /**
  * Listens to the workspace's live updates until the returned stop function
  * is called. Events of the given kinds call onChange (debounced); a dropped
@@ -167,9 +170,16 @@ export function parseSSE(buffer: string): {
 export function listen(
 	onChange: () => void,
 	token: () => Promise<string | null>,
-	kinds: string[] = ['feed', 'reload']
+	kinds: string[] = ['feed', 'reload'],
+	/**
+	 * A run is going on this screen: look again every few seconds as well.
+	 * Live updates can go missing (a dropped stream, a server just started),
+	 * and a run must never look stuck when it is long done.
+	 */
+	going?: () => boolean
 ): () => void {
 	let stopped = false;
+	const tick = going ? setInterval(() => going() && onChange(), RECHECK_MS) : undefined;
 	let ctrl: AbortController | null = null;
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const changed = () => {
@@ -216,6 +226,7 @@ export function listen(
 	return () => {
 		stopped = true;
 		clearTimeout(timer);
+		clearInterval(tick);
 		ctrl?.abort();
 	};
 }

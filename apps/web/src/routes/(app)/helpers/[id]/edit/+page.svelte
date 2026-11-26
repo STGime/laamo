@@ -384,7 +384,12 @@
 	$effect(() => {
 		if (!testRun) return;
 		loadTest();
-		return listen(loadTest, () => session.fresh(), ['run', 'step', 'reload']);
+		return listen(
+			loadTest,
+			() => session.fresh(),
+			['run', 'step', 'reload'],
+			() => testing
+		);
 	});
 	function test() {
 		if (question && !asking) {

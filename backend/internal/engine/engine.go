@@ -686,6 +686,8 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 	switch {
 	case o.status == store.RunDone && o.nothing:
 		card.Type, card.Title = "result", pick(de, "Nothing new this time", "Diesmal nichts Neues")
+		// Said in the Feed, but not worth a notification (see push).
+		card.Payload["nothing"] = true
 	case o.status == store.RunDone:
 		card.Type, card.Title = "result", pick(de, "Done", "Fertig")
 		if rc != nil {

@@ -36,6 +36,17 @@ var detailHints = map[string]string{
 	"vat_rate":       "the tax (VAT) rate in percent, digits only, e.g. \"19\"; several rates as \"7, 19\"",
 	"currency":       "the currency as a three-letter code, e.g. \"EUR\"",
 	"invoice_number": "the receipt or invoice number as printed",
+	// A provider's report on a domain's email (DMARC). Laamo counts the
+	// numbers itself and writes them in a summary above the file (see
+	// mail/dmarc.go): they are copied from there, never worked out.
+	"report_from":    "who sent the report, after \"Reporter:\" in the report summary",
+	"report_domain":  "the domain the report is about, after \"Domain:\" in the report summary",
+	"report_period":  "the days the report covers, after \"Period:\" in the report summary",
+	"emails_total":   "the number after \"Emails:\" in the report summary, digits only",
+	"emails_passed":  "the number after \"Passed DMARC:\" in the report summary, digits only",
+	"emails_failed":  "the number after \"Failed DMARC:\" in the report summary, digits only",
+	"failed_sources": "what stands after \"Failed sources:\" in the report summary, as written; \"none\" if it says none",
+	"verdict":        "\"OK\" if no email failed; otherwise one sentence in plain words: how many failed and the reason the report summary gives for each failed source (a forwarding mailbox, or possibly someone else sending in the domain's name); never claim more than the summary says",
 }
 
 // amountFields are money amounts: kept only when their digits are in the

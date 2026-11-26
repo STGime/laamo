@@ -137,7 +137,12 @@
 	$effect(() => {
 		if (!helperId) return;
 		loadRun();
-		return listen(loadRun, () => session.fresh(), ['run', 'step', 'reload']);
+		return listen(
+			loadRun,
+			() => session.fresh(),
+			['run', 'step', 'reload'],
+			() => true
+		);
 	});
 
 	const ready = $derived(!!tpl && tpl.questions.every((q) => (answers[q.key] ?? '').trim() !== ''));
