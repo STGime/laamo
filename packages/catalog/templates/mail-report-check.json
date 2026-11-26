@@ -1,0 +1,65 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "mail-report-check",
+  "name": { "en": "Mail Report Checker", "de": "Mail-Report-Prüfer" },
+  "promise": {
+    "en": "Forward the DMARC reports mail providers send about your domain. Each one is read and saved to a list, and you hear about it only when emails failed.",
+    "de": "Leite die DMARC-Reports weiter, die Mail-Anbieter zu deiner Domain schicken. Jeder wird gelesen und in einer Liste gespeichert, und du hörst nur davon, wenn E-Mails durchgefallen sind."
+  },
+  "category": "sort_emails",
+  "avatar": "🛡️",
+  "sort_order": 58,
+  "setup_questions": [],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      { "id": "b1", "type": "when.email", "config": {} },
+      {
+        "id": "b2",
+        "type": "think.extract",
+        "config": {
+          "fields": [
+            "report_from",
+            "report_domain",
+            "report_period",
+            "emails_total",
+            "emails_passed",
+            "emails_failed",
+            "failed_sources",
+            "verdict"
+          ],
+          "only_found": false
+        }
+      },
+      {
+        "id": "b3",
+        "type": "do.list",
+        "config": {
+          "list": { "en": "Mail reports", "de": "Mail-Reports" },
+          "dedupe": "none",
+          "only_new": false
+        }
+      },
+      {
+        "id": "b4",
+        "type": "think.keep",
+        "config": {
+          "criteria": {
+            "en": "report a problem: emails_failed is more than 0, or the email holds no report I could read",
+            "de": "ein Problem melden: emails_failed ist größer als 0, oder die E-Mail enthält keinen Report, den ich lesen konnte"
+          },
+          "max": 5,
+          "sort": "original"
+        }
+      },
+      {
+        "id": "b5",
+        "type": "think.summarize",
+        "config": { "length": "short", "mode": "all", "language": "auto" }
+      }
+    ],
+    "limits": { "max_cards": 5, "max_external_emails": 0, "max_cost_eur": 0.05 }
+  },
+  "required": { "brain": true }
+}

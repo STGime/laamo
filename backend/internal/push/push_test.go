@@ -334,6 +334,16 @@ func TestFeedCardsAreAnnounced(t *testing.T) {
 		t.Fatalf("%d pushes, want still 2", n)
 	}
 
+	// A run that found nothing is in the Feed, but doesn't buzz.
+	quiet := store.FeedCard{ID: store.NewID(), WorkspaceID: w.helper.WorkspaceID, UserID: owner, HelperID: &w.helper.ID,
+		Type: "result", Title: "Diesmal nichts Neues", Payload: map[string]any{"nothing": true}}
+	if err := w.st.CreateFeedCard(ctx, &quiet); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(w.b.messages()); n != 2 {
+		t.Fatalf("%d pushes after a quiet run, want still 2", n)
+	}
+
 	// A note without a run (an ignored email) is announced too.
 	if err := w.card(t, nil, "problem", "E-Mail ignoriert", "…"); err != nil {
 		t.Fatal(err)

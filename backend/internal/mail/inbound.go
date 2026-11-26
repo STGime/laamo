@@ -47,6 +47,9 @@ type Attachment struct {
 	// Data is the file itself, for the first MaxPictures pictures (JPEG,
 	// PNG or WebP) only.
 	Data []byte `json:"-"`
+	// Text is what a text file says (XML, CSV, …, also inside a .zip or
+	// .gz); see files.go. It is added to the Message's Text.
+	Text string `json:"-"`
 }
 
 // MaxPictures is how many of an email's pictures are kept for the run.
@@ -82,7 +85,11 @@ func (m Message) Pictures() []Attachment {
 }
 
 // Parse reads a raw email (RFC 5322).
-func Parse(raw []byte) (Message, error) {
+func Parse(raw []byte) (Message, error) { return parse(raw, false) }
+
+// parse reads an email; attached says it is itself an attachment of one
+// (its own attachments are then not opened).
+func parse(raw []byte, attached bool) (Message, error) {
 	r, err := gomail.CreateReader(bytes.NewReader(raw))
 	if err != nil && r == nil {
 		return Message{}, fmt.Errorf("mail: reading the email: %w", err)
@@ -128,6 +135,14 @@ func Parse(raw []byte) (Message, error) {
 				}
 				continue
 			}
+			// A file sent as the whole email, without a text (Google's DMARC
+			// reports are just the .zip).
+			if ct != "text/plain" && ct != "text/html" && readable(params["name"], ct) {
+				body, _ := io.ReadAll(io.LimitReader(p.Body, MaxInbound))
+				m.Attachments = append(m.Attachments, Attachment{Name: params["name"], Type: ct, Size: len(body),
+					Text: fileText(params["name"], ct, body, attached)})
+				continue
+			}
 			body, _ := io.ReadAll(io.LimitReader(p.Body, 4*MaxText))
 			switch {
 			case ct == "text/plain" && plain == "":
@@ -143,6 +158,10 @@ func Parse(raw []byte) (Message, error) {
 				a.Data, _ = io.ReadAll(io.LimitReader(p.Body, MaxInbound))
 				a.Size = len(a.Data)
 				pictures++
+			} else if readable(name, ct) {
+				body, _ := io.ReadAll(io.LimitReader(p.Body, MaxInbound))
+				a.Size = len(body)
+				a.Text = fileText(name, ct, body, attached)
 			} else {
 				n, _ := io.Copy(io.Discard, p.Body)
 				a.Size = int(n)
@@ -154,7 +173,7 @@ func Parse(raw []byte) (Message, error) {
 	if strings.TrimSpace(text) == "" {
 		text = htmlText
 	}
-	m.Text = cut(clean(text), MaxText)
+	m.Text = withFiles(cut(clean(text), MaxText), m.Attachments)
 	return m, nil
 }
 
