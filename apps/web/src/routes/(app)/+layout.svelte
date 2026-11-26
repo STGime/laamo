@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
+	import { busy } from '#lib/busy.svelte.ts';
 	import NotInvited from '#lib/components/NotInvited.svelte';
 	import TabBar from '#lib/components/TabBar.svelte';
 	import { api, session } from '#lib/session.svelte.ts';
@@ -61,6 +62,18 @@
 		look();
 		return listen(look, () => session.fresh());
 	});
+	// Something is loading: a page being opened, or data on its way. Shown
+	// after a short moment only, so quick answers don't flicker.
+	const waiting = $derived(!!navigating.to || busy.pending > 0);
+	let slow = $state(false);
+	$effect(() => {
+		if (!waiting) {
+			slow = false;
+			return;
+		}
+		const timer = setTimeout(() => (slow = true), 250);
+		return () => clearTimeout(timer);
+	});
 	const showTabs = $derived(session.status === 'signedIn' && !BARE.includes(path) && !shared);
 </script>
 
@@ -70,6 +83,11 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
+{#if slow}
+	<div class="loadbar" role="status">
+		<span class="visually-hidden">{t('loading')}</span>
+	</div>
+{/if}
 <div class="app" class:tabs={showTabs}>
 	{#if session.status === 'offline' && !open}
 		<p class="offline">{t('error.offline')}</p>
@@ -90,6 +108,41 @@
 		min-height: 100dvh;
 		margin: 0 auto;
 		background: var(--white);
+	}
+	/* A bar that runs along the top while something loads. */
+	.loadbar {
+		position: fixed;
+		top: 0;
+		left: 50%;
+		z-index: 60;
+		width: 100%;
+		max-width: var(--column-max);
+		height: 4px;
+		overflow: hidden;
+		transform: translateX(-50%);
+		background: var(--gray-50);
+	}
+	.loadbar::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		width: 40%;
+		background: var(--brick-red);
+		animation: run 1s ease-in-out infinite;
+	}
+	@keyframes run {
+		from {
+			transform: translateX(-100%);
+		}
+		to {
+			transform: translateX(250%);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.loadbar::before {
+			width: 100%;
+			animation: none;
+		}
 	}
 	.app.tabs {
 		padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));

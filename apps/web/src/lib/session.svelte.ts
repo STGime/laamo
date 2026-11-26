@@ -2,6 +2,7 @@
 // localStorage (wrapped: storage can be blocked). The access token is
 // refreshed shortly before it expires, so a session lasts as long as the
 // refresh token (Eurobase: 7 days, renewed on use).
+import { countedFetch } from './busy.svelte.ts';
 import { createApi, type Schemas } from './api/client';
 import { createAuth, expiresIn, type Tokens } from './auth';
 import { browserLang, i18n } from './i18n/index.svelte.ts';
@@ -72,7 +73,7 @@ function setTokens(n: Tokens) {
 }
 
 /** The API client, sending a fresh token. */
-export const api = createApi({ token: () => tokens?.access, before: fresh });
+export const api = createApi({ token: () => tokens?.access, before: fresh, fetch: countedFetch });
 
 export const session = {
 	get token() {
