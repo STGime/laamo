@@ -203,3 +203,24 @@ func TestInstallSocialPoster(t *testing.T) {
 		}
 	}
 }
+
+// {answer} never shows raw: words stand in for it, or what was typed.
+func TestDescribeAnswer(t *testing.T) {
+	ws := store.Workspace{ID: "w1", Locale: "en"}
+	stack, _, err := shelf.Install(cat, tpl(t, "pizza-finder"), ws, map[string]string{"where": "Leipzig Plagwitz"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := shelf.Describe(cat, stack, ws)[1].Sentence; got != "Search the web for “Pizza [your answer] menu prices Leipzig Plagwitz”" {
+		t.Fatalf("no run: %q", got)
+	}
+	if got := shelf.DescribeRun(cat, stack, ws, " salami ")[1].Sentence; got != "Search the web for “Pizza salami menu prices Leipzig Plagwitz”" {
+		t.Fatalf("a run: %q", got)
+	}
+	ws.Locale = "de"
+	for _, b := range shelf.Describe(cat, stack, ws) {
+		if strings.Contains(b.Sentence, "{answer}") {
+			t.Errorf("raw pill in %q", b.Sentence)
+		}
+	}
+}

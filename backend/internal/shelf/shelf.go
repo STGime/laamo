@@ -108,6 +108,22 @@ func Preview(cat *catalog.Catalog, t catalog.Template, ws store.Workspace) View 
 // Describe puts a stack's bricks in plain words for a workspace, with known
 // About me facts filled in.
 func Describe(cat *catalog.Catalog, stack catalog.Stack, ws store.Workspace) []Brick {
+	return DescribeRun(cat, stack, ws, "")
+}
+
+// DescribeRun is Describe for a run that is going: answer is what the
+// person typed when they tapped Go, and stands where the stack says
+// {answer}. Without one, words stand there instead of the raw pill, which
+// reads like something left unfilled.
+func DescribeRun(cat *catalog.Catalog, stack catalog.Stack, ws store.Workspace, answer string) []Brick {
+	if answer = strings.Join(strings.Fields(answer), " "); answer == "" {
+		answer = "[your answer]"
+		if ws.Locale == "de" {
+			answer = "[deine Antwort]"
+		}
+	} else if r := []rune(answer); len(r) > 60 {
+		answer = string(r[:60]) + "…"
+	}
 	out := make([]Brick, 0, len(stack.Bricks))
 	profile := stack.WithProfile(ws.Profile)
 	for _, sb := range stack.Bricks {
@@ -116,7 +132,12 @@ func Describe(cat *catalog.Catalog, stack catalog.Stack, ws store.Workspace) []B
 		if b != nil {
 			group = b.Group
 		}
-		out = append(out, Brick{ID: sb.ID, Type: sb.Type, Group: group, Sentence: fillProfile(cat.Sentence(sb, ws.Locale), profile)})
+		sentence := fillProfile(cat.Sentence(sb, ws.Locale), profile)
+		// Not in the question itself: there {answer} would be the person's own text.
+		if sb.Type != "when.tap" {
+			sentence = strings.ReplaceAll(sentence, "{answer}", answer)
+		}
+		out = append(out, Brick{ID: sb.ID, Type: sb.Type, Group: group, Sentence: sentence})
 	}
 	return out
 }

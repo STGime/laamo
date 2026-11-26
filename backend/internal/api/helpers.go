@@ -511,7 +511,12 @@ func (s *Server) GetHelper(ctx context.Context, req GetHelperRequestObject) (Get
 					names[l.ID] = l.Name
 				}
 			}
-			for i, b := range shelf.Describe(catalog.Default(), stack, w) {
+			// While a run is going, the bricks say what was asked for.
+			answer := ""
+			if out.Helper.Run != nil && latest != nil {
+				answer, _ = latest.TriggerData["answer"].(string)
+			}
+			for i, b := range shelf.DescribeRun(catalog.Default(), stack, w, answer) {
 				for _, key := range []string{"place", "list"} {
 					if id, _ := stack.Bricks[i].Config[key].(string); names[id] != "" {
 						b.Sentence = strings.ReplaceAll(b.Sentence, id, names[id])
