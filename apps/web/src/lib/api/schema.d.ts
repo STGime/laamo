@@ -366,7 +366,7 @@ export interface paths {
 			path?: never;
 			cookie?: never;
 		};
-		/** A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image */
+		/** A small map (JPEG) with a pin, for a business card. Give lat and lon, or an address to look up. Signed in only; credits are printed on the image */
 		get: operations['getMap'];
 		put?: never;
 		post?: never;
@@ -2201,9 +2201,11 @@ export interface operations {
 	};
 	getMap: {
 		parameters: {
-			query: {
-				lat: number;
-				lon: number;
+			query?: {
+				lat?: number;
+				lon?: number;
+				/** @description A postal address, when the card has no coordinates */
+				address?: string;
 			};
 			header?: never;
 			path?: never;
@@ -2222,6 +2224,7 @@ export interface operations {
 				};
 			};
 			400: components['responses']['BadRequest'];
+			404: components['responses']['NotFound'];
 			503: components['responses']['Unavailable'];
 		};
 	};

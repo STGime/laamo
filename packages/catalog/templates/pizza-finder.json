@@ -79,6 +79,18 @@
       },
       {
         "id": "b5",
+        "type": "think.extract",
+        "config": {
+          "fields": [
+            "sizes",
+            "address"
+          ],
+          "about": "Pizza {answer}",
+          "only_found": false
+        }
+      },
+      {
+        "id": "b6",
         "type": "think.keep",
         "config": {
           "criteria": {

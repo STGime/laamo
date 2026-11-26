@@ -1701,8 +1701,11 @@ type GetListParamsOrder string
 
 // GetMapParams defines parameters for GetMap.
 type GetMapParams struct {
-	Lat float32 `form:"lat" json:"lat"`
-	Lon float32 `form:"lon" json:"lon"`
+	Lat *float32 `form:"lat,omitempty" json:"lat,omitempty"`
+	Lon *float32 `form:"lon,omitempty" json:"lon,omitempty"`
+
+	// Address A postal address, when the card has no coordinates
+	Address *string `form:"address,omitempty" json:"address,omitempty"`
 }
 
 // DeletePushSubscriptionParams defines parameters for DeletePushSubscription.
@@ -2211,7 +2214,7 @@ type ClientInterface interface {
 	// Corresponds with GET /lists/{listId}/zip (the `ExportListZip` operationId).
 	ExportListZip(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+	// GetMap A small map (JPEG) with a pin, for a business card. Give lat and lon, or an address to look up. Signed in only; credits are printed on the image
 	//
 	// Corresponds with GET /map (the `GetMap` operationId).
 	GetMap(ctx context.Context, params *GetMapParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3058,7 +3061,7 @@ func (c *Client) ExportListZip(ctx context.Context, listId ListId, reqEditors ..
 	return c.Client.Do(req)
 }
 
-// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+// GetMap A small map (JPEG) with a pin, for a business card. Give lat and lon, or an address to look up. Signed in only; credits are printed on the image
 //
 // Corresponds with GET /map (the `GetMap` operationId).
 func (c *Client) GetMap(ctx context.Context, params *GetMapParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -4842,20 +4845,40 @@ func NewGetMapRequest(server string, params *GetMapParams) (*http.Request, error
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
-		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "lat", params.Lat, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "number", Format: ""}); err != nil {
-			return nil, err
-		} else {
-			for _, qp := range strings.Split(queryFrag, "&") {
-				rawQueryFragments = append(rawQueryFragments, qp)
+		if params.Lat != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "lat", *params.Lat, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "number", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
 			}
+
 		}
 
-		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "lon", params.Lon, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "number", Format: ""}); err != nil {
-			return nil, err
-		} else {
-			for _, qp := range strings.Split(queryFrag, "&") {
-				rawQueryFragments = append(rawQueryFragments, qp)
+		if params.Lon != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "lon", *params.Lon, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "number", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
 			}
+
+		}
+
+		if params.Address != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "address", *params.Address, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
 		}
 
 		if encoded := queryValues.Encode(); encoded != "" {
@@ -6282,7 +6305,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /lists/{listId}/zip (the `ExportListZip` operationId).
 	ExportListZipWithResponse(ctx context.Context, listId ListId, reqEditors ...RequestEditorFn) (*ExportListZipResponse, error)
 
-	// GetMapWithResponse A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+	// GetMapWithResponse A small map (JPEG) with a pin, for a business card. Give lat and lon, or an address to look up. Signed in only; credits are printed on the image
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -8085,6 +8108,8 @@ type GetMapResponse struct {
 	HTTPResponse *http.Response
 	// JSON400 the response for an HTTP 400 `application/json` response
 	JSON400 *BadRequest
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFound
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *Unavailable
 	// Headers200 the parsed response headers for an HTTP 200 response
@@ -8094,6 +8119,11 @@ type GetMapResponse struct {
 // GetJSON400 returns the response for an HTTP 400 `application/json` response
 func (r GetMapResponse) GetJSON400() *BadRequest {
 	return r.JSON400
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetMapResponse) GetJSON404() *NotFound {
+	return r.JSON404
 }
 
 // GetJSON503 returns the response for an HTTP 503 `application/json` response
@@ -10180,7 +10210,7 @@ func (c *ClientWithResponses) ExportListZipWithResponse(ctx context.Context, lis
 	return ParseExportListZipResponse(rsp)
 }
 
-// GetMapWithResponse A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+// GetMapWithResponse A small map (JPEG) with a pin, for a business card. Give lat and lon, or an address to look up. Signed in only; credits are printed on the image
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -11849,6 +11879,13 @@ func ParseGetMapResponse(rsp *http.Response) (*GetMapResponse, error) {
 		}
 		response.JSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
 		var dest Unavailable
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -13136,7 +13173,7 @@ type ServerInterface interface {
 	// ExportListZip All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
 	// (GET /lists/{listId}/zip)
 	ExportListZip(w http.ResponseWriter, r *http.Request, listId ListId)
-	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+	// GetMap A small map (JPEG) with a pin, for a business card. Give lat and lon, or an address to look up. Signed in only; credits are printed on the image
 	// (GET /map)
 	GetMap(w http.ResponseWriter, r *http.Request, params GetMapParams)
 	// GetMe The signed-in user and their workspaces
@@ -13967,9 +14004,9 @@ func (siw *ServerInterfaceWrapper) GetMap(w http.ResponseWriter, r *http.Request
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetMapParams
 
-	// ------------- Required query parameter "lat" -------------
+	// ------------- Optional query parameter "lat" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "lat", r.URL.Query(), &params.Lat, runtime.BindQueryParameterOptions{Type: "number", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lat", r.URL.Query(), &params.Lat, runtime.BindQueryParameterOptions{Type: "number", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
@@ -13980,15 +14017,28 @@ func (siw *ServerInterfaceWrapper) GetMap(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// ------------- Required query parameter "lon" -------------
+	// ------------- Optional query parameter "lon" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "lon", r.URL.Query(), &params.Lon, runtime.BindQueryParameterOptions{Type: "number", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lon", r.URL.Query(), &params.Lon, runtime.BindQueryParameterOptions{Type: "number", Format: ""})
 	if err != nil {
 		var requiredError *runtime.RequiredParameterError
 		if errors.As(err, &requiredError) {
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "lon"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "lon", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "address" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "address", r.URL.Query(), &params.Address, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "address"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "address", Err: err})
 		}
 		return
 	}
@@ -16373,6 +16423,20 @@ func (response GetMap400JSONResponse) VisitGetMapResponse(w http.ResponseWriter)
 	return err
 }
 
+type GetMap404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetMap404JSONResponse) VisitGetMapResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetMap503JSONResponse struct{ UnavailableJSONResponse }
 
 func (response GetMap503JSONResponse) VisitGetMapResponse(w http.ResponseWriter) error {
@@ -17999,7 +18063,7 @@ type StrictServerInterface interface {
 	// ExportListZip All rows as a CSV file plus the rows' pictures (e.g. receipt photos), in one ZIP file. The CSV's image column names each picture's file
 	// (GET /lists/{listId}/zip)
 	ExportListZip(ctx context.Context, request ExportListZipRequestObject) (ExportListZipResponseObject, error)
-	// GetMap A small map (JPEG) with a pin, for a business card. Signed in only; credits are printed on the image
+	// GetMap A small map (JPEG) with a pin, for a business card. Give lat and lon, or an address to look up. Signed in only; credits are printed on the image
 	// (GET /map)
 	GetMap(ctx context.Context, request GetMapRequestObject) (GetMapResponseObject, error)
 	// GetMe The signed-in user and their workspaces

@@ -23,19 +23,28 @@ func TestFocus(t *testing.T) {
 	if n := len([]rune(m)); n < 3000 {
 		t.Fatalf("the menu is only %d characters", n)
 	}
-	got := focus(m, "Pizza Salami", 1500)
+	got := focus(m, "Pizza Salami", 1500, false)
 	if len([]rune(got)) > 1500 || !strings.Contains(got, "32a. Pizza Salami\nmit Tomaten, Käse und Salami\n8,90 €") {
 		t.Fatalf("salami:\n%s", got)
 	}
 	// Spelled the way people type it.
-	if got := focus(m, "pizza margarita", 1500); !strings.Contains(got, "Pizza Margherita\nmit Tomaten und Mozzarella\n7,50 €") {
+	if got := focus(m, "pizza margarita", 1500, false); !strings.Contains(got, "Pizza Margherita\nmit Tomaten und Mozzarella\n7,50 €") {
 		t.Fatalf("margarita:\n%s", got)
 	}
+	// With the address asked for, the footer's address comes along.
+	withFooter := m + "Impressum\nDa Mario\nZschochersche Straße 35\n04229 Leipzig\nTel. 0341 1234567\n"
+	got = focus(withFooter, "Pizza Salami", 1500, true)
+	if !strings.Contains(got, "Zschochersche Straße 35\n04229 Leipzig") || !strings.Contains(got, "8,90 €") || len([]rune(got)) > 1500 {
+		t.Fatalf("with the address:\n%s", got)
+	}
+	if got := focus(withFooter, "Pizza Salami", 1500, false); strings.Contains(got, "04229") {
+		t.Fatal("the address came along unasked")
+	}
 	// Nothing about it, or short anyway: left alone.
-	if got := focus(m, "Sushi", 1500); got != m {
+	if got := focus(m, "Sushi", 1500, false); got != m {
 		t.Fatal("a text without a match was cut")
 	}
-	if got := focus("Pizza Salami 8,90 €\nCola 2,50 €", "Salami", 1500); got != "Pizza Salami 8,90 €\nCola 2,50 €" {
+	if got := focus("Pizza Salami 8,90 €\nCola 2,50 €", "Salami", 1500, false); got != "Pizza Salami 8,90 €\nCola 2,50 €" {
 		t.Fatalf("a short text was cut: %q", got)
 	}
 }

@@ -29,6 +29,8 @@ var detailHints = map[string]string{
 	"time":    "the start time as HH:MM (24h)",
 	"place":   "where it happens: venue and city",
 	"title":   "a short title of at most 10 words",
+	// What something costs, when it comes in several sizes.
+	"sizes": "every size it is sold in with that size's price, as written, e.g. \"26 cm 7,90 €, 32 cm 9,90 €\"; null if there is one price only",
 	// A receipt or invoice.
 	"vendor":         "the shop or company the receipt or invoice is from",
 	"total":          "the total amount to pay, tax included: digits with a dot and no currency, e.g. \"11.50\"",
@@ -108,7 +110,7 @@ var Extract = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, 
 				batch[i] = batch[i].Clone()
 				for _, f := range []string{"page_text", "text", "photo_text"} {
 					if t := batch[i].Text(f); t != "" {
-						batch[i].Set(f, focus(t, about, maxFieldChars), batch[i].Trust[f])
+						batch[i].Set(f, focus(t, about, maxFieldChars, slices.Contains(fields, "address")), batch[i].Trust[f])
 					}
 				}
 			}
