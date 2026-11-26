@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/STGime/laamo/backend/internal/pdftext/pdftexttest"
 	"github.com/STGime/laamo/backend/internal/web"
 )
 
@@ -58,6 +59,10 @@ func server(t *testing.T, robots string) *httptest.Server {
 	mux.HandleFunc("/menu.pdf", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/pdf")
 		_, _ = w.Write([]byte("%PDF-1.4"))
+	})
+	mux.HandleFunc("/karte.pdf", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/pdf")
+		_, _ = w.Write(pdftexttest.Make("Speisekarte", "Pizza Salami\t8,90 EUR"))
 	})
 	mux.HandleFunc("/private/page", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("<p>secret</p>")) })
 	mux.HandleFunc("/down", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusServiceUnavailable) })
@@ -223,14 +228,30 @@ func TestMenuPages(t *testing.T) {
 		{"https://mario.example/pizza", "Unsere Pizza"},
 		{"https://mario.example/speisekarte#pizza", "Speisekarte"},
 		{"https://mario.example/karte.pdf", "Karte als PDF"},
+		{"https://mario.example/speisekarte.jpg", "Speisekarte"},
 		{"https://order.example/mario/menu", "Online bestellen"},
 		{"https://www.mario.example/preise", "Preise"},
 	}}
 	got := web.MenuPages(p, 2)
-	if len(got) != 2 || got[0] != "https://mario.example/speisekarte" || got[1] != "https://www.mario.example/preise" {
+	if len(got) != 2 || got[0] != "https://mario.example/speisekarte" || got[1] != "https://mario.example/karte.pdf" {
 		t.Fatalf("menu pages %v", got)
 	}
-	if all := web.MenuPages(p, 9); len(all) != 3 || all[2] != "https://mario.example/pizza" {
+	if all := web.MenuPages(p, 9); len(all) != 4 || all[2] != "https://www.mario.example/preise" || all[3] != "https://mario.example/pizza" {
 		t.Fatalf("all menu pages %v", all)
+	}
+}
+
+// A PDF is read like a page: a menu to download is still a menu. One
+// bigger than a page may be is fetched whole, since half a PDF is none.
+func TestReadPDF(t *testing.T) {
+	s := server(t, "")
+	for _, f := range []*web.Fetcher{{AllowPrivate: true}, {AllowPrivate: true, MaxBytes: 300}} {
+		p, err := f.Read(context.Background(), s.URL+"/karte.pdf")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.Text != "Speisekarte\nPizza Salami 8,90 EUR" || p.Title != "karte.pdf" {
+			t.Errorf("pdf page %+v", p)
+		}
 	}
 }

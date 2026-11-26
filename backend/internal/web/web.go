@@ -25,6 +25,7 @@ import (
 	"unicode/utf8"
 
 	readability "codeberg.org/readeck/go-readability/v2"
+	"github.com/STGime/laamo/backend/internal/pdftext"
 	"github.com/temoto/robotstxt"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
@@ -236,7 +237,7 @@ func (f *Fetcher) Read(ctx context.Context, rawURL string) (Page, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	res, err := f.get(ctx, u.String(), f.maxBytes(), "text/html,application/xhtml+xml,text/plain;q=0.8")
+	res, err := f.get(ctx, u.String(), f.maxBytes(), "text/html,application/xhtml+xml,text/plain;q=0.8,application/pdf;q=0.7")
 	if err != nil {
 		return Page{}, err
 	}
@@ -247,6 +248,22 @@ func (f *Fetcher) Read(ctx context.Context, rawURL string) (Page, error) {
 	maxText := f.MaxText
 	if maxText <= 0 {
 		maxText = DefaultMaxText
+	}
+	// A PDF (a menu, a price list): its text is the page. Half a PDF can't
+	// be read, so one that was cut off is fetched again whole.
+	if strings.Contains(ctype, "pdf") || pdftext.Is(body) {
+		if int64(len(body)) >= f.maxBytes() && f.maxBytes() < pdftext.MaxBytes {
+			whole, err := f.get(ctx, final.String(), pdftext.MaxBytes+1, "application/pdf")
+			if err != nil {
+				return Page{}, err
+			}
+			body = whole.body
+		}
+		text, err := pdftext.Text(body, maxText)
+		if err != nil {
+			return Page{}, fmt.Errorf("%w: %w", ErrNotPage, err)
+		}
+		return Page{URL: final.String(), Title: path.Base(final.Path), Text: text}, nil
 	}
 	switch {
 	case strings.HasPrefix(ctype, "text/plain"):
@@ -606,7 +623,7 @@ var menuWords = regexp.MustCompile(`(?i)speise[-_ ]?karte|speisen|men[uü]e?|kar
 
 // MenuPages picks up to max links on the same site that look like the
 // menu or price list (a restaurant's Speisekarte, a shop's prices), most
-// telling first. Files (a menu as PDF) are left out: they can't be read.
+// telling first. A menu as PDF counts; one as a picture can't be read.
 func MenuPages(p Page, max int) []string {
 	base, err := url.Parse(p.URL)
 	if err != nil {
@@ -616,6 +633,8 @@ func MenuPages(p Page, max int) []string {
 	rank := func(l Link) int {
 		s := strings.ToLower(l.URL + " " + l.Text)
 		switch {
+		case strings.HasSuffix(strings.ToLower(l.URL), ".pdf"): // a menu to download is the menu
+			return 0
 		case strings.Contains(s, "speisekarte") || strings.Contains(s, "menu") || strings.Contains(s, "menü") || strings.Contains(s, "preis") || strings.Contains(s, "price"):
 			return 0
 		case strings.Contains(s, "pizza") || strings.Contains(s, "karte"):
@@ -632,7 +651,7 @@ func MenuPages(p Page, max int) []string {
 		}
 		u.Fragment = ""
 		clean := u.String()
-		if ext := strings.ToLower(path.Ext(u.Path)); ext == ".pdf" || ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" {
+		if ext := strings.ToLower(path.Ext(u.Path)); ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" {
 			continue
 		}
 		if strings.TrimRight(clean, "/") == strings.TrimRight(p.URL, "/") {

@@ -71,7 +71,6 @@
         "type": "think.extract",
         "config": {
           "fields": [
-            "name",
             "price"
           ],
           "about": "Pizza {answer}",

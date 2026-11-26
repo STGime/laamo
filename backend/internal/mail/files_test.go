@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/STGime/laamo/backend/internal/mail"
+	"github.com/STGime/laamo/backend/internal/pdftext/pdftexttest"
 )
 
 const report = `<?xml version="1.0" encoding="UTF-8"?>
@@ -122,7 +123,8 @@ func TestParseReadsAnAttachedEmail(t *testing.T) {
 // weighs is cut, not swallowed.
 func TestParseAttachmentLimits(t *testing.T) {
 	for name, raw := range map[string]string{
-		"pdf":         withAttachment("See attached.", "offer.pdf", "application/pdf", []byte("%PDF-1.7 \x00\x01\x02")),
+		"broken pdf":  withAttachment("See attached.", "offer.pdf", "application/pdf", []byte("%PDF-1.7 \x00\x01\x02")),
+		"word file":   withAttachment("See attached.", "offer.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", []byte("PK\x03\x04 not really")),
 		"binary .txt": withAttachment("See attached.", "notes.txt", "text/plain", []byte{0xff, 0xfe, 0x00, 0x41}),
 		"zip of exe":  withAttachment("See attached.", "tool.zip", "application/zip", zipped(t, map[string]string{"run.exe": "MZ"})),
 		"gz in gz":    withAttachment("See attached.", "a.xml.gz.gz", "application/gzip", gz(t, string(gz(t, report)))),
@@ -186,5 +188,17 @@ func TestParseSumsUpADMARCReport(t *testing.T) {
 	plain, _ := mail.Parse([]byte(withAttachment("", "feed.xml", "text/xml", []byte("<feedback><note>hello</note></feedback>"))))
 	if strings.Contains(plain.Text, "summary") {
 		t.Errorf("a summary for %q", plain.Text)
+	}
+}
+
+// A PDF with text in it (an invoice, an offer) is read too.
+func TestParseReadsAPDF(t *testing.T) {
+	raw := withAttachment("Invoice attached.", "invoice.pdf", "application/pdf", pdftexttest.Make("Invoice 2026-114", "Total\t119,00 EUR"))
+	m, err := mail.Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Text != "Invoice attached.\n\n[Attachment: invoice.pdf]\nInvoice 2026-114\nTotal 119,00 EUR" {
+		t.Fatalf("text %q", m.Text)
 	}
 }
