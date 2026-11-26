@@ -50,7 +50,12 @@
 	$effect(() => {
 		if (!id) return;
 		load();
-		return listen(load, () => session.fresh(), ['run', 'step', 'reload']);
+		return listen(
+			load,
+			() => session.fresh(),
+			['run', 'step', 'reload'],
+			() => running(run) || after === 'starting'
+		);
 	});
 
 	const helper = $derived(detail?.helper);

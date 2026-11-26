@@ -31,7 +31,12 @@
 	$effect(() => {
 		if (!session.workspace) return;
 		load();
-		return listen(load, () => session.fresh(), ['run', 'step', 'reload']);
+		return listen(
+			load,
+			() => session.fresh(),
+			['run', 'step', 'reload'],
+			() => !!starting || !!helpers?.some((h) => h.run)
+		);
 	});
 
 	async function runNow(id: string) {
