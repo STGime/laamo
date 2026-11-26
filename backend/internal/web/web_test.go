@@ -213,3 +213,24 @@ func TestReadPagePrice(t *testing.T) {
 		}
 	}
 }
+
+// The menu or price list of a site: same site only, the telling links
+// first, no files.
+func TestMenuPages(t *testing.T) {
+	p := web.Page{URL: "https://mario.example/", Links: []web.Link{
+		{"https://mario.example/", "Home"},
+		{"https://mario.example/ueber-uns", "Über uns"},
+		{"https://mario.example/pizza", "Unsere Pizza"},
+		{"https://mario.example/speisekarte#pizza", "Speisekarte"},
+		{"https://mario.example/karte.pdf", "Karte als PDF"},
+		{"https://order.example/mario/menu", "Online bestellen"},
+		{"https://www.mario.example/preise", "Preise"},
+	}}
+	got := web.MenuPages(p, 2)
+	if len(got) != 2 || got[0] != "https://mario.example/speisekarte" || got[1] != "https://www.mario.example/preise" {
+		t.Fatalf("menu pages %v", got)
+	}
+	if all := web.MenuPages(p, 9); len(all) != 3 || all[2] != "https://mario.example/pizza" {
+		t.Fatalf("all menu pages %v", all)
+	}
+}

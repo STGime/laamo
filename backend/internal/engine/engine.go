@@ -847,6 +847,11 @@ func (e *Engine) result(ctx context.Context, r *store.Run, de bool) (res result)
 	var lines []string
 	for _, c := range cards[:min(3, len(cards))] {
 		if t := text(c, "title", "name", "subject", "summary"); t != "" {
+			// A price that was pulled out belongs next to the name: it is
+			// what the run was for.
+			if p := text(c, "price"); p != "" {
+				t = truncate(t, 90) + " · " + truncate(p, 25)
+			}
 			lines = append(lines, "• "+truncate(t, 120))
 		}
 	}

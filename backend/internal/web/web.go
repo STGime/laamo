@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -599,6 +600,61 @@ func clip(s string, max int) string {
 	}
 	r := []rune(s)
 	return strings.TrimSpace(string(r[:max])) + " …"
+}
+
+var menuWords = regexp.MustCompile(`(?i)speise[-_ ]?karte|speisen|men[uü]e?|karte|pizza|preise|preisliste|prices?|pricing|angebot|sortiment|bestellen|order`)
+
+// MenuPages picks up to max links on the same site that look like the
+// menu or price list (a restaurant's Speisekarte, a shop's prices), most
+// telling first. Files (a menu as PDF) are left out: they can't be read.
+func MenuPages(p Page, max int) []string {
+	base, err := url.Parse(p.URL)
+	if err != nil {
+		return nil
+	}
+	host := strings.TrimPrefix(base.Hostname(), "www.")
+	rank := func(l Link) int {
+		s := strings.ToLower(l.URL + " " + l.Text)
+		switch {
+		case strings.Contains(s, "speisekarte") || strings.Contains(s, "menu") || strings.Contains(s, "menü") || strings.Contains(s, "preis") || strings.Contains(s, "price"):
+			return 0
+		case strings.Contains(s, "pizza") || strings.Contains(s, "karte"):
+			return 1
+		default:
+			return 2
+		}
+	}
+	var picks []Link
+	for _, l := range p.Links {
+		u, err := url.Parse(l.URL)
+		if err != nil || strings.TrimPrefix(u.Hostname(), "www.") != host {
+			continue
+		}
+		u.Fragment = ""
+		clean := u.String()
+		if ext := strings.ToLower(path.Ext(u.Path)); ext == ".pdf" || ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" {
+			continue
+		}
+		if strings.TrimRight(clean, "/") == strings.TrimRight(p.URL, "/") {
+			continue
+		}
+		if !menuWords.MatchString(u.Path) && !menuWords.MatchString(l.Text) {
+			continue
+		}
+		if slices.ContainsFunc(picks, func(x Link) bool { return x.URL == clean }) {
+			continue
+		}
+		picks = append(picks, Link{URL: clean, Text: l.Text})
+	}
+	slices.SortStableFunc(picks, func(a, b Link) int { return rank(a) - rank(b) })
+	var out []string
+	for _, l := range picks {
+		if len(out) == max {
+			break
+		}
+		out = append(out, l.URL)
+	}
+	return out
 }
 
 var contactWords = regexp.MustCompile(`(?i)impressum|imprint|kontakt|contact|about|[uü]ber[-_ ]?uns|ueber[-_ ]?uns|team|legal-notice`)

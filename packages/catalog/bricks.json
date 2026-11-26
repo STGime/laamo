@@ -1160,6 +1160,17 @@
           }
         },
         {
+          "if": {
+            "depth": [
+              "menu"
+            ]
+          },
+          "text": {
+            "en": "Read their website and menu or price list",
+            "de": "Ihre Website und Speisekarte oder Preisliste lesen"
+          }
+        },
+        {
           "text": {
             "en": "Read their website",
             "de": "Ihre Website lesen"
@@ -1234,6 +1245,13 @@
               "label": {
                 "en": "+ contact & about pages",
                 "de": "+ Kontakt- und Über-uns-Seite"
+              }
+            },
+            {
+              "value": "menu",
+              "label": {
+                "en": "+ menu or price list",
+                "de": "+ Speisekarte oder Preisliste"
               }
             }
           ]
@@ -1848,6 +1866,13 @@
                 "en": "Keep the order",
                 "de": "Reihenfolge behalten"
               }
+            },
+            {
+              "value": "cheapest",
+              "label": {
+                "en": "Cheapest first",
+                "de": "Günstigste zuerst"
+              }
             }
           ]
         },
@@ -1931,6 +1956,20 @@
             "name",
             "email"
           ]
+        },
+        {
+          "key": "about",
+          "type": "text",
+          "label": {
+            "en": "For which one, if a page lists many",
+            "de": "Für welches, wenn eine Seite viele auflistet"
+          },
+          "placeholder": {
+            "en": "Pizza Salami",
+            "de": "Pizza Salami"
+          },
+          "pills": true,
+          "max_length": 120
         },
         {
           "key": "only_found",
