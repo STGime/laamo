@@ -114,7 +114,8 @@ func (b ReadPage) Run(ctx context.Context, rc *engine.RunContext, in []engine.Ca
 }
 
 // read reads a page and, for depth "contact", up to two contact/Impressum
-// pages on the same site, and lists the emails and phone numbers found.
+// pages on the same site (for depth "menu", up to two menu or price
+// pages), and lists the emails and phone numbers found.
 func (b ReadPage) read(ctx context.Context, u, depth string) (title, text, final string, err error) {
 	p, err := b.Reader.Read(ctx, u)
 	if err != nil {
@@ -136,6 +137,16 @@ func (b ReadPage) read(ctx context.Context, u, depth string) (title, text, final
 			fmt.Fprintf(&sb, "\n\n--- %s ---\n%s", cu, cp.Text)
 			emails = appendNew(emails, cp.Emails...)
 			phones = appendNew(phones, cp.Phones...)
+		}
+	}
+	if depth == "menu" {
+		// The menu or price list is rarely on the first page.
+		for _, mu := range web.MenuPages(p, 2) {
+			mp, err := b.Reader.Read(ctx, mu)
+			if err != nil {
+				continue
+			}
+			fmt.Fprintf(&sb, "\n\n--- %s ---\n%s", mu, mp.Text)
 		}
 	}
 	if len(emails) > 0 || len(phones) > 0 {

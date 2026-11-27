@@ -22,6 +22,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/STGime/laamo/backend/internal/bricks/do"
+	"github.com/STGime/laamo/backend/internal/osm"
 	"github.com/STGime/laamo/backend/internal/store"
 )
 
@@ -734,7 +735,25 @@ func (s *Server) GetMap(ctx context.Context, req GetMapRequestObject) (GetMapRes
 	if s.maps == nil {
 		return GetMap503JSONResponse{UnavailableJSONResponse(apiErr(ErrorCodeUnavailable, "maps are off: the server has no GEOAPIFY_API_KEY"))}, nil
 	}
-	lat, lon := float64(req.Params.Lat), float64(req.Params.Lon)
+	var lat, lon float64
+	switch address := strings.TrimSpace(deref(req.Params.Address)); {
+	case req.Params.Lat != nil && req.Params.Lon != nil:
+		lat, lon = float64(*req.Params.Lat), float64(*req.Params.Lon)
+	case address != "":
+		// A card with an address but no coordinates (a price found on the
+		// web): look the address up. Only a street address gives a useful pin.
+		place, err := s.maps.Geocode(ctx, address, "")
+		if errors.Is(err, osm.ErrNoPlace) {
+			return GetMap404JSONResponse{NotFoundJSONResponse(apiErr(ErrorCodeNotFound, "that address isn't on the map"))}, nil
+		}
+		if err != nil {
+			s.log.Warn("map: geocode", "err", err)
+			return GetMap503JSONResponse{UnavailableJSONResponse(apiErr(ErrorCodeUnavailable, "the map service didn't answer"))}, nil
+		}
+		lat, lon = place.Lat, place.Lon
+	default:
+		return GetMap400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "give lat and lon, or an address"))}, nil
+	}
 	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
 		return GetMap400JSONResponse{BadRequestJSONResponse(apiErr(ErrorCodeBadRequest, "that isn't a place on Earth"))}, nil
 	}

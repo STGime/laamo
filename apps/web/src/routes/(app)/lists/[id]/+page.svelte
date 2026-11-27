@@ -14,6 +14,8 @@
 		osmSource,
 		morePictures,
 		rowHeading,
+		longCell,
+		resultMark,
 		rowPicture
 	} from '#lib/lists.ts';
 	import Picture from '#lib/components/Picture.svelte';
@@ -198,13 +200,22 @@
 			{#each detail.rows as r (r.id)}
 				{@const heading = rowHeading(r.data)}
 				{@const picture = rowPicture(r.data)}
+				{@const mark = resultMark(r.data.result)}
 				<li>
 					<div class="cells">
+						<!-- The result first: it is what the row is for. -->
+						{#if mark}
+							<p class="result {mark}">
+								<span class="dot" aria-hidden="true"></span>{cellText(r.data.result)}
+							</p>
+						{/if}
 						{#if heading}<strong>{heading}</strong>{/if}
 						<dl>
 							{#each columns as c (c)}
 								{#if c === 'image' || c === 'image_alt' || c === 'more_images'}
 									<!-- shown as the picture below -->
+								{:else if (c === 'result' && mark) || longCell(c, r.data[c])}
+									<!-- shown above, or to open below -->
 								{:else if r.data[c] != null && r.data[c] !== '' && r.data[c] !== heading}
 									{@const href = cellHref(c, r.data[c])}
 									<dt>{columnLabel(c, i18n.lang)}</dt>
@@ -216,6 +227,17 @@
 								{/if}
 							{/each}
 						</dl>
+						{#each columns.filter((c) => longCell(c, r.data[c]) && r.data[c] !== heading) as c (c)}
+							<!-- An email's text and the like: there to look up, closed until asked for. -->
+							<details class="long">
+								<summary
+									>{c === 'text' && r.data.from
+										? t('lists.showEmail')
+										: t('lists.show', { column: columnLabel(c, i18n.lang) })}</summary
+								>
+								<p>{cellText(r.data[c])}</p>
+							</details>
+						{/each}
 						{#if picture}
 							<!-- Loaded only when opened: a long list has many pictures. -->
 							<details
@@ -388,6 +410,44 @@
 	}
 	dd {
 		margin: 0;
+		overflow-wrap: anywhere;
+	}
+	.result {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+		margin: 0 0 var(--space-1);
+		font-weight: 700;
+	}
+	.result .dot {
+		flex: none;
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+		background: var(--brick-green);
+	}
+	.result.minor .dot {
+		background: var(--brick-yellow);
+	}
+	.result.bad .dot {
+		background: var(--brick-red);
+	}
+	.long {
+		margin-top: var(--space-1);
+		font-size: var(--text-sm);
+	}
+	.long summary {
+		min-height: var(--tap-min);
+		display: flex;
+		align-items: center;
+		font-weight: 700;
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.long p {
+		margin: 0;
+		color: var(--muted);
+		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 	}
 	.when {

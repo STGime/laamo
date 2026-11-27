@@ -88,3 +88,22 @@ export function osmSource(url: unknown): string | null {
 		? url
 		: null;
 }
+
+/** Text too long for a row's table: it gets a line to open and close (an email's text). */
+export const LONG_CELL = 200;
+export function longCell(key: string, v: unknown): boolean {
+	return typeof v === 'string' && (key === 'text' || v.length > LONG_CELL);
+}
+
+/**
+ * How a result reads at a glance: good, a minor problem, or a problem. A
+ * helper's result line starts with one of these words (Mail Report Checker).
+ */
+export function resultMark(v: unknown): 'good' | 'minor' | 'bad' | null {
+	if (typeof v !== 'string') return null;
+	const s = v.trim().toLowerCase();
+	if (/^(all good|ok\b|alles gut)/.test(s)) return 'good';
+	if (/^(minor problem|kleines problem)/.test(s)) return 'minor';
+	if (/^problem/.test(s)) return 'bad';
+	return null;
+}

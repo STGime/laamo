@@ -47,6 +47,7 @@ var kinds = []struct {
 	{[]string{"pastry", "konditorei", "patisserie", "cake shop"}, tags("shop", "pastry", "shop", "confectionery"), cats("commercial.food_and_drink.confectionery,commercial.food_and_drink.bakery")},
 	{[]string{"butcher", "metzger", "metzgerei", "fleischerei", "schlachterei"}, tags("shop", "butcher"), cats("commercial.food_and_drink.butcher")},
 	{[]string{"cafe", "café", "coffee shop", "kaffee", "kaffeehaus"}, tags("amenity", "cafe"), cats("catering.cafe")},
+	{[]string{"pizza", "pizzeria", "pizzerien", "pizza place", "pizzaservice", "pizzalieferdienst"}, tags("amenity", "restaurant", "amenity", "fast_food"), cats("catering.restaurant.pizza,catering.fast_food.pizza")},
 	{[]string{"restaurant", "gaststaette", "gasthaus", "lokal"}, tags("amenity", "restaurant"), cats("catering.restaurant")},
 	{[]string{"bar", "kneipe", "pub", "bars"}, tags("amenity", "bar", "amenity", "pub"), cats("catering.bar,catering.pub")},
 	{[]string{"fast food", "imbiss", "snack bar", "doener", "kebab", "pizzeria"}, tags("amenity", "fast_food"), cats("catering.fast_food")},

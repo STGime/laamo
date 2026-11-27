@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/engine/tmpl"
 	"github.com/STGime/laamo/backend/internal/llm"
 	"github.com/STGime/laamo/backend/internal/queue"
 )
@@ -28,6 +29,8 @@ var detailHints = map[string]string{
 	"time":    "the start time as HH:MM (24h)",
 	"place":   "where it happens: venue and city",
 	"title":   "a short title of at most 10 words",
+	// What something costs, when it comes in several sizes.
+	"sizes": "every size it is sold in with that size's price, as written, e.g. \"26 cm 7,90 €, 32 cm 9,90 €\"; null if there is one price only",
 	// A receipt or invoice.
 	"vendor":         "the shop or company the receipt or invoice is from",
 	"total":          "the total amount to pay, tax included: digits with a dot and no currency, e.g. \"11.50\"",
@@ -46,7 +49,7 @@ var detailHints = map[string]string{
 	"emails_passed":  "the number after \"Passed DMARC:\" in the report summary, digits only",
 	"emails_failed":  "the number after \"Failed DMARC:\" in the report summary, digits only",
 	"failed_sources": "what stands after \"Failed sources:\" in the report summary, as written; \"none\" if it says none",
-	"verdict":        "\"OK\" if no email failed; otherwise one sentence in plain words: how many failed and the reason the report summary gives for each failed source (a forwarding mailbox, or possibly someone else sending in the domain's name); never claim more than the summary says",
+	"result":         "the whole line after \"Result:\" in the report summary, copied word for word (it starts with \"All good\", \"Minor problem\" or \"Problem\"); if there is no report summary: \"Problem: no report found in this email.\"",
 }
 
 // amountFields are money amounts: kept only when their digits are in the
@@ -87,8 +90,31 @@ var Extract = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, 
 		want = append(want, fmt.Sprintf("%q: %s", f, hint))
 	}
 
+	// For which one: a page that lists many things (a menu, a price list)
+	// is cut down to the lines about that one, and the model is told.
+	about, only := "", ""
+	if cfg.String("about") != "" {
+		resolved, err := tmpl.Config(rc, rc.Brick, cfg, nil)
+		if err != nil {
+			return nil, err
+		}
+		if about = strings.TrimSpace(resolved.String("about")); about != "" {
+			only = fmt.Sprintf(" The owner wants these details for this one thing only: %q. A card may list many things: take the details that belong to it, and null if it isn't there.", cut(about, 120))
+		}
+	}
+
 	for _, real := range batches(in, 10) {
 		batch, back := shortIDs(real)
+		if about != "" {
+			for i := range batch {
+				batch[i] = batch[i].Clone()
+				for _, f := range []string{"page_text", "text", "photo_text"} {
+					if t := batch[i].Text(f); t != "" {
+						batch[i].Set(f, focus(t, about, maxFieldChars, slices.Contains(fields, "address")), batch[i].Trust[f])
+					}
+				}
+			}
+		}
 		var out struct {
 			Cards []struct {
 				ID     string         `json:"id"`
@@ -97,8 +123,8 @@ var Extract = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, 
 		}
 		system := fmt.Sprintf(`You pull details out of cards for a small business owner. Details to pull out:
 %s
-Use only what the card itself says. If a detail isn't in the card, use null: never guess or make one up. %s Format: {"cards":[{"id": string, "fields": {detail: string or null}}]} with one entry for every card id.`,
-			"- "+strings.Join(want, "\n- "), guard)
+Use only what the card itself says. If a detail isn't in the card, use null: never guess or make one up.%s %s Format: {"cards":[{"id": string, "fields": {detail: string or null}}]} with one entry for every card id.`,
+			"- "+strings.Join(want, "\n- "), only, guard)
 		// Details are best effort: entries for unknown or repeated cards are
 		// left out, and a card the AI skipped just gets none. Only an answer
 		// that fits no card at all is sent back.

@@ -167,3 +167,43 @@ func TestResultSaysWhatBecameOfThePost(t *testing.T) {
 	}
 	t.Fatalf("no result card: %+v", e.feed(r.ID))
 }
+
+// A run that saved its cards and then had nothing left to flag says what
+// it saved, not "Nothing new this time". Still without a notification.
+func TestResultSavedButNothingToFlag(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t, []sb{{ID: "b1", Type: "when.tap"}})
+	l := store.List{WorkspaceID: e.ws.ID, UserID: e.ws.UserID, Name: "Mail reports"}
+	if err := e.store.CreateList(ctx, &l); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(catalog.Stack{Schema: 1, Bricks: []catalog.StackBrick{
+		{ID: "b1", Type: "when.tap"}, {ID: "b2", Type: "look.search", Config: map[string]any{"query": "reports"}},
+		{ID: "b3", Type: "do.list", Config: map[string]any{"list": l.ID, "dedupe": "none"}},
+		{ID: "b4", Type: "think.keep", Config: map[string]any{"criteria": "report a problem"}},
+	}})
+	v := e.store.PutHelperVersion(store.HelperVersion{WorkspaceID: e.ws.ID, UserID: e.ws.UserID, HelperID: e.helper.ID, Version: 2, Stack: raw})
+	e.helper.CurrentVersionID = &v.ID
+	e.helper = e.store.PutHelper(e.helper)
+	e.eng.Bricks["look.search"] = engine.BrickFunc(func(context.Context, *engine.RunContext, []engine.Card, engine.Config) ([]engine.Card, error) {
+		c := engine.Card{Kind: "email"}
+		c.Set("result", "All good: the 1 email passed.", engine.TrustExtracted)
+		return []engine.Card{c}, nil
+	})
+	e.eng.Bricks["do.list"] = engine.BrickFunc(func(_ context.Context, _ *engine.RunContext, in []engine.Card, _ engine.Config) ([]engine.Card, error) {
+		return in, nil
+	})
+	e.eng.Bricks["think.keep"] = engine.BrickFunc(func(context.Context, *engine.RunContext, []engine.Card, engine.Config) ([]engine.Card, error) {
+		return nil, nil
+	})
+	r := e.run(e.start("manual", false))
+	for _, f := range e.feed(r.ID) {
+		if f.Type == "result" {
+			if f.Title != "Saved to “Mail reports”" || f.Body == nil || *f.Body != "All good: the 1 email passed." || f.Payload["nothing"] != true {
+				t.Fatalf("result card %q %v %+v", f.Title, f.Body, f.Payload)
+			}
+			return
+		}
+	}
+	t.Fatalf("no result card: %+v", e.feed(r.ID))
+}

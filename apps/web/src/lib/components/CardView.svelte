@@ -87,6 +87,15 @@
 				: t(from ? 'osm.kmFrom' : 'osm.kmAway', { n: km, place: from })
 	);
 	const phone = $derived(text('phone'));
+	// Something with a price found on the web (a dish on a menu, a product):
+	// the price is the news. The page's text it was read from is left out.
+	const price = $derived(text('price'));
+	const offer = $derived(price !== '' && !photo);
+	const mapSearch = $derived(
+		text('address')
+			? `https://www.openstreetmap.org/search?query=${encodeURIComponent(text('address'))}`
+			: null
+	);
 	// A draft to someone: open it in the user's own mail app, or copy it.
 	const draft = $derived(
 		text('body') && email
@@ -154,6 +163,11 @@
 				✉️ {sender} · {t(senderChecked ? 'feed.senderChecked' : 'feed.senderNotChecked')}
 			</p>
 		{/if}
+		{#if offer}
+			<p class="price display">{price}</p>
+			{#if text('sizes')}<p class="facts">{text('sizes')}</p>{/if}
+			{#if !business && text('address')}<p class="where">{text('address')}</p>{/if}
+		{/if}
 		{#if business}
 			{#if text('address') || away}
 				<p class="where">{[text('address'), away].filter(Boolean).join(' · ')}</p>
@@ -167,7 +181,7 @@
 			{/if}
 		{/if}
 		{#if email}<p class="email">→ {edits?.email ?? email}</p>{/if}
-		{#if body}<p class="body">
+		{#if body && !offer}<p class="body">
 				{(edits?.body ?? body).slice(0, 320)}{body.length > 320 ? '…' : ''}
 			</p>{/if}
 		{#if host}
@@ -189,6 +203,20 @@
 		{#if text('image')}<Picture path={text('image')} alt={text('image_alt')} />{/if}
 		{#each morePictures(card.fields) as more (more)}<Picture path={more} />{/each}
 		{#if business && location}<MapThumb {location} href={fromMap} />{/if}
+		{#if offer && !location && text('address')}
+			<MapThumb address={text('address')} href={mapSearch} />
+			<p class="host">
+				<a
+					href="https://www.openstreetmap.org/copyright"
+					target="_blank"
+					rel="noopener noreferrer nofollow">{t('osm.credit')}</a
+				>
+				·
+				<a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer"
+					>{t('osm.poweredBy')}</a
+				>
+			</p>
+		{/if}
 		{#if fromMap}
 			<p class="host">
 				<a href={fromMap} target="_blank" rel="noopener noreferrer nofollow">{t('osm.credit')}</a>
@@ -210,6 +238,11 @@
 	h3 {
 		margin: 0;
 		font-size: var(--text-lg);
+	}
+	.price {
+		font-size: var(--text-h2);
+		font-weight: 800;
+		line-height: 1.1;
 	}
 	p {
 		margin: 0;

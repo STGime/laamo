@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/STGime/laamo/backend/internal/mail"
+	"github.com/STGime/laamo/backend/internal/pdftext/pdftexttest"
 )
 
 const report = `<?xml version="1.0" encoding="UTF-8"?>
@@ -122,7 +123,8 @@ func TestParseReadsAnAttachedEmail(t *testing.T) {
 // weighs is cut, not swallowed.
 func TestParseAttachmentLimits(t *testing.T) {
 	for name, raw := range map[string]string{
-		"pdf":         withAttachment("See attached.", "offer.pdf", "application/pdf", []byte("%PDF-1.7 \x00\x01\x02")),
+		"broken pdf":  withAttachment("See attached.", "offer.pdf", "application/pdf", []byte("%PDF-1.7 \x00\x01\x02")),
+		"word file":   withAttachment("See attached.", "offer.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", []byte("PK\x03\x04 not really")),
 		"binary .txt": withAttachment("See attached.", "notes.txt", "text/plain", []byte{0xff, 0xfe, 0x00, 0x41}),
 		"zip of exe":  withAttachment("See attached.", "tool.zip", "application/zip", zipped(t, map[string]string{"run.exe": "MZ"})),
 		"gz in gz":    withAttachment("See attached.", "a.xml.gz.gz", "application/gzip", gz(t, string(gz(t, report)))),
@@ -174,6 +176,7 @@ func TestParseSumsUpADMARCReport(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Reporter: mailbox.example\nDomain: news.example.com\nPeriod: 2026-11-24 to 2026-11-24 (UTC)\nPolicy: none\n",
+		"Result: Problem: 1 of 18 emails did not come from the domain's own servers (from 192.0.2.66). Someone may be sending in the domain's name.\n",
 		"Emails: 18\nPassed DMARC: 15\nFailed DMARC: 3\n",
 		"Failed sources: 198.51.100.9 (2: dkim fail, spf fail, sent to forwarded.example; it carried the domain's own signature, broken on the way: most likely a mailbox that forwards its mail",
 		"192.0.2.66 (1: dkim fail, spf fail, sent to spoofed.example; it carried no signature of the domain: possibly someone else",
@@ -182,9 +185,32 @@ func TestParseSumsUpADMARCReport(t *testing.T) {
 			t.Errorf("no %q in\n%s", want, m.Text)
 		}
 	}
+	// Only forwarded mail failed: a minor problem. Nothing failed: all good.
+	forwarded := strings.Replace(xml, rec("192.0.2.66", 1, "fail", "fail", "spoofed.example"), "", 1)
+	m, _ = mail.Parse([]byte(withAttachment("", "report.xml", "text/xml", []byte(forwarded))))
+	if !strings.Contains(m.Text, "Result: Minor problem: 2 of 17 emails failed, but they were the domain's own emails") {
+		t.Errorf("forwarded only:\n%.400s", m.Text)
+	}
+	clean := strings.Replace(forwarded, rec("198.51.100.9", 2, "fail", "fail", "forwarded.example"), "", 1)
+	m, _ = mail.Parse([]byte(withAttachment("", "report.xml", "text/xml", []byte(clean))))
+	if !strings.Contains(m.Text, "Result: All good: all 15 emails passed.\n") {
+		t.Errorf("clean:\n%.400s", m.Text)
+	}
 	// Other XML is left as it is.
 	plain, _ := mail.Parse([]byte(withAttachment("", "feed.xml", "text/xml", []byte("<feedback><note>hello</note></feedback>"))))
 	if strings.Contains(plain.Text, "summary") {
 		t.Errorf("a summary for %q", plain.Text)
+	}
+}
+
+// A PDF with text in it (an invoice, an offer) is read too.
+func TestParseReadsAPDF(t *testing.T) {
+	raw := withAttachment("Invoice attached.", "invoice.pdf", "application/pdf", pdftexttest.Make("Invoice 2026-114", "Total\t119,00 EUR"))
+	m, err := mail.Parse([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Text != "Invoice attached.\n\n[Attachment: invoice.pdf]\nInvoice 2026-114\nTotal 119,00 EUR" {
+		t.Fatalf("text %q", m.Text)
 	}
 }

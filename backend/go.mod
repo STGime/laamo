@@ -9,6 +9,7 @@ require (
 	github.com/coder/websocket v1.8.14
 	github.com/emersion/go-message v0.18.2
 	github.com/emersion/go-msgauth v0.7.0
+	github.com/ledongthuc/pdf v0.0.0-20261125152515-e8918f005efa
 	github.com/temoto/robotstxt v1.1.2
 	golang.org/x/image v0.36.0
 	golang.org/x/net v0.57.0

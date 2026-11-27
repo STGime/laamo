@@ -8,13 +8,15 @@ import (
 	"path"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/STGime/laamo/backend/internal/pdftext"
 )
 
 // Attachments a helper can read as text: plain files (XML, CSV, JSON,
 // text), the same inside a .zip or .gz, and an email attached to the email
 // (forwarded "as attachment"). Reports that mail providers send (DMARC,
 // TLS) come this way: the email itself says nothing, the file everything.
-// PDFs and office files are not read.
+// A PDF is read when it holds text (not a scan); office files are not.
 
 // MaxFileText is how much text all of an email's attachments together add
 // to what a run gets, on top of the email's own text.
@@ -35,10 +37,10 @@ func readable(name, ctype string) bool {
 	ext := strings.ToLower(path.Ext(name))
 	ct := strings.ToLower(ctype)
 	switch {
-	case textExt[ext], ext == ".gz", ext == ".zip", ext == ".eml":
+	case textExt[ext], ext == ".gz", ext == ".zip", ext == ".eml", ext == ".pdf":
 		return true
 	case ct == "text/plain", ct == "text/csv", ct == "text/xml", ct == "application/xml", ct == "application/json",
-		ct == "application/zip", ct == "application/gzip", ct == "application/x-gzip", ct == "message/rfc822":
+		ct == "application/zip", ct == "application/gzip", ct == "application/x-gzip", ct == "message/rfc822", ct == "application/pdf":
 		return true
 	}
 	return false
@@ -88,6 +90,13 @@ func fileText(name, ctype string, data []byte, packed bool) string {
 			}
 		}
 		return strings.Join(parts, "\n\n")
+	case pdftext.Is(data):
+		// An invoice, an offer, a letter. A scan has no text and adds none.
+		text, err := pdftext.Text(data, MaxFileText)
+		if err != nil {
+			return ""
+		}
+		return clean(text)
 	case ext == ".eml" || ct == "message/rfc822":
 		if packed {
 			return ""

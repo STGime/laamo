@@ -13,6 +13,7 @@ import (
 	"github.com/STGime/laamo/backend/internal/crypto"
 	"github.com/STGime/laamo/backend/internal/demo"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/osm"
 	"github.com/STGime/laamo/backend/internal/posta"
 	"github.com/STGime/laamo/backend/internal/proof"
 	"github.com/STGime/laamo/backend/internal/push"
@@ -89,6 +90,8 @@ type Deps struct {
 // MapMaker draws a small map with a pin.
 type MapMaker interface {
 	StaticMap(ctx context.Context, lat, lon float64) ([]byte, error)
+	// Geocode finds where an address is.
+	Geocode(ctx context.Context, q, lang string) (osm.Place, error)
 }
 
 func NewServer(d Deps) *Server {

@@ -1,0 +1,114 @@
+{
+  "$schema": "../template.schema.json",
+  "schema": 1,
+  "slug": "pizza-finder",
+  "name": {
+    "en": "Pizza Finder",
+    "de": "Pizza-Finder"
+  },
+  "promise": {
+    "en": "Say which pizza you want. It searches the menus around you and lists the cheapest ones it finds, with the price.",
+    "de": "Sag, welche Pizza du willst. Er durchsucht die Speisekarten in deiner Nähe und listet die günstigsten auf, die er findet, mit Preis."
+  },
+  "category": "stay_up_to_date",
+  "avatar": "🍕",
+  "sort_order": 90,
+  "setup_questions": [
+    {
+      "key": "where",
+      "type": "text",
+      "question": {
+        "en": "Where are you? Town and part of town.",
+        "de": "Wo bist du? Ort und Stadtteil."
+      },
+      "placeholder": {
+        "en": "Leipzig Plagwitz",
+        "de": "Leipzig Plagwitz"
+      },
+      "fills": [
+        {
+          "brick": "b2",
+          "setting": "query",
+          "text": {
+            "en": "Pizza {answer} menu prices {value}",
+            "de": "Pizza {answer} Speisekarte Preise {value}"
+          }
+        }
+      ]
+    }
+  ],
+  "stack": {
+    "schema": 1,
+    "bricks": [
+      {
+        "id": "b1",
+        "type": "when.tap",
+        "config": {
+          "question": {
+            "en": "Which pizza? For example Salami or Margherita.",
+            "de": "Welche Pizza? Zum Beispiel Salami oder Margherita."
+          }
+        }
+      },
+      {
+        "id": "b2",
+        "type": "look.search",
+        "config": {
+          "count": 10,
+          "freshness": "any"
+        }
+      },
+      {
+        "id": "b3",
+        "type": "look.read_page",
+        "config": {
+          "source": "url",
+          "depth": "page"
+        }
+      },
+      {
+        "id": "b4",
+        "type": "think.extract",
+        "config": {
+          "fields": [
+            "price"
+          ],
+          "about": "Pizza {answer}",
+          "only_found": true
+        }
+      },
+      {
+        "id": "b5",
+        "type": "think.extract",
+        "config": {
+          "fields": [
+            "sizes",
+            "address"
+          ],
+          "about": "Pizza {answer}",
+          "only_found": false
+        }
+      },
+      {
+        "id": "b6",
+        "type": "think.keep",
+        "config": {
+          "criteria": {
+            "en": "are a place to eat or order from and have a price",
+            "de": "ein Lokal oder Lieferdienst sind und einen Preis haben"
+          },
+          "max": 5,
+          "sort": "cheapest"
+        }
+      }
+    ],
+    "limits": {
+      "max_cards": 25,
+      "max_external_emails": 0,
+      "max_cost_eur": 0.1
+    }
+  },
+  "required": {
+    "brain": true
+  }
+}

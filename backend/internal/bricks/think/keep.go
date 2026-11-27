@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -117,7 +118,18 @@ var Keep = engine.BrickFunc(func(ctx context.Context, rc *engine.RunContext, in 
 		c.Set("reason", c.Reason, engine.TrustExtracted)
 		kept = append(kept, c)
 	}
-	if cfg.String("sort") != "original" {
+	switch cfg.String("sort") {
+	case "original":
+	case "cheapest":
+		// By the price on the card, counted here; cards without one last.
+		price := func(c engine.Card) float64 {
+			if v, ok := amount(c.Text("price")); ok {
+				return v
+			}
+			return math.MaxFloat64
+		}
+		slices.SortStableFunc(kept, func(a, b engine.Card) int { return cmp.Compare(price(a), price(b)) })
+	default:
 		slices.SortStableFunc(kept, func(a, b engine.Card) int { return cmp.Compare(*b.Score, *a.Score) })
 	}
 	if n := cfg.Int("max"); n > 0 && len(kept) > n {

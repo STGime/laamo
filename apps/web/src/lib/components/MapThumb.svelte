@@ -6,18 +6,27 @@
 	import { t } from '#lib/i18n/index.svelte.ts';
 	import { api } from '#lib/session.svelte.ts';
 
-	let { location, href }: { location: string; href?: string | null } = $props();
+	// location: "lat,lon". Without it, address is looked up by the server.
+	let {
+		location = '',
+		address = '',
+		href
+	}: { location?: string; address?: string; href?: string | null } = $props();
 
 	let src = $state<string | null>(null);
 	let failed = $state(false);
 
 	$effect(() => {
-		const [lat, lon] = location.split(',').map(Number);
-		if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+		const [lat, lon] = location ? location.split(',').map(Number) : [NaN, NaN];
+		const byPlace = Number.isFinite(lat) && Number.isFinite(lon);
+		if (!byPlace && !address.trim()) return;
 		let url: string | null = null;
 		let gone = false;
 		api
-			.GET('/map', { params: { query: { lat, lon } }, parseAs: 'blob' })
+			.GET('/map', {
+				params: { query: byPlace ? { lat, lon } : { address: address.trim().slice(0, 200) } },
+				parseAs: 'blob'
+			})
 			.then(({ data }) => {
 				if (gone || !data) return void (failed = !data);
 				url = URL.createObjectURL(data as Blob);

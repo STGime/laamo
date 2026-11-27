@@ -13,6 +13,7 @@ import (
 
 	"github.com/STGime/laamo/backend/internal/api"
 	"github.com/STGime/laamo/backend/internal/engine"
+	"github.com/STGime/laamo/backend/internal/osm"
 	"github.com/STGime/laamo/backend/internal/store"
 	"github.com/STGime/laamo/backend/internal/store/memory"
 )
@@ -250,6 +251,13 @@ func (f *fakeMaps) StaticMap(_ context.Context, lat, lon float64) ([]byte, error
 	return []byte("JPEG"), nil
 }
 
+func (f *fakeMaps) Geocode(_ context.Context, q, _ string) (osm.Place, error) {
+	if !strings.Contains(q, "Leipzig") {
+		return osm.Place{}, osm.ErrNoPlace
+	}
+	return osm.Place{Name: q, Lat: 51.33, Lon: 12.33}, nil
+}
+
 func TestMap(t *testing.T) {
 	st := memory.New()
 	m := &fakeMaps{}
@@ -257,12 +265,22 @@ func TestMap(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := env{url: srv.URL, store: st}.client(t, "anna")
 	ctx := context.Background()
-	r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{Lat: 51.34, Lon: 12.37}))
+	r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{Lat: new(float32(51.34)), Lon: new(float32(12.37))}))
 	if r.StatusCode() != 200 || string(r.Body) != "JPEG" || r.HTTPResponse.Header.Get("Content-Type") != "image/jpeg" {
 		t.Fatalf("map: %d %q", r.StatusCode(), r.Body)
 	}
-	if r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{Lat: 99, Lon: 12})); r.StatusCode() != 400 {
+	if r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{Lat: new(float32(99)), Lon: new(float32(12))})); r.StatusCode() != 400 {
 		t.Fatalf("bad lat: %d", r.StatusCode())
+	}
+	// A card with an address only: looked up, then drawn.
+	if r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{Address: new("Zschochersche Straße 35, 04229 Leipzig")})); r.StatusCode() != 200 || string(r.Body) != "JPEG" {
+		t.Fatalf("by address: %d %q", r.StatusCode(), r.Body)
+	}
+	if r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{Address: new("nowhere at all")})); r.StatusCode() != 404 {
+		t.Fatalf("unknown address: %d", r.StatusCode())
+	}
+	if r := must(c.GetMapWithResponse(ctx, &api.GetMapParams{})); r.StatusCode() != 400 {
+		t.Fatalf("nothing given: %d", r.StatusCode())
 	}
 	// Signed out: no map (it costs credits).
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+api.BaseURL+"/map?lat=1&lon=2", nil)
@@ -271,13 +289,13 @@ func TestMap(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = res.Body.Close()
-	if res.StatusCode != 401 || m.calls != 1 {
+	if res.StatusCode != 401 || m.calls != 2 {
 		t.Fatalf("signed out: %d, %d calls", res.StatusCode, m.calls)
 	}
 	// No map service: 503.
 	off := httptest.NewServer(api.NewServer(api.Deps{Store: st, Auth: fakeAuth{"anna": anna}}).Handler())
 	t.Cleanup(off.Close)
-	if r := must(env{url: off.URL, store: st}.client(t, "anna").GetMapWithResponse(ctx, &api.GetMapParams{Lat: 1, Lon: 2})); r.StatusCode() != 503 {
+	if r := must(env{url: off.URL, store: st}.client(t, "anna").GetMapWithResponse(ctx, &api.GetMapParams{Lat: new(float32(1)), Lon: new(float32(2))})); r.StatusCode() != 503 {
 		t.Fatalf("off: %d", r.StatusCode())
 	}
 }

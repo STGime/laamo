@@ -64,3 +64,18 @@ describe('dates', () => {
 		expect(morePictures({})).toEqual([]);
 	});
 });
+
+describe('what a row shows first', () => {
+	it('marks a result by how it starts', async () => {
+		const { resultMark, longCell } = await import('./lists.ts');
+		expect(resultMark('All good: all 12 emails passed.')).toBe('good');
+		expect(resultMark('Minor problem: 1 of 2 emails failed, …')).toBe('minor');
+		expect(resultMark('Problem: 3 of 20 emails did not come from …')).toBe('bad');
+		expect(resultMark('Someone else is sending')).toBe(null);
+		expect(resultMark(undefined)).toBe(null);
+		// An email's text is folded away, a short value isn't.
+		expect(longCell('text', 'Hi')).toBe(true);
+		expect(longCell('subject', 'Report domain: news.example.com')).toBe(false);
+		expect(longCell('failed_sources', 'x'.repeat(300))).toBe(true);
+	});
+});
