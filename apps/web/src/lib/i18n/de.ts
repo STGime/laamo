@@ -70,6 +70,8 @@ export const de: Record<Key, string> = {
 	'lists.emptyList': 'Noch leer. Ein Helfer mit „In einer Liste speichern“ füllt sie.',
 	'lists.export': 'Als CSV herunterladen',
 	'lists.exportZip': 'Mit Bildern herunterladen (ZIP)',
+	'lists.show': 'Anzeigen: {column}',
+	'lists.showEmail': 'E-Mail anzeigen',
 	'lists.showPicture': 'Bild anzeigen',
 	'lists.useInHelper': 'In einem Helfer nutzen',
 	'lists.share': 'Link zum Ansehen teilen',

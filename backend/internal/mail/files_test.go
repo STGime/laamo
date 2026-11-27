@@ -176,6 +176,7 @@ func TestParseSumsUpADMARCReport(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Reporter: mailbox.example\nDomain: news.example.com\nPeriod: 2026-11-24 to 2026-11-24 (UTC)\nPolicy: none\n",
+		"Result: Problem: 1 of 18 emails did not come from the domain's own servers (from 192.0.2.66). Someone may be sending in the domain's name.\n",
 		"Emails: 18\nPassed DMARC: 15\nFailed DMARC: 3\n",
 		"Failed sources: 198.51.100.9 (2: dkim fail, spf fail, sent to forwarded.example; it carried the domain's own signature, broken on the way: most likely a mailbox that forwards its mail",
 		"192.0.2.66 (1: dkim fail, spf fail, sent to spoofed.example; it carried no signature of the domain: possibly someone else",
@@ -183,6 +184,17 @@ func TestParseSumsUpADMARCReport(t *testing.T) {
 		if !strings.Contains(m.Text, want) {
 			t.Errorf("no %q in\n%s", want, m.Text)
 		}
+	}
+	// Only forwarded mail failed: a minor problem. Nothing failed: all good.
+	forwarded := strings.Replace(xml, rec("192.0.2.66", 1, "fail", "fail", "spoofed.example"), "", 1)
+	m, _ = mail.Parse([]byte(withAttachment("", "report.xml", "text/xml", []byte(forwarded))))
+	if !strings.Contains(m.Text, "Result: Minor problem: 2 of 17 emails failed, but they were the domain's own emails") {
+		t.Errorf("forwarded only:\n%.400s", m.Text)
+	}
+	clean := strings.Replace(forwarded, rec("198.51.100.9", 2, "fail", "fail", "forwarded.example"), "", 1)
+	m, _ = mail.Parse([]byte(withAttachment("", "report.xml", "text/xml", []byte(clean))))
+	if !strings.Contains(m.Text, "Result: All good: all 15 emails passed.\n") {
+		t.Errorf("clean:\n%.400s", m.Text)
 	}
 	// Other XML is left as it is.
 	plain, _ := mail.Parse([]byte(withAttachment("", "feed.xml", "text/xml", []byte("<feedback><note>hello</note></feedback>"))))

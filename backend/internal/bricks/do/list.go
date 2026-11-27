@@ -28,7 +28,7 @@ var skipFields = map[string]bool{"page_text": true, "sources": true, "list_row_i
 	"photo_text": true} // everything printed on a photo: the row keeps the picture and the details pulled out
 
 // columnOrder: the usual columns come first, in this order.
-var columnOrder = []string{"name", "title", "email", "phone", "website", "address", "url", "date", "time", "place", "price",
+var columnOrder = []string{"result", "name", "title", "email", "phone", "website", "address", "url", "date", "time", "place", "price",
 	"vendor", "total", "net", "vat_rate", "vat_amount", "currency", "invoice_number"}
 
 // List is the Save to a list brick (do.list): every card becomes a row in

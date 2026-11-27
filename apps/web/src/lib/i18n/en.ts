@@ -69,6 +69,8 @@ export const en = {
 	'lists.emptyList': 'Nothing here yet. A helper with “Save to a list” fills it.',
 	'lists.export': 'Download as CSV',
 	'lists.exportZip': 'Download with pictures (ZIP)',
+	'lists.show': 'Show: {column}',
+	'lists.showEmail': 'Show the email',
 	'lists.showPicture': 'Show the picture',
 	'lists.useInHelper': 'Use in a helper',
 	'lists.share': 'Share a read-only link',

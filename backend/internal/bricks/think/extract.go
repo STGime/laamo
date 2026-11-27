@@ -49,7 +49,7 @@ var detailHints = map[string]string{
 	"emails_passed":  "the number after \"Passed DMARC:\" in the report summary, digits only",
 	"emails_failed":  "the number after \"Failed DMARC:\" in the report summary, digits only",
 	"failed_sources": "what stands after \"Failed sources:\" in the report summary, as written; \"none\" if it says none",
-	"verdict":        "\"OK\" if no email failed; otherwise one sentence in plain words: how many failed and the reason the report summary gives for each failed source (a forwarding mailbox, or possibly someone else sending in the domain's name); never claim more than the summary says",
+	"result":         "the whole line after \"Result:\" in the report summary, copied word for word (it starts with \"All good\", \"Minor problem\" or \"Problem\"); if there is no report summary: \"Problem: no report found in this email.\"",
 }
 
 // amountFields are money amounts: kept only when their digits are in the
