@@ -688,10 +688,15 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 		card.Type, card.Title = "result", pick(de, "Nothing new this time", "Diesmal nichts Neues")
 		// Said in the Feed, but not worth a notification (see push).
 		card.Payload["nothing"] = true
+		e.filed(ctx, r, de, &card)
 	case o.status == store.RunDone:
 		card.Type, card.Title = "result", pick(de, "Done", "Fertig")
 		if rc != nil {
 			res := e.result(ctx, r, de)
+			if res.stepID == "" {
+				// The last brick let nothing through; see filed.
+				e.filed(ctx, r, de, &card)
+			}
 			if res.body != "" {
 				card.Body = &res.body
 			}
@@ -726,6 +731,55 @@ func (e *Engine) finish(ctx context.Context, r *store.Run, rc *RunContext, o out
 		e.log().Error("feed card", "run", r.ID, "err", err)
 	}
 	e.log().Info("run finished", "run", r.ID, "status", o.status, "err", o.err)
+}
+
+// filed: nothing went on to the end, but the run did save rows on its way
+// (a report that was checked and filed, with nothing to flag). The card
+// then says that and what it found, instead of "Nothing new".
+func (e *Engine) filed(ctx context.Context, r *store.Run, de bool, card *store.FeedCard) {
+	if !r.TestMode {
+		if l, ok := e.savedTo(ctx, r); ok {
+			if step, cards := e.savedCards(ctx, r); len(cards) > 0 {
+				card.Title = fmt.Sprintf(pick(de, "Saved to “%s”", "In „%s“ gespeichert"), truncate(l.Name, 60))
+				card.StepID = &step
+				card.Payload["nothing"] = true // filed quietly: no notification
+				card.Payload["cards"] = len(cards)
+				card.Payload["saved_to"] = map[string]any{"id": l.ID, "name": l.Name}
+				body := fmt.Sprintf(pick(de, "%d rows", "%d Zeilen"), len(cards))
+				if len(cards) == 1 {
+					body = ""
+					for _, f := range []string{"result", "summary", "title", "name", "subject"} {
+						if v, _ := cards[0].Data[f].(string); strings.TrimSpace(v) != "" {
+							body = truncate(strings.TrimSpace(v), 300)
+							break
+						}
+					}
+				}
+				if body != "" {
+					card.Body = &body
+				}
+			}
+		}
+	}
+}
+
+// savedCards returns the cards the run's last Save to a list brick handed
+// on (the rows it saved or found), and that step's id.
+func (e *Engine) savedCards(ctx context.Context, r *store.Run) (string, []store.Card) {
+	steps, err := e.Store.ListSteps(ctx, r.ID)
+	if err != nil {
+		return "", nil
+	}
+	for _, s := range slices.Backward(steps) {
+		if s.BrickType == "do.list" && s.Status == "done" && s.CardsOut > 0 {
+			cards, err := e.Store.ListCards(ctx, s.ID)
+			if err != nil {
+				return "", nil
+			}
+			return s.ID, cards
+		}
+	}
+	return "", nil
 }
 
 // savedTo finds the list a run's Save to a list brick saves to (the last
